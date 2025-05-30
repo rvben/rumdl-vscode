@@ -1,0 +1,157 @@
+{
+  "name": "rumdl",
+  "displayName": "rumdl - Markdown Linter",
+  "description": "Fast Rust-based Markdown linter with real-time diagnostics and auto-fixes",
+  "version": "0.1.5",
+  "publisher": "rumdl",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rumdl/rumdl-vscode.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "linter",
+    "rust",
+    "fast",
+    "markdownlint",
+    "auto-fix",
+    "real-time",
+    "diagnostics"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [{
+      "id": "markdown",
+      "extensions": [".md", ".markdown", ".mdown", ".mkd", ".mdx"]
+    }],
+    "commands": [
+      {
+        "command": "rumdl.fixAll",
+        "title": "Fix all auto-fixable problems",
+        "category": "rumdl"
+      },
+      {
+        "command": "rumdl.restartServer",
+        "title": "Restart Server",
+        "category": "rumdl"
+      },
+      {
+        "command": "rumdl.showClientLogs",
+        "title": "Show client logs",
+        "category": "rumdl"
+      },
+      {
+        "command": "rumdl.showServerLogs",
+        "title": "Show server logs",
+        "category": "rumdl"
+      },
+      {
+        "command": "rumdl.printDebugInfo",
+        "title": "Print debug information",
+        "category": "rumdl"
+      },
+      {
+        "command": "rumdl.checkDuplicateDiagnostics",
+        "title": "Check for duplicate diagnostics",
+        "category": "rumdl"
+      },
+      {
+        "command": "rumdl.checkStatus",
+        "title": "Check Extension Status",
+        "category": "rumdl"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "rumdl",
+      "properties": {
+        "rumdl.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable rumdl linting"
+        },
+        "rumdl.configPath": {
+          "type": "string",
+          "description": "Path to rumdl configuration file"
+        },
+        "rumdl.rules.select": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Rules to enable"
+        },
+        "rumdl.rules.ignore": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Rules to disable"
+        },
+        "rumdl.server.path": {
+          "type": "string",
+          "description": "Path to rumdl executable"
+        },
+        "rumdl.server.logLevel": {
+          "type": "string",
+          "enum": ["error", "warn", "info", "debug", "trace"],
+          "default": "info",
+          "description": "Log level for rumdl server"
+        },
+        "rumdl.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Trace LSP messages"
+        },
+        "rumdl.diagnostics.deduplicate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Remove duplicate diagnostics (useful if multiple markdown linters are active)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run download-rumdl && npm run package",
+    "compile": "webpack",
+    "compile:dev": "webpack --mode development",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "download-rumdl": "node scripts/download-rumdl.js",
+    "download-rumdl-current": "node scripts/download-rumdl.js --current-platform-only",
+    "vsce:package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@types/mocha": "^10.0.1",
+    "@types/glob": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
+    "eslint": "^8.28.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "typescript": "^4.9.4",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1",
+    "ts-loader": "^9.4.1",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.0.2"
+  }
+}
