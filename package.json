@@ -9,6 +9,11 @@
     "type": "git",
     "url": "https://github.com/rumdl/rumdl-vscode.git"
   },
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#FF7733",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -132,6 +137,11 @@
     "test": "node ./out/test/runTest.js",
     "download-rumdl": "node scripts/download-rumdl.js",
     "download-rumdl-current": "node scripts/download-rumdl.js --current-platform-only",
+    "update-rumdl": "node scripts/download-rumdl.js --latest",
+    "clean-rumdl": "rm -rf bundled-tools && mkdir -p bundled-tools",
+    "verify-rumdl": "node -e \"const fs = require('fs'); const path = require('path'); const version = JSON.parse(fs.readFileSync('bundled-tools/version.json', 'utf8')); console.log('✅ rumdl version:', version.version); console.log('📁 Binaries:', fs.readdirSync('bundled-tools').filter(f => f.startsWith('rumdl-')).length + ' platforms');\"",
+    "create-icon": "node scripts/create-icon.js",
+    "resize-icon": "node scripts/resize-icon.js",
     "vsce:package": "vsce package"
   },
   "devDependencies": {

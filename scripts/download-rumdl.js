@@ -138,11 +138,11 @@ async function downloadRumdlBinaries() {
   }
 }
 
-// Allow running specific platform only
+// Allow running specific platform only for development
 if (process.argv.includes('--current-platform-only')) {
   const platformKey = getPlatformKey();
   const binaryName = PLATFORM_MAP[platformKey];
-  console.log(`Downloading only for current platform: ${platformKey} (${binaryName})`);
+  console.log(`🔧 Development mode: Downloading only for current platform: ${platformKey} (${binaryName})`);
 
   // Modify PLATFORM_MAP to only include current platform
   Object.keys(PLATFORM_MAP).forEach(key => {
@@ -150,6 +150,13 @@ if (process.argv.includes('--current-platform-only')) {
       delete PLATFORM_MAP[key];
     }
   });
+}
+
+// Add option to update to latest release automatically
+if (process.argv.includes('--latest')) {
+  console.log('🔍 Checking for latest rumdl release...');
+  // This would require fetching the latest release tag from GitHub API
+  console.log('ℹ️  Latest release checking not implemented yet. Use --version=x.x.x to specify version.');
 }
 
 if (require.main === module) {
