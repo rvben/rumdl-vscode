@@ -5,3 +5,4 @@ bundled-tools/
 test.md
 .vscode
 .vscode-test
+.DS_Store

@@ -104,9 +104,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESLint configuration for code quality
 - Comprehensive documentation and development guide
 
-## [0.0.1] - Development
+## [0.0.1] - 2024-01-XX
 
 ### Added
-- **Project setup and initial architecture**
-- **Basic LSP client implementation**
-- **Core extension structure**
+- Initial release of rumdl VS Code extension
+- Fast Rust-based Markdown linting with real-time diagnostics
+- Bundled rumdl 0.0.75 for all platforms (Windows, macOS, Linux)
+- Zero-configuration setup with automatic binary selection
+- LSP-based architecture for optimal performance
+- Auto-fix capabilities for supported rules
+- Comprehensive configuration options
+- Command palette integration for server management and debugging
+
+### Features
+- Cross-platform support (Windows x64, macOS Intel/ARM, Linux x64/ARM64)
+- Real-time diagnostics as you type
+- Quick fixes and bulk fix-all functionality
+- Configurable rule selection and ignoring
+- Debug commands for troubleshooting
+- Duplicate diagnostic detection and removal
