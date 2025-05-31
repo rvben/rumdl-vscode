@@ -5,6 +5,17 @@ All notable changes to the rumdl VS Code extension will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2025-05-30
+
+### Updated
+- **Latest rumdl version**: Updated bundled rumdl to version 0.0.75 with latest improvements and bug fixes
+- **Enhanced performance**: Benefits from the latest optimizations in rumdl 0.0.75
+- **Bug fixes**: Includes all bug fixes and improvements from rumdl versions 0.0.73, 0.0.74, and 0.0.75
+
+### Technical
+- Updated download script to fetch rumdl 0.0.75 binaries
+- Updated documentation references to reflect the latest version
+
 ## [0.1.5] - 2025-05-29
 
 ### Added

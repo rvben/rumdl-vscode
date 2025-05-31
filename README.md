@@ -16,7 +16,7 @@ A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.c
 ✅ **Workspace-wide linting** support
 ✅ **Custom rule configuration**
 ✅ **Status bar integration**
-✅ **Precise error positioning** with improved column highlighting (rumdl 0.0.72+)
+✅ **Precise error positioning** with improved column highlighting (rumdl 0.0.75+)
 ✅ **Bundled rumdl binary** - no separate installation required
 ✅ **Cross-platform support** with optimized binaries for all platforms
 

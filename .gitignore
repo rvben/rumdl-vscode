@@ -3,3 +3,5 @@ out/
 *.vsix
 bundled-tools/
 test.md
+.vscode
+.vscode-test
