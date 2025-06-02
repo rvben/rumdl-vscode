@@ -16,7 +16,7 @@ A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.c
 ✅ **Workspace-wide linting** support
 ✅ **Custom rule configuration**
 ✅ **Status bar integration**
-✅ **Precise error positioning** with improved column highlighting (rumdl 0.0.75+)
+✅ **Precise error positioning** with improved column highlighting (rumdl 0.0.78+)
 ✅ **Bundled rumdl binary** - no separate installation required
 ✅ **Cross-platform support** with optimized binaries for all platforms
 
@@ -82,44 +82,27 @@ If you prefer to use your own rumdl installation:
 
 ## Commands
 
-Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
+Access these commands via the Command Palette (`Cmd/Ctrl + Shift + P`):
 
-- **rumdl: Fix all auto-fixable problems** - Apply all available auto-fixes to the current document
-- **rumdl: Restart Server** - Restart the rumdl language server
-- **rumdl: Show client logs** - View extension logs for debugging
-- **rumdl: Show server logs** - View rumdl server logs
-- **rumdl: Print debug information** - Print comprehensive debug info to logs
+- **`rumdl: Fix All`** - Apply all available auto-fixes to the current document
+- **`rumdl: Restart Server`** - Restart the rumdl language server
+- **`rumdl: Show Client Logs`** - View extension logs in the output panel
+- **`rumdl: Show Server Logs`** - View server logs in the output panel
+- **`rumdl: Check Extension Status`** - Display extension status and configuration
+- **`rumdl: Test Configuration Discovery`** - Debug configuration file discovery and test rumdl settings
 
 ## Configuration
 
-### Extension Settings
+The extension uses VS Code's standard configuration system. Open Settings (Cmd/Ctrl + `,`) and search for "rumdl" to configure:
 
-Configure rumdl through VS Code settings (`Ctrl+,` / `Cmd+,`):
-
-```json
-{
-  // Enable/disable rumdl linting
-  "rumdl.enable": true,
-
-  // Path to rumdl executable (auto-detected if in PATH)
-  "rumdl.server.path": "rumdl",
-
-  // Server log level
-  "rumdl.server.logLevel": "info",
-
-  // Rules to enable (empty = all rules)
-  "rumdl.rules.select": [],
-
-  // Rules to disable
-  "rumdl.rules.ignore": ["MD013", "MD033"],
-
-  // Path to custom configuration file
-  "rumdl.configPath": ".rumdl.toml",
-
-  // LSP message tracing (for debugging)
-  "rumdl.trace.server": "off"
-}
-```
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `rumdl.enable` | Enable/disable the extension | `true` |
+| `rumdl.configPath` | Path to rumdl configuration file (relative to workspace root or absolute). If not specified, rumdl will auto-discover configuration files in the workspace. | `undefined` |
+| `rumdl.rules.select` | Array of rule IDs to enable. Empty array enables all rules. | `[]` |
+| `rumdl.rules.ignore` | Array of rule IDs to ignore/disable | `[]` |
+| `rumdl.server.path` | Custom path to rumdl binary | `"rumdl"` |
+| `rumdl.server.logLevel` | Server log level (`error`, `warn`, `info`, `debug`, `trace`) | `"info"` |
 
 ### Project Configuration
 

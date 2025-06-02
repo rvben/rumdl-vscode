@@ -11,6 +11,7 @@ import { ConfigurationManager } from './configuration';
 import { Logger, checkRumdlInstallation, getRumdlVersion, showErrorMessage } from './utils';
 import { StatusBarManager, ServerStatus } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
+import path from 'path';
 
 export class RumdlLanguageClient implements vscode.Disposable {
   private client: LanguageClient | undefined;
@@ -18,6 +19,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
   private restartCount = 0;
   private maxRestarts = 5;
   private isDisposed = false;
+  private isManualRestart = false; // Flag to prevent automatic restart during manual restart
 
   constructor(statusBar: StatusBarManager) {
     this.statusBar = statusBar;
@@ -62,10 +64,40 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
       this.statusBar.setStarting();
 
+      // Determine working directory (workspace root or current directory)
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      const workingDirectory = workspaceFolder?.uri.fsPath || process.cwd();
+      Logger.info(`Using working directory: ${workingDirectory}`);
+
+      // Build server arguments
+      const serverArgs = ['server', '--stdio'];
+
+      // Only add config path if explicitly configured by user
+      if (config.configPath) {
+        const configPath = path.isAbsolute(config.configPath)
+          ? config.configPath
+          : path.join(workingDirectory, config.configPath);
+        Logger.info(`Using explicit config file: ${configPath}`);
+        serverArgs.push('--config', configPath);
+      } else {
+        Logger.info('No explicit config file set, letting rumdl auto-discover configuration files');
+      }
+
+      // Add selected rules if specified
+      if (config.rules.select.length > 0) {
+        serverArgs.push('--select', config.rules.select.join(','));
+      }
+
+      // Add ignored rules if specified
+      if (config.rules.ignore.length > 0) {
+        serverArgs.push('--ignore', config.rules.ignore.join(','));
+      }
+
       const serverOptions: ServerOptions = {
         command: rumdlPath,
-        args: ['server', '--stdio'],
+        args: serverArgs,
         options: {
+          cwd: workingDirectory,
           env: {
             ...process.env,
             RUST_LOG: config.server.logLevel
@@ -152,8 +184,9 @@ export class RumdlLanguageClient implements vscode.Disposable {
   }
 
   private async handleServerStop(): Promise<void> {
-    if (this.isDisposed || this.restartCount >= this.maxRestarts) {
-      if (this.restartCount >= this.maxRestarts) {
+    // Don't auto-restart during manual restart or if disposed
+    if (this.isDisposed || this.isManualRestart || this.restartCount >= this.maxRestarts) {
+      if (this.restartCount >= this.maxRestarts && !this.isManualRestart) {
         Logger.error(`Server stopped after ${this.maxRestarts} restart attempts`);
         this.statusBar.setError('Too many restarts');
         showErrorMessage(
@@ -185,11 +218,22 @@ export class RumdlLanguageClient implements vscode.Disposable {
   public async restart(): Promise<void> {
     Logger.info('Restarting rumdl language server');
 
-    if (this.client) {
-      await this.stop();
-    }
+    try {
+      this.isManualRestart = true; // Set flag to prevent auto-restart during manual restart
 
-    await this.start();
+      if (this.client) {
+        await this.stop();
+      }
+
+      await this.start();
+      Logger.info('rumdl language server restarted successfully');
+    } catch (error) {
+      Logger.error('Failed to restart rumdl language server', error as Error);
+      this.statusBar.setError('Restart failed');
+      throw error;
+    } finally {
+      this.isManualRestart = false; // Clear flag after restart attempt
+    }
   }
 
   public async stop(): Promise<void> {
@@ -199,12 +243,21 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
     Logger.info('Stopping rumdl language server');
 
+    const client = this.client;
+    this.client = undefined; // Clear reference immediately to prevent multiple stops
+
     try {
-      await this.client.stop();
+      // Stop the client with a timeout to prevent hanging
+      const stopPromise = client.stop();
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('Stop timeout')), 5000);
+      });
+
+      await Promise.race([stopPromise, timeoutPromise]);
+      Logger.info('rumdl language server stopped successfully');
     } catch (error) {
       Logger.error('Error stopping client', error as Error);
     } finally {
-      this.client = undefined;
       if (!this.isDisposed) {
         this.statusBar.setDisconnected();
       }

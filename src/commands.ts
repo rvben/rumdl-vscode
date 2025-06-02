@@ -17,7 +17,8 @@ export class CommandManager implements vscode.Disposable {
       vscode.commands.registerCommand('rumdl.showServerLogs', () => this.showServerLogs()),
       vscode.commands.registerCommand('rumdl.printDebugInfo', () => this.printDebugInfo()),
       vscode.commands.registerCommand('rumdl.checkDuplicateDiagnostics', () => this.checkDuplicateDiagnostics()),
-      vscode.commands.registerCommand('rumdl.checkStatus', () => this.checkStatus())
+      vscode.commands.registerCommand('rumdl.checkStatus', () => this.checkStatus()),
+      vscode.commands.registerCommand('rumdl.testConfigDiscovery', () => this.testConfigDiscovery())
     );
 
     // Add disposables to context
@@ -151,10 +152,14 @@ export class CommandManager implements vscode.Disposable {
         version: rumdlVersion || 'unknown',
         logLevel: config.server.logLevel
       },
-      configuration: config,
+      configuration: {
+        ...config,
+        configDiscovery: config.configPath ? 'explicit' : 'auto-discovery by rumdl'
+      },
       workspace: {
         folders: workspaceFolders,
-        activeFile: activeEditor?.document.uri.fsPath || 'none'
+        activeFile: activeEditor?.document.uri.fsPath || 'none',
+        workingDirectory: workspaceFolders[0] || process.cwd()
       },
       vscode: {
         version: vscode.version
@@ -313,6 +318,250 @@ export class CommandManager implements vscode.Disposable {
     Logger.info('=== STATUS CHECK ===');
     Logger.info(statusMessage);
     Logger.info('=== END STATUS CHECK ===');
+  }
+
+  private async testConfigDiscovery(): Promise<void> {
+    Logger.info('Test configuration discovery command executed');
+
+    const config = ConfigurationManager.getConfiguration();
+    const workspaceFolders = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
+    const workingDirectory = workspaceFolders[0] || process.cwd();
+
+    let discoveryReport = '🔍 Configuration Discovery Test\n\n';
+
+    // Working directory info
+    discoveryReport += `📁 Working Directory: ${workingDirectory}\n\n`;
+
+    // Check for config files in workspace
+    discoveryReport += `📋 Searching for configuration files:\n`;
+
+    const configFiles = [
+      '.rumdl.toml',
+      'rumdl.toml',
+      '.markdownlint.json',
+      '.markdownlint.jsonc',
+      '.markdownlint.yaml',
+      '.markdownlint.yml'
+    ];
+
+    const fs = require('fs');
+    const path = require('path');
+    const foundFiles: string[] = [];
+
+    for (const configFile of configFiles) {
+      const configPath = path.join(workingDirectory, configFile);
+      const exists = fs.existsSync(configPath);
+      discoveryReport += `  ${exists ? '✅' : '❌'} ${configFile}\n`;
+      if (exists) {
+        foundFiles.push(configFile);
+        try {
+          const stats = fs.statSync(configPath);
+          discoveryReport += `     📄 Size: ${stats.size} bytes, Modified: ${stats.mtime.toISOString()}\n`;
+        } catch (error) {
+          discoveryReport += `     ⚠️ Error reading file stats: ${error}\n`;
+        }
+      }
+    }
+
+    // VS Code configuration
+    discoveryReport += `\n⚙️ VS Code Configuration:\n`;
+    discoveryReport += `  • Config Path: ${config.configPath || 'not set (auto-discovery)'}\n`;
+    discoveryReport += `  • Selected Rules: ${config.rules.select.length > 0 ? config.rules.select.join(', ') : 'none'}\n`;
+    discoveryReport += `  • Ignored Rules: ${config.rules.ignore.length > 0 ? config.rules.ignore.join(', ') : 'none'}\n`;
+
+    // Test rumdl configuration discovery
+    discoveryReport += `\n🔧 Testing rumdl Configuration Discovery:\n`;
+
+    try {
+      const { BundledToolsManager } = await import('./bundledTools');
+      const rumdlPath = await BundledToolsManager.getBestRumdlPath(config.server.path);
+
+      discoveryReport += `  • rumdl Path: ${rumdlPath}\n`;
+      discoveryReport += `  • Working Dir: ${workingDirectory}\n`;
+
+      // Test the new 'config file' command from rumdl 0.0.78+
+      const { spawn } = require('child_process');
+
+      // First, test 'rumdl config file' to see what config file rumdl actually uses
+      const configFileResult = await new Promise<string>((resolve) => {
+        const process = spawn(rumdlPath, ['config', 'file'], {
+          cwd: workingDirectory,
+          stdio: 'pipe'
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        process.stdout?.on('data', (data: Buffer) => {
+          output += data.toString();
+        });
+
+        process.stderr?.on('data', (data: Buffer) => {
+          errorOutput += data.toString();
+        });
+
+        process.on('exit', (code: number | null) => {
+          resolve(`Exit code: ${code}\nSTDOUT:\n${output}\nSTDERR:\n${errorOutput}`);
+        });
+
+        process.on('error', (error: Error) => {
+          resolve(`Process error: ${error.message}`);
+        });
+
+        setTimeout(() => {
+          process.kill();
+          resolve('Process timeout after 5 seconds');
+        }, 5000);
+      });
+
+      discoveryReport += `\n📍 Active Configuration File (rumdl config file):\n`;
+      discoveryReport += `${configFileResult}\n`;
+
+      // Also test the help command for reference
+      const helpResult = await new Promise<string>((resolve) => {
+        const process = spawn(rumdlPath, ['check', '--help'], {
+          cwd: workingDirectory,
+          stdio: 'pipe'
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        process.stdout?.on('data', (data: Buffer) => {
+          output += data.toString();
+        });
+
+        process.stderr?.on('data', (data: Buffer) => {
+          errorOutput += data.toString();
+        });
+
+        process.on('exit', (code: number | null) => {
+          resolve(`Exit code: ${code}\nSTDOUT:\n${output}\nSTDERR:\n${errorOutput}`);
+        });
+
+        process.on('error', (error: Error) => {
+          resolve(`Process error: ${error.message}`);
+        });
+
+        setTimeout(() => {
+          process.kill();
+          resolve('Process timeout after 5 seconds');
+        }, 5000);
+      });
+
+      discoveryReport += `\n📤 rumdl Check Help:\n${helpResult.split('\n').slice(0, 10).join('\n')}\n... (truncated)\n`;
+
+      // If we found config files, try to read the first one
+      if (foundFiles.length > 0) {
+        const firstConfigFile = foundFiles[0];
+        const configPath = path.join(workingDirectory, firstConfigFile);
+
+        discoveryReport += `\n📖 Reading Configuration File: ${firstConfigFile}\n`;
+        try {
+          const configContent = fs.readFileSync(configPath, 'utf8');
+          const truncatedContent = configContent.length > 500
+            ? configContent.substring(0, 500) + '\n... (truncated)'
+            : configContent;
+          discoveryReport += `\`\`\`\n${truncatedContent}\n\`\`\`\n`;
+        } catch (error) {
+          discoveryReport += `❌ Error reading config file: ${error}\n`;
+        }
+      }
+
+    } catch (error) {
+      discoveryReport += `❌ Error testing rumdl: ${error}\n`;
+    }
+
+    // Show recommendations
+    discoveryReport += `\n💡 Recommendations:\n`;
+    if (foundFiles.length === 0) {
+      discoveryReport += `  • No configuration files found. Create a .rumdl.toml file in your workspace root\n`;
+      discoveryReport += `  • Example .rumdl.toml:\n`;
+      discoveryReport += `    \`\`\`toml\n`;
+      discoveryReport += `    [rules.MD013]\n`;
+      discoveryReport += `    line_length = 200\n`;
+      discoveryReport += `    \`\`\`\n`;
+    } else {
+      discoveryReport += `  • Found ${foundFiles.length} config file(s): ${foundFiles.join(', ')}\n`;
+      discoveryReport += `  • Check the "Active Configuration File" section above to see which one rumdl is actually using\n`;
+      discoveryReport += `  • If rumdl shows "No config file found" but files exist, check file syntax and permissions\n`;
+      discoveryReport += `  • If settings aren't applied, verify the configuration syntax matches rumdl's expected format\n`;
+    }
+
+    discoveryReport += `\n🔍 Advanced Debugging:\n`;
+    discoveryReport += `  • Use 'rumdl config file' command from terminal to check config discovery in any directory\n`;
+    discoveryReport += `  • Use 'rumdl check --help' to see all available configuration options\n`;
+    discoveryReport += `  • Check rumdl server logs in VS Code for detailed configuration loading messages\n`;
+
+    // Show in modal and logs
+    const action = await vscode.window.showInformationMessage(
+      discoveryReport,
+      { modal: true },
+      'Show Logs',
+      'Create .rumdl.toml'
+    );
+
+    if (action === 'Show Logs') {
+      Logger.show();
+    } else if (action === 'Create .rumdl.toml') {
+      await this.createSampleConfig(workingDirectory);
+    }
+
+    // Log to output
+    Logger.info('=== CONFIGURATION DISCOVERY TEST ===');
+    Logger.info(discoveryReport);
+    Logger.info('=== END CONFIGURATION DISCOVERY TEST ===');
+  }
+
+  private async createSampleConfig(workingDirectory: string): Promise<void> {
+    const configPath = require('path').join(workingDirectory, '.rumdl.toml');
+    const sampleConfig = `# rumdl configuration file
+# See: https://github.com/rvben/rumdl#configuration
+
+[rules]
+# Select specific rules (empty = all rules)
+select = []
+
+# Ignore specific rules
+ignore = []
+
+# Rule-specific configuration
+[rules.MD013]
+line_length = 200
+code_blocks = false
+tables = false
+
+[rules.MD003]
+style = "atx"  # Use ATX style headings (##)
+
+[rules.MD007]
+indent = 4  # 4 spaces for unordered list indentation
+
+# File patterns to include/exclude
+[files]
+include = ["**/*.md", "**/*.markdown"]
+exclude = [
+  "node_modules/**",
+  "target/**",
+  "build/**",
+  "dist/**"
+]
+`;
+
+    try {
+      const fs = require('fs');
+      fs.writeFileSync(configPath, sampleConfig);
+      vscode.window.showInformationMessage(
+        `Created .rumdl.toml configuration file at ${configPath}. Restart the rumdl server to apply changes.`,
+        'Restart Server'
+      ).then(action => {
+        if (action === 'Restart Server') {
+          this.restartServer();
+        }
+      });
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to create config file: ${error}`);
+    }
   }
 
   public dispose(): void {
