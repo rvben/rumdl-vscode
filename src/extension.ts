@@ -5,11 +5,13 @@ import { CommandManager } from './commands';
 import { ConfigurationManager } from './configuration';
 import { Logger, showErrorMessage } from './utils';
 import { BundledToolsManager } from './bundledTools';
+import { ConfigDiagnosticProvider } from './diagnostics/configDiagnostics';
 
 let client: RumdlLanguageClient;
 let statusBar: StatusBarManager;
 let commands: CommandManager;
 let configWatcher: vscode.Disposable;
+let configDiagnostics: ConfigDiagnosticProvider;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // Initialize logger first
@@ -32,6 +34,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Initialize command manager
     commands = new CommandManager(client);
     context.subscriptions.push(commands);
+
+    // Initialize configuration diagnostics
+    configDiagnostics = new ConfigDiagnosticProvider();
+    context.subscriptions.push(configDiagnostics);
 
     // Start the client if enabled
     if (ConfigurationManager.isEnabled()) {

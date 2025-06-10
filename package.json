@@ -55,6 +55,12 @@
         "category": "rumdl"
       },
       {
+        "command": "rumdl.fixAllWorkspace",
+        "title": "Fix all auto-fixable problems in workspace",
+        "category": "rumdl",
+        "icon": "$(tools)"
+      },
+      {
         "command": "rumdl.restartServer",
         "title": "Restart Server",
         "category": "rumdl"
@@ -161,6 +167,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,js,json}\"",
     "fmt": "npm run format && npm run lint:fix",
     "test": "node ./out/test/runTest.js",
+    "test:unit": "npm run compile-tests && mocha ./out/test/suite/*.test.js",
+    "test:watch": "npm run compile-tests && mocha ./out/test/suite/*.test.js --watch",
+    "test:coverage": "nyc npm test",
     "download-rumdl": "node scripts/download-rumdl.js",
     "download-rumdl-current": "node scripts/download-rumdl.js --current-platform-only",
     "update-rumdl": "node scripts/download-rumdl.js --latest",

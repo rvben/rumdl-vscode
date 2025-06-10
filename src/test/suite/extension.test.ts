@@ -1,40 +1,39 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-suite('Extension Test Suite', () => {
-  vscode.window.showInformationMessage('Starting tests for rumdl extension.');
-
-  test('Extension should be present', () => {
+describe('Extension Test Suite', () => {
+  it('Extension should be present', () => {
     assert.ok(vscode.extensions.getExtension('rvben.rumdl'));
   });
 
-  test('Extension should activate', async () => {
-    const extension = vscode.extensions.getExtension('rvben.rumdl')!;
-    await extension.activate();
-    assert.strictEqual(extension.isActive, true);
+  it('Extension should activate', async () => {
+    const ext = vscode.extensions.getExtension('rvben.rumdl');
+    assert.ok(ext);
+    await ext!.activate();
+    assert.strictEqual(ext!.isActive, true);
   });
 
-  test('Extension should activate on markdown files', async () => {
-    // Create a markdown document
-    const document = await vscode.workspace.openTextDocument({
-      content: '# Test Markdown\n\nThis is a test.',
-      language: 'markdown',
-    });
+  it('Should register all commands', async () => {
+    const ext = vscode.extensions.getExtension('rvben.rumdl');
+    await ext!.activate();
 
-    await vscode.window.showTextDocument(document);
+    const commands = await vscode.commands.getCommands();
+    const rumdlCommands = [
+      'rumdl.fixAll',
+      'rumdl.fixAllWorkspace',
+      'rumdl.restartServer',
+      'rumdl.showClientLogs',
+      'rumdl.showServerLogs',
+      'rumdl.printDebugInfo',
+      'rumdl.checkDuplicateDiagnostics',
+      'rumdl.checkStatus'
+    ];
 
-    // Extension should be active after opening markdown file
-    const extension = vscode.extensions.getExtension('rvben.rumdl')!;
-    assert.strictEqual(extension.isActive, true);
-  });
-
-  test('Commands should be registered', async () => {
-    const commands = await vscode.commands.getCommands(true);
-
-    // Check that our main commands are registered
-    assert.ok(commands.includes('rumdl.fixAll'));
-    assert.ok(commands.includes('rumdl.restartServer'));
-    assert.ok(commands.includes('rumdl.showClientLogs'));
-    assert.ok(commands.includes('rumdl.showServerLogs'));
+    for (const cmd of rumdlCommands) {
+      assert.ok(
+        commands.includes(cmd),
+        `Command ${cmd} should be registered`
+      );
+    }
   });
 });

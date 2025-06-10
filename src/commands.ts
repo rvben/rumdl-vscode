@@ -5,6 +5,8 @@ import { spawn } from 'child_process';
 import { RumdlLanguageClient } from './client';
 import { Logger, showInformationMessage, showErrorMessage, getRumdlVersion } from './utils';
 import { ConfigurationManager } from './configuration';
+import { WorkspaceUtils } from './utils/workspace';
+import { ProgressUtils } from './utils/progress';
 
 export class CommandManager implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -15,6 +17,7 @@ export class CommandManager implements vscode.Disposable {
     // Register all commands
     this.disposables.push(
       vscode.commands.registerCommand('rumdl.fixAll', () => this.fixAll()),
+      vscode.commands.registerCommand('rumdl.fixAllWorkspace', () => this.fixAllWorkspace()),
       vscode.commands.registerCommand('rumdl.restartServer', () => this.restartServer()),
       vscode.commands.registerCommand('rumdl.showClientLogs', () => this.showClientLogs()),
       vscode.commands.registerCommand('rumdl.showServerLogs', () => this.showServerLogs()),
@@ -106,6 +109,133 @@ export class CommandManager implements vscode.Disposable {
     } catch (error) {
       Logger.error('Error executing fix all command', error as Error);
       showErrorMessage(`Failed to fix issues: ${(error as Error).message}`);
+    }
+  }
+
+  private async fixAllWorkspace(): Promise<void> {
+    if (!this.client.isRunning()) {
+      showErrorMessage('rumdl server is not running');
+      return;
+    }
+
+    const workspaceFolders = WorkspaceUtils.getWorkspaceFolders();
+    if (workspaceFolders.length === 0) {
+      showErrorMessage('No workspace folder open');
+      return;
+    }
+
+    try {
+      Logger.info('Executing fix all workspace command');
+
+      // Find all Markdown files
+      const markdownFiles = await WorkspaceUtils.findMarkdownFiles();
+      
+      if (markdownFiles.length === 0) {
+        showInformationMessage('No Markdown files found in workspace');
+        return;
+      }
+
+      Logger.info(`Found ${markdownFiles.length} Markdown files in workspace`);
+
+      // Process files with progress
+      const result = await ProgressUtils.withBatchProgress(
+        {
+          title: 'Fixing Markdown files',
+          location: vscode.ProgressLocation.Notification,
+          cancellable: true,
+          showPercentage: true
+        },
+        markdownFiles,
+        async (fileUri) => {
+          // Open the document
+          const document = await vscode.workspace.openTextDocument(fileUri);
+          
+          // Get all code actions for the document
+          const range = new vscode.Range(
+            document.positionAt(0),
+            document.positionAt(document.getText().length)
+          );
+
+          const codeActions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+            'vscode.executeCodeActionProvider',
+            document.uri,
+            range,
+            vscode.CodeActionKind.QuickFix
+          );
+
+          if (!codeActions || codeActions.length === 0) {
+            return { file: fileUri, fixedCount: 0 };
+          }
+
+          // Filter for rumdl fix actions
+          const rumdlFixActions = codeActions.filter(
+            action =>
+              action.kind?.value.startsWith('quickfix.rumdl') ||
+              action.title.toLowerCase().includes('rumdl')
+          );
+
+          if (rumdlFixActions.length === 0) {
+            return { file: fileUri, fixedCount: 0 };
+          }
+
+          // Apply all fix actions
+          let fixedCount = 0;
+          for (const action of rumdlFixActions) {
+            if (action.edit) {
+              const success = await vscode.workspace.applyEdit(action.edit);
+              if (success) {
+                fixedCount++;
+              }
+            } else if (action.command) {
+              await vscode.commands.executeCommand(
+                action.command.command,
+                ...(action.command.arguments || [])
+              );
+              fixedCount++;
+            }
+          }
+
+          // Save the document if fixes were applied
+          if (fixedCount > 0) {
+            await document.save();
+          }
+
+          return { file: fileUri, fixedCount };
+        },
+        5 // Process 5 files at a time
+      );
+
+      // Calculate totals
+      const totalFixed = result.results.reduce((sum, r) => sum + r.fixedCount, 0);
+      const filesFixed = result.results.filter(r => r.fixedCount > 0).length;
+
+      // Show summary
+      if (result.cancelled) {
+        showInformationMessage(
+          `Operation cancelled. Fixed ${totalFixed} issue${totalFixed === 1 ? '' : 's'} in ${filesFixed} file${filesFixed === 1 ? '' : 's'}`
+        );
+      } else if (totalFixed > 0) {
+        showInformationMessage(
+          `Fixed ${totalFixed} issue${totalFixed === 1 ? '' : 's'} in ${filesFixed} file${filesFixed === 1 ? '' : 's'}`
+        );
+        Logger.info(`Workspace fix complete: ${totalFixed} issues fixed in ${filesFixed} files`);
+      } else {
+        showInformationMessage('No auto-fixable issues found in workspace');
+      }
+
+      // Log any errors
+      if (result.errors.length > 0) {
+        Logger.error(`Errors during workspace fix: ${result.errors.length} files failed`);
+        result.errors.forEach(({ item, error }) => {
+          Logger.error(`  ${item.fsPath}: ${error.message}`);
+        });
+        showErrorMessage(
+          `Failed to process ${result.errors.length} file${result.errors.length === 1 ? '' : 's'}. Check logs for details.`
+        );
+      }
+    } catch (error) {
+      Logger.error('Error executing fix all workspace command', error as Error);
+      showErrorMessage(`Failed to fix workspace issues: ${(error as Error).message}`);
     }
   }
 
