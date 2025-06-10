@@ -181,19 +181,25 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@types/chai": "^5.2.2",
     "@types/glob": "^8.0.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
+    "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
     "@vscode/test-electron": "^2.2.0",
+    "chai": "^5.2.0",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.1",
     "glob": "^8.0.3",
     "mocha": "^10.1.0",
+    "nyc": "^17.1.0",
     "prettier": "^3.5.3",
+    "sinon": "^20.0.0",
     "ts-loader": "^9.4.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.34.0",
@@ -203,5 +209,26 @@
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
+  },
+  "nyc": {
+    "extends": "@istanbuljs/nyc-config-typescript",
+    "include": [
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "src/test/**",
+      "src/**/*.test.ts"
+    ],
+    "reporter": [
+      "text",
+      "html",
+      "lcov"
+    ],
+    "all": true,
+    "check-coverage": true,
+    "branches": 100,
+    "lines": 100,
+    "functions": 100,
+    "statements": 100
   }
 }
