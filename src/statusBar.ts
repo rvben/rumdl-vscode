@@ -5,7 +5,7 @@ export enum ServerStatus {
   Starting = 'starting',
   Connected = 'connected',
   Disconnected = 'disconnected',
-  Error = 'error'
+  Error = 'error',
 }
 
 export class StatusBarManager implements vscode.Disposable {
@@ -13,10 +13,7 @@ export class StatusBarManager implements vscode.Disposable {
   private currentStatus: ServerStatus = ServerStatus.Disconnected;
 
   constructor() {
-    this.statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      100
-    );
+    this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.statusBarItem.command = 'rumdl.showClientLogs';
     this.updateStatusBar();
   }
@@ -61,7 +58,9 @@ export class StatusBarManager implements vscode.Disposable {
       case ServerStatus.Disconnected:
         this.statusBarItem.text = '$(circle-slash) rumdl';
         this.statusBarItem.tooltip = message || 'rumdl server is not running';
-        this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+        this.statusBarItem.backgroundColor = new vscode.ThemeColor(
+          'statusBarItem.warningBackground'
+        );
         break;
 
       case ServerStatus.Error:

@@ -16,7 +16,9 @@ export class CommandManager implements vscode.Disposable {
       vscode.commands.registerCommand('rumdl.showClientLogs', () => this.showClientLogs()),
       vscode.commands.registerCommand('rumdl.showServerLogs', () => this.showServerLogs()),
       vscode.commands.registerCommand('rumdl.printDebugInfo', () => this.printDebugInfo()),
-      vscode.commands.registerCommand('rumdl.checkDuplicateDiagnostics', () => this.checkDuplicateDiagnostics()),
+      vscode.commands.registerCommand('rumdl.checkDuplicateDiagnostics', () =>
+        this.checkDuplicateDiagnostics()
+      ),
       vscode.commands.registerCommand('rumdl.checkStatus', () => this.checkStatus()),
       vscode.commands.registerCommand('rumdl.testConfigDiscovery', () => this.testConfigDiscovery())
     );
@@ -65,9 +67,10 @@ export class CommandManager implements vscode.Disposable {
       }
 
       // Filter for rumdl fix actions
-      const rumdlFixActions = codeActions.filter(action =>
-        action.kind?.value.startsWith('quickfix.rumdl') ||
-        action.title.toLowerCase().includes('rumdl')
+      const rumdlFixActions = codeActions.filter(
+        action =>
+          action.kind?.value.startsWith('quickfix.rumdl') ||
+          action.title.toLowerCase().includes('rumdl')
       );
 
       if (rumdlFixActions.length === 0) {
@@ -84,7 +87,10 @@ export class CommandManager implements vscode.Disposable {
             fixedCount++;
           }
         } else if (action.command) {
-          await vscode.commands.executeCommand(action.command.command, ...action.command.arguments || []);
+          await vscode.commands.executeCommand(
+            action.command.command,
+            ...(action.command.arguments || [])
+          );
           fixedCount++;
         }
       }
@@ -95,7 +101,6 @@ export class CommandManager implements vscode.Disposable {
       } else {
         showErrorMessage('Failed to apply fixes');
       }
-
     } catch (error) {
       Logger.error('Error executing fix all command', error as Error);
       showErrorMessage(`Failed to fix issues: ${(error as Error).message}`);
@@ -144,26 +149,26 @@ export class CommandManager implements vscode.Disposable {
     const debugInfo = {
       timestamp: new Date().toISOString(),
       extension: {
-        version: vscode.extensions.getExtension('rumdl.rumdl')?.packageJSON.version || 'unknown'
+        version: vscode.extensions.getExtension('rumdl.rumdl')?.packageJSON.version || 'unknown',
       },
       server: {
         running: isRunning,
         path: config.server.path,
         version: rumdlVersion || 'unknown',
-        logLevel: config.server.logLevel
+        logLevel: config.server.logLevel,
       },
       configuration: {
         ...config,
-        configDiscovery: config.configPath ? 'explicit' : 'auto-discovery by rumdl'
+        configDiscovery: config.configPath ? 'explicit' : 'auto-discovery by rumdl',
       },
       workspace: {
         folders: workspaceFolders,
         activeFile: activeEditor?.document.uri.fsPath || 'none',
-        workingDirectory: workspaceFolders[0] || process.cwd()
+        workingDirectory: workspaceFolders[0] || process.cwd(),
       },
       vscode: {
-        version: vscode.version
-      }
+        version: vscode.version,
+      },
     };
 
     Logger.info('=== DEBUG INFORMATION ===');
@@ -232,7 +237,9 @@ export class CommandManager implements vscode.Disposable {
     if (duplicates.length > 0) {
       Logger.info('Duplicate diagnostics found:');
       for (const duplicate of duplicates) {
-        Logger.info(`  Line ${duplicate.range.start.line + 1}: ${duplicate.message} (source: ${duplicate.source || 'unknown'})`);
+        Logger.info(
+          `  Line ${duplicate.range.start.line + 1}: ${duplicate.message} (source: ${duplicate.source || 'unknown'})`
+        );
       }
     }
 
@@ -240,7 +247,9 @@ export class CommandManager implements vscode.Disposable {
     Logger.show();
 
     if (duplicates.length > 0) {
-      showInformationMessage(`Found ${duplicates.length} duplicate diagnostics. Check logs for details.`);
+      showInformationMessage(
+        `Found ${duplicates.length} duplicate diagnostics. Check logs for details.`
+      );
     } else {
       showInformationMessage('No duplicate diagnostics found');
     }
@@ -341,7 +350,7 @@ export class CommandManager implements vscode.Disposable {
       '.markdownlint.json',
       '.markdownlint.jsonc',
       '.markdownlint.yaml',
-      '.markdownlint.yml'
+      '.markdownlint.yml',
     ];
 
     const fs = require('fs');
@@ -383,10 +392,10 @@ export class CommandManager implements vscode.Disposable {
       const { spawn } = require('child_process');
 
       // First, test 'rumdl config file' to see what config file rumdl actually uses
-      const configFileResult = await new Promise<string>((resolve) => {
+      const configFileResult = await new Promise<string>(resolve => {
         const process = spawn(rumdlPath, ['config', 'file'], {
           cwd: workingDirectory,
-          stdio: 'pipe'
+          stdio: 'pipe',
         });
 
         let output = '';
@@ -418,10 +427,10 @@ export class CommandManager implements vscode.Disposable {
       discoveryReport += `${configFileResult}\n`;
 
       // Also test the help command for reference
-      const helpResult = await new Promise<string>((resolve) => {
+      const helpResult = await new Promise<string>(resolve => {
         const process = spawn(rumdlPath, ['check', '--help'], {
           cwd: workingDirectory,
-          stdio: 'pipe'
+          stdio: 'pipe',
         });
 
         let output = '';
@@ -459,15 +468,15 @@ export class CommandManager implements vscode.Disposable {
         discoveryReport += `\n📖 Reading Configuration File: ${firstConfigFile}\n`;
         try {
           const configContent = fs.readFileSync(configPath, 'utf8');
-          const truncatedContent = configContent.length > 500
-            ? configContent.substring(0, 500) + '\n... (truncated)'
-            : configContent;
+          const truncatedContent =
+            configContent.length > 500
+              ? configContent.substring(0, 500) + '\n... (truncated)'
+              : configContent;
           discoveryReport += `\`\`\`\n${truncatedContent}\n\`\`\`\n`;
         } catch (error) {
           discoveryReport += `❌ Error reading config file: ${error}\n`;
         }
       }
-
     } catch (error) {
       discoveryReport += `❌ Error testing rumdl: ${error}\n`;
     }
@@ -551,14 +560,16 @@ exclude = [
     try {
       const fs = require('fs');
       fs.writeFileSync(configPath, sampleConfig);
-      vscode.window.showInformationMessage(
-        `Created .rumdl.toml configuration file at ${configPath}. Restart the rumdl server to apply changes.`,
-        'Restart Server'
-      ).then(action => {
-        if (action === 'Restart Server') {
-          this.restartServer();
-        }
-      });
+      vscode.window
+        .showInformationMessage(
+          `Created .rumdl.toml configuration file at ${configPath}. Restart the rumdl server to apply changes.`,
+          'Restart Server'
+        )
+        .then(action => {
+          if (action === 'Restart Server') {
+            this.restartServer();
+          }
+        });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create config file: ${error}`);
     }

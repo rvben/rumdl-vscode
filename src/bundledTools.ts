@@ -17,7 +17,7 @@ export class BundledToolsManager {
     'darwin-x64': 'rumdl-x86_64-apple-darwin',
     'darwin-arm64': 'rumdl-aarch64-apple-darwin',
     'linux-x64': 'rumdl-x86_64-unknown-linux-gnu',
-    'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu'
+    'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu',
   };
 
   /**
@@ -27,11 +27,21 @@ export class BundledToolsManager {
     const platform = process.platform;
     const arch = process.arch;
 
-    if (platform === 'win32' && arch === 'x64') return 'win32-x64';
-    if (platform === 'darwin' && arch === 'x64') return 'darwin-x64';
-    if (platform === 'darwin' && arch === 'arm64') return 'darwin-arm64';
-    if (platform === 'linux' && arch === 'x64') return 'linux-x64';
-    if (platform === 'linux' && arch === 'arm64') return 'linux-arm64';
+    if (platform === 'win32' && arch === 'x64') {
+      return 'win32-x64';
+    }
+    if (platform === 'darwin' && arch === 'x64') {
+      return 'darwin-x64';
+    }
+    if (platform === 'darwin' && arch === 'arm64') {
+      return 'darwin-arm64';
+    }
+    if (platform === 'linux' && arch === 'x64') {
+      return 'linux-x64';
+    }
+    if (platform === 'linux' && arch === 'arm64') {
+      return 'linux-arm64';
+    }
 
     throw new Error(`Unsupported platform: ${platform}-${arch}`);
   }
@@ -104,7 +114,6 @@ export class BundledToolsManager {
 
       Logger.info(`Found bundled rumdl binary: ${binaryPath}`);
       return binaryPath;
-
     } catch (error) {
       Logger.error(`Failed to get bundled rumdl path: ${error}`);
       return null;
@@ -145,7 +154,9 @@ export class BundledToolsManager {
 
     const version = this.getBundledVersion();
     if (version) {
-      Logger.info(`Bundled tools available: rumdl ${version.version} (downloaded ${version.downloadedAt})`);
+      Logger.info(
+        `Bundled tools available: rumdl ${version.version} (downloaded ${version.downloadedAt})`
+      );
       Logger.info(`Supported platforms: ${version.platforms.join(', ')}`);
     }
 

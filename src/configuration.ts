@@ -29,24 +29,22 @@ export class ConfigurationManager {
       configPath: config.get('configPath'),
       rules: {
         select: config.get('rules.select', []),
-        ignore: config.get('rules.ignore', [])
+        ignore: config.get('rules.ignore', []),
       },
       server: {
         path: config.get('server.path', 'rumdl'),
-        logLevel: config.get('server.logLevel', 'info')
+        logLevel: config.get('server.logLevel', 'info'),
       },
       trace: {
-        server: config.get('trace.server', 'off')
+        server: config.get('trace.server', 'off'),
       },
       diagnostics: {
-        deduplicate: config.get('diagnostics.deduplicate', true)
-      }
+        deduplicate: config.get('diagnostics.deduplicate', true),
+      },
     };
   }
 
-  public static onConfigurationChanged(
-    callback: (config: RumdlConfig) => void
-  ): vscode.Disposable {
+  public static onConfigurationChanged(callback: (config: RumdlConfig) => void): vscode.Disposable {
     return vscode.workspace.onDidChangeConfiguration(event => {
       if (event.affectsConfiguration('rumdl')) {
         callback(this.getConfiguration());

@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import { ConfigurationManager } from '../../configuration';
 
 suite('Configuration Test Suite', () => {
-
   test('Configuration should have default values', () => {
     const config = ConfigurationManager.getConfiguration();
 

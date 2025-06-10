@@ -2,7 +2,6 @@ import * as assert from 'assert';
 import { Logger, checkRumdlInstallation, showInformationMessage } from '../../utils';
 
 suite('Utils Test Suite', () => {
-
   test('Logger should have info method', () => {
     assert.ok(typeof Logger.info === 'function');
   });

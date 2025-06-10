@@ -5,7 +5,7 @@ import {
   ServerOptions,
   TransportKind,
   State,
-  RevealOutputChannelOn
+  RevealOutputChannelOn,
 } from 'vscode-languageclient/node';
 import { ConfigurationManager } from './configuration';
 import { Logger, checkRumdlInstallation, getRumdlVersion, showErrorMessage } from './utils';
@@ -100,15 +100,15 @@ export class RumdlLanguageClient implements vscode.Disposable {
           cwd: workingDirectory,
           env: {
             ...process.env,
-            RUST_LOG: config.server.logLevel
-          }
-        }
+            RUST_LOG: config.server.logLevel,
+          },
+        },
       };
 
       const clientOptions: LanguageClientOptions = {
         documentSelector: [
           { scheme: 'file', language: 'markdown' },
-          { scheme: 'untitled', language: 'markdown' }
+          { scheme: 'untitled', language: 'markdown' },
         ],
         synchronize: {
           fileEvents: [
@@ -117,13 +117,16 @@ export class RumdlLanguageClient implements vscode.Disposable {
             vscode.workspace.createFileSystemWatcher('**/.markdownlint.json'),
             vscode.workspace.createFileSystemWatcher('**/.markdownlint.jsonc'),
             vscode.workspace.createFileSystemWatcher('**/.markdownlint.yaml'),
-            vscode.workspace.createFileSystemWatcher('**/.markdownlint.yml')
-          ]
+            vscode.workspace.createFileSystemWatcher('**/.markdownlint.yml'),
+          ],
         },
         outputChannelName: 'rumdl Language Server',
         revealOutputChannelOn: RevealOutputChannelOn.Never,
-        traceOutputChannel: ConfigurationManager.getTraceLevel() !== 'off' ? vscode.window.createOutputChannel('rumdl Language Server Trace') : undefined,
-        diagnosticCollectionName: 'rumdl'
+        traceOutputChannel:
+          ConfigurationManager.getTraceLevel() !== 'off'
+            ? vscode.window.createOutputChannel('rumdl Language Server Trace')
+            : undefined,
+        diagnosticCollectionName: 'rumdl',
       };
 
       this.client = new LanguageClient(
@@ -134,7 +137,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
       );
 
       // Set up event handlers
-      this.client.onDidChangeState((event) => {
+      this.client.onDidChangeState(event => {
         Logger.info(`Client state changed: ${State[event.oldState]} -> ${State[event.newState]}`);
 
         switch (event.newState) {
@@ -155,7 +158,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
       });
 
       // Add diagnostic debugging and deduplication
-      this.client.onNotification('textDocument/publishDiagnostics', (params) => {
+      this.client.onNotification('textDocument/publishDiagnostics', params => {
         Logger.debug(`Received diagnostics for ${params.uri}: ${params.diagnostics.length} issues`);
 
         if (params.diagnostics.length > 0) {
@@ -167,7 +170,9 @@ export class RumdlLanguageClient implements vscode.Disposable {
             if (ConfigurationManager.shouldDeduplicate()) {
               const originalCount = params.diagnostics.length;
               params.diagnostics = this.deduplicateDiagnostics(params.diagnostics);
-              Logger.info(`Deduplicated diagnostics: ${originalCount} -> ${params.diagnostics.length}`);
+              Logger.info(
+                `Deduplicated diagnostics: ${originalCount} -> ${params.diagnostics.length}`
+              );
             }
           }
         }
@@ -202,7 +207,9 @@ export class RumdlLanguageClient implements vscode.Disposable {
     }
 
     this.restartCount++;
-    Logger.warn(`Server stopped unexpectedly. Attempting restart ${this.restartCount}/${this.maxRestarts}`);
+    Logger.warn(
+      `Server stopped unexpectedly. Attempting restart ${this.restartCount}/${this.maxRestarts}`
+    );
 
     // Wait before restarting (exponential backoff)
     const delay = Math.min(1000 * Math.pow(2, this.restartCount - 1), 10000);
@@ -279,11 +286,11 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
     return this.client.sendRequest('workspace/executeCommand', {
       command,
-      arguments: args
+      arguments: args,
     });
   }
 
-    private findDuplicateDiagnostics(diagnostics: any[]): any[] {
+  private findDuplicateDiagnostics(diagnostics: any[]): any[] {
     const seen = new Set<string>();
     const duplicates: any[] = [];
 

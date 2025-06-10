@@ -41,15 +41,24 @@ export class Logger {
   }
 }
 
-export function showErrorMessage(message: string, ...actions: string[]): Thenable<string | undefined> {
+export function showErrorMessage(
+  message: string,
+  ...actions: string[]
+): Thenable<string | undefined> {
   return vscode.window.showErrorMessage(message, ...actions);
 }
 
-export function showInformationMessage(message: string, ...actions: string[]): Thenable<string | undefined> {
+export function showInformationMessage(
+  message: string,
+  ...actions: string[]
+): Thenable<string | undefined> {
   return vscode.window.showInformationMessage(message, ...actions);
 }
 
-export function showWarningMessage(message: string, ...actions: string[]): Thenable<string | undefined> {
+export function showWarningMessage(
+  message: string,
+  ...actions: string[]
+): Thenable<string | undefined> {
   return vscode.window.showWarningMessage(message, ...actions);
 }
 
@@ -64,25 +73,25 @@ export async function checkRumdlInstallation(rumdlPath: string): Promise<boolean
 
   try {
     const { spawn } = await import('child_process');
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const process = spawn(rumdlPath, ['--version'], { stdio: 'pipe' });
       let stdout = '';
       let stderr = '';
 
-      process.stdout?.on('data', (data) => {
+      process.stdout?.on('data', data => {
         stdout += data.toString();
       });
 
-      process.stderr?.on('data', (data) => {
+      process.stderr?.on('data', data => {
         stderr += data.toString();
       });
 
-      process.on('error', (error) => {
+      process.on('error', error => {
         Logger.debug(`Process error for "${rumdlPath}": ${error.message}`);
         resolve(false);
       });
 
-      process.on('exit', (code) => {
+      process.on('exit', code => {
         Logger.debug(`Process exit code for "${rumdlPath}": ${code}`);
 
         if (code === 0) {
@@ -121,11 +130,11 @@ export async function getRumdlVersion(rumdlPath: string): Promise<string | null>
 
   try {
     const { spawn } = await import('child_process');
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const process = spawn(rumdlPath, ['--version'], { stdio: 'pipe' });
       let stdout = '';
 
-      process.stdout?.on('data', (data) => {
+      process.stdout?.on('data', data => {
         stdout += data.toString();
       });
 
@@ -133,7 +142,7 @@ export async function getRumdlVersion(rumdlPath: string): Promise<string | null>
         resolve(null);
       });
 
-      process.on('exit', (code) => {
+      process.on('exit', code => {
         if (code === 0) {
           const version = stdout.trim();
           resolve(version || null);

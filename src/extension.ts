@@ -42,7 +42,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     // Watch for configuration changes
-    configWatcher = ConfigurationManager.onConfigurationChanged(async (config) => {
+    configWatcher = ConfigurationManager.onConfigurationChanged(async config => {
       Logger.info('Configuration changed, restarting server if needed');
 
       if (config.enable && client.isRunning()) {
@@ -79,18 +79,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   } catch (error) {
     Logger.error('Failed to activate rumdl extension', error as Error);
-    showErrorMessage('Failed to activate rumdl extension. Check the output for details.', 'Show Logs')
-      .then(action => {
-        if (action === 'Show Logs') {
-          Logger.show();
-        }
-      });
+    showErrorMessage(
+      'Failed to activate rumdl extension. Check the output for details.',
+      'Show Logs'
+    ).then(action => {
+      if (action === 'Show Logs') {
+        Logger.show();
+      }
+    });
   }
 }
 
 function registerEventHandlers(context: vscode.ExtensionContext): void {
   // Handle workspace folder changes
-  const workspaceFoldersWatcher = vscode.workspace.onDidChangeWorkspaceFolders(async (event) => {
+  const workspaceFoldersWatcher = vscode.workspace.onDidChangeWorkspaceFolders(async event => {
     Logger.info(`Workspace folders changed: +${event.added.length}, -${event.removed.length}`);
 
     // Restart server to pick up new workspace configuration
@@ -100,24 +102,20 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
   });
 
   // Handle active editor changes to update status
-  const activeEditorWatcher = vscode.window.onDidChangeActiveTextEditor((editor) => {
+  const activeEditorWatcher = vscode.window.onDidChangeActiveTextEditor(editor => {
     if (editor && editor.document.languageId === 'markdown') {
       Logger.debug(`Active editor changed to Markdown file: ${editor.document.uri.fsPath}`);
     }
   });
 
   // Handle document saves to trigger re-linting
-  const documentSaveWatcher = vscode.workspace.onDidSaveTextDocument((document) => {
+  const documentSaveWatcher = vscode.workspace.onDidSaveTextDocument(document => {
     if (document.languageId === 'markdown') {
       Logger.debug(`Markdown document saved: ${document.uri.fsPath}`);
     }
   });
 
-  context.subscriptions.push(
-    workspaceFoldersWatcher,
-    activeEditorWatcher,
-    documentSaveWatcher
-  );
+  context.subscriptions.push(workspaceFoldersWatcher, activeEditorWatcher, documentSaveWatcher);
 }
 
 export async function deactivate(): Promise<void> {

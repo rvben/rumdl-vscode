@@ -7,6 +7,7 @@ PACKAGE_FILE := $(EXTENSION_NAME)-$(VERSION).vsix
 help:
 	@echo "Available targets:"
 	@echo "  build         - Compile TypeScript and bundle with webpack"
+	@echo "  fmt           - Format code with Prettier and auto-fix ESLint issues"
 	@echo "  test          - Run tests and linting"
 	@echo "  package       - Create .vsix package for distribution"
 	@echo "  install       - Install extension locally for testing"
@@ -33,6 +34,7 @@ build-prod:
 .PHONY: test
 test:
 	@echo "🧪 Running tests..."
+	npm run format:check
 	npm run lint
 	npm run compile-tests
 	npm test
@@ -41,6 +43,11 @@ test:
 lint:
 	@echo "🔍 Running linter..."
 	npm run lint
+
+.PHONY: fmt
+fmt:
+	@echo "🎨 Formatting code..."
+	npm run fmt
 
 # Package creation
 .PHONY: package

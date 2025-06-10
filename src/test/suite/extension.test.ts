@@ -19,7 +19,7 @@ suite('Extension Test Suite', () => {
     // Create a markdown document
     const document = await vscode.workspace.openTextDocument({
       content: '# Test Markdown\n\nThis is a test.',
-      language: 'markdown'
+      language: 'markdown',
     });
 
     await vscode.window.showTextDocument(document);
