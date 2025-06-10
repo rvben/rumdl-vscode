@@ -1,0 +1,167 @@
+name: Auto Release on rumdl Update
+
+on:
+  repository_dispatch:
+    types: [rumdl_release]
+  workflow_dispatch:
+    inputs:
+      rumdl_version:
+        description: 'rumdl version to bundle (without v prefix)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode (skip publishing)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  update-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Determine rumdl version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client_payload.version }}"
+          else
+            VERSION="${{ inputs.rumdl_version }}"
+          fi
+          echo "rumdl_version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Verify the version exists
+          echo "Verifying rumdl v$VERSION exists..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/rvben/rumdl/releases/tags/v$VERSION")
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Error: rumdl v$VERSION not found on GitHub releases"
+            exit 1
+          fi
+          echo "✅ rumdl v$VERSION found"
+          
+      - name: Update rumdl version in download script
+        run: |
+          sed -i "s/const RUMDL_VERSION = '[0-9.]*'/const RUMDL_VERSION = '${{ steps.version.outputs.rumdl_version }}'/" scripts/download-rumdl.js
+          
+      - name: Download new rumdl binaries
+        run: |
+          npm run clean-rumdl
+          npm run download-rumdl
+          npm run verify-rumdl
+        
+      - name: Run tests
+        run: |
+          npm run lint
+          npm run compile-tests
+          # Skip full test suite for now as it requires VS Code environment
+          # npm test
+        
+      - name: Bump extension version
+        id: bump
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Bump patch version
+          npm version patch --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Update CHANGELOG
+        run: |
+          # Create new changelog entry
+          cat > CHANGELOG.tmp.md << EOF
+          # Changelog
+
+          ## [${{ steps.bump.outputs.new_version }}] - $(date +%Y-%m-%d)
+
+          ### Changed
+          - Updated bundled rumdl to v${{ steps.version.outputs.rumdl_version }}
+
+          EOF
+          
+          # Append existing changelog content (skip the first line if it's the title)
+          if [ -f CHANGELOG.md ]; then
+            tail -n +2 CHANGELOG.md >> CHANGELOG.tmp.md
+          fi
+          
+          mv CHANGELOG.tmp.md CHANGELOG.md
+          
+      - name: Commit changes
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "chore: update rumdl to v${{ steps.version.outputs.rumdl_version }}
+
+          - Updated bundled rumdl binaries to v${{ steps.version.outputs.rumdl_version }}
+          - Bumped extension version to ${{ steps.bump.outputs.new_version }}"
+          
+      - name: Build extension package
+        run: npm run vscode:prepublish
+        
+      - name: Create and push tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git tag "v${{ steps.bump.outputs.new_version }}"
+          git push origin main --tags
+          
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: v${{ steps.bump.outputs.new_version }}
+          body: |
+            ## Changes
+            - Updated bundled rumdl to v${{ steps.version.outputs.rumdl_version }}
+            
+            ### rumdl v${{ steps.version.outputs.rumdl_version }} highlights
+            See [rumdl release notes](https://github.com/rvben/rumdl/releases/tag/v${{ steps.version.outputs.rumdl_version }}) for details.
+            
+            ## Installation
+            
+            Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl) or download the `.vsix` file below.
+          files: |
+            *.vsix
+            
+      - name: Publish to VS Code Marketplace
+        if: ${{ !inputs.dry_run }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          npm install -g @vscode/vsce
+          vsce publish --pat $VSCE_PAT
+          
+      - name: Dry Run Summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "## 🧪 Dry Run Complete!"
+          echo ""
+          echo "Would have performed:"
+          echo "- Updated rumdl to v${{ steps.version.outputs.rumdl_version }}"
+          echo "- Bumped extension version to ${{ steps.bump.outputs.new_version }}"
+          echo "- Created git tag v${{ steps.bump.outputs.new_version }}"
+          echo "- Published to VS Code Marketplace"
+          echo ""
+          echo "Files changed:"
+          git diff --name-only
+          echo ""
+          echo "To perform actual release, run without dry_run flag"
