@@ -157,12 +157,12 @@ export async function getRumdlVersion(rumdlPath: string): Promise<string | null>
         resolve(null);
       }, 5000);
     });
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

@@ -1,0 +1,9 @@
+out/
+node_modules/
+dist/
+*.vsix
+bundled-tools/
+.vscode-test/
+*.d.ts
+CHANGELOG.md
+README.md

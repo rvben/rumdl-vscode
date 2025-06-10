@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import { spawn } from 'child_process';
 import { RumdlLanguageClient } from './client';
 import { Logger, showInformationMessage, showErrorMessage, getRumdlVersion } from './utils';
 import { ConfigurationManager } from './configuration';
@@ -48,7 +51,6 @@ export class CommandManager implements vscode.Disposable {
       Logger.info('Executing fix all command');
 
       // Get all code actions for the document
-      const uri = editor.document.uri.toString();
       const range = new vscode.Range(
         editor.document.positionAt(0),
         editor.document.positionAt(editor.document.getText().length)
@@ -149,7 +151,7 @@ export class CommandManager implements vscode.Disposable {
     const debugInfo = {
       timestamp: new Date().toISOString(),
       extension: {
-        version: vscode.extensions.getExtension('rumdl.rumdl')?.packageJSON.version || 'unknown',
+        version: vscode.extensions.getExtension('rvben.rumdl')?.packageJSON.version || 'unknown',
       },
       server: {
         running: isRunning,
@@ -353,8 +355,6 @@ export class CommandManager implements vscode.Disposable {
       '.markdownlint.yml',
     ];
 
-    const fs = require('fs');
-    const path = require('path');
     const foundFiles: string[] = [];
 
     for (const configFile of configFiles) {
@@ -389,7 +389,6 @@ export class CommandManager implements vscode.Disposable {
       discoveryReport += `  • Working Dir: ${workingDirectory}\n`;
 
       // Test the new 'config file' command from rumdl 0.0.78+
-      const { spawn } = require('child_process');
 
       // First, test 'rumdl config file' to see what config file rumdl actually uses
       const configFileResult = await new Promise<string>(resolve => {
@@ -523,7 +522,7 @@ export class CommandManager implements vscode.Disposable {
   }
 
   private async createSampleConfig(workingDirectory: string): Promise<void> {
-    const configPath = require('path').join(workingDirectory, '.rumdl.toml');
+    const configPath = path.join(workingDirectory, '.rumdl.toml');
     const sampleConfig = `# rumdl configuration file
 # See: https://github.com/rvben/rumdl#configuration
 
@@ -558,7 +557,6 @@ exclude = [
 `;
 
     try {
-      const fs = require('fs');
       fs.writeFileSync(configPath, sampleConfig);
       vscode.window
         .showInformationMessage(

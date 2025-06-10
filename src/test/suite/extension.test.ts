@@ -1,16 +1,15 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import * as path from 'path';
 
 suite('Extension Test Suite', () => {
   vscode.window.showInformationMessage('Starting tests for rumdl extension.');
 
   test('Extension should be present', () => {
-    assert.ok(vscode.extensions.getExtension('rumdl.rumdl'));
+    assert.ok(vscode.extensions.getExtension('rvben.rumdl'));
   });
 
   test('Extension should activate', async () => {
-    const extension = vscode.extensions.getExtension('rumdl.rumdl')!;
+    const extension = vscode.extensions.getExtension('rvben.rumdl')!;
     await extension.activate();
     assert.strictEqual(extension.isActive, true);
   });
@@ -25,7 +24,7 @@ suite('Extension Test Suite', () => {
     await vscode.window.showTextDocument(document);
 
     // Extension should be active after opening markdown file
-    const extension = vscode.extensions.getExtension('rumdl.rumdl')!;
+    const extension = vscode.extensions.getExtension('rvben.rumdl')!;
     assert.strictEqual(extension.isActive, true);
   });
 

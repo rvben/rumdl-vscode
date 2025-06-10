@@ -3,13 +3,12 @@ import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
-  TransportKind,
   State,
   RevealOutputChannelOn,
 } from 'vscode-languageclient/node';
 import { ConfigurationManager } from './configuration';
 import { Logger, checkRumdlInstallation, getRumdlVersion, showErrorMessage } from './utils';
-import { StatusBarManager, ServerStatus } from './statusBar';
+import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
 import path from 'path';
 
@@ -279,7 +278,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
     return this.client;
   }
 
-  public async executeCommand(command: string, ...args: any[]): Promise<any> {
+  public async executeCommand(command: string, ...args: unknown[]): Promise<unknown> {
     if (!this.client || !this.isRunning()) {
       throw new Error('Language server is not running');
     }
@@ -290,12 +289,20 @@ export class RumdlLanguageClient implements vscode.Disposable {
     });
   }
 
-  private findDuplicateDiagnostics(diagnostics: any[]): any[] {
+  private findDuplicateDiagnostics(diagnostics: unknown[]): unknown[] {
     const seen = new Set<string>();
-    const duplicates: any[] = [];
+    const duplicates: unknown[] = [];
 
     for (const diagnostic of diagnostics) {
-      const key = `${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.line}:${diagnostic.range.end.character}:${diagnostic.message}:${diagnostic.code}`;
+      const d = diagnostic as {
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
+        message: string;
+        code?: string;
+      };
+      const key = `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character}:${d.message}:${d.code}`;
 
       if (seen.has(key)) {
         duplicates.push(diagnostic);
@@ -307,12 +314,20 @@ export class RumdlLanguageClient implements vscode.Disposable {
     return duplicates;
   }
 
-  private deduplicateDiagnostics(diagnostics: any[]): any[] {
+  private deduplicateDiagnostics(diagnostics: unknown[]): unknown[] {
     const seen = new Set<string>();
-    const unique: any[] = [];
+    const unique: unknown[] = [];
 
     for (const diagnostic of diagnostics) {
-      const key = `${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.line}:${diagnostic.range.end.character}:${diagnostic.message}:${diagnostic.code}`;
+      const d = diagnostic as {
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
+        message: string;
+        code?: string;
+      };
+      const key = `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character}:${d.message}:${d.code}`;
 
       if (!seen.has(key)) {
         seen.add(key);
