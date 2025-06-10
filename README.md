@@ -1,8 +1,8 @@
 # rumdl - Markdown Linter for VS Code
 
-[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/rumdl.rumdl)](https://marketplace.visualstudio.com/items?itemName=rumdl.rumdl)
-[![Visual Studio Marketplace Downloads](https://img.shields.io/visual-studio-marketplace/d/rumdl.rumdl)](https://marketplace.visualstudio.com/items?itemName=rumdl.rumdl)
-[![Visual Studio Marketplace Rating](https://img.shields.io/visual-studio-marketplace/r/rumdl.rumdl)](https://marketplace.visualstudio.com/items?itemName=rumdl.rumdl)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/rvben.rumdl)](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
+[![Visual Studio Marketplace Downloads](https://img.shields.io/visual-studio-marketplace/d/rvben.rumdl)](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
+[![Visual Studio Marketplace Rating](https://img.shields.io/visual-studio-marketplace/r/rvben.rumdl)](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
 
 A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.com/rumdl/rumdl), a Rust-based linter with 97.2% markdownlint compatibility and 5x performance improvement.
 

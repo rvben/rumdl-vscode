@@ -276,7 +276,7 @@ export class CommandManager implements vscode.Disposable {
 
     // Extension status
     statusMessage += `✅ Extension: Active\n`;
-    statusMessage += `📦 Version: ${vscode.extensions.getExtension('rumdl.rumdl')?.packageJSON.version || 'unknown'}\n\n`;
+    statusMessage += `📦 Version: ${vscode.extensions.getExtension('rvben.rumdl')?.packageJSON.version || 'unknown'}\n\n`;
 
     // Server status
     statusMessage += `🖥️ Server Status: ${isRunning ? '✅ Running' : '❌ Not Running'}\n`;
