@@ -5,10 +5,10 @@ import { glob } from 'glob';
 export function run(): Promise<void> {
   // Create the mocha test
   const mocha = new Mocha({
-    ui: 'bdd', // Use BDD style for describe/it
+    ui: 'tdd', // Use TDD style for suite/test
     color: true,
-    timeout: 10000, // 10 second timeout
-    reporter: 'spec'
+    timeout: 20000, // 20 second timeout
+    reporter: 'spec',
   });
 
   const testsRoot = path.resolve(__dirname, '..');

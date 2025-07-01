@@ -38,12 +38,12 @@ export class ProgressUtils {
     ) => Promise<T>
   ): Promise<ProgressResult<T>> {
     const location = options.location || vscode.ProgressLocation.Notification;
-    
+
     return vscode.window.withProgress(
       {
         location,
         title: options.title,
-        cancellable: options.cancellable ?? true
+        cancellable: options.cancellable ?? true,
       },
       async (progress, token) => {
         try {
@@ -51,22 +51,22 @@ export class ProgressUtils {
           if (token.isCancellationRequested) {
             return {
               completed: false,
-              cancelled: true
+              cancelled: true,
             };
           }
 
           const result = await task(progress, token);
-          
+
           return {
             completed: true,
             cancelled: token.isCancellationRequested,
-            result
+            result,
           };
         } catch (error) {
           return {
             completed: false,
             cancelled: token.isCancellationRequested,
-            error: error as Error
+            error: error as Error,
           };
         }
       }
@@ -99,7 +99,7 @@ export class ProgressUtils {
       {
         location: options.location || vscode.ProgressLocation.Notification,
         title: options.title,
-        cancellable: options.cancellable ?? true
+        cancellable: options.cancellable ?? true,
       },
       async (progress, token) => {
         let processed = 0;
@@ -107,15 +107,15 @@ export class ProgressUtils {
 
         for (let i = 0; i < items.length && !token.isCancellationRequested; i += batchSize) {
           const batch = items.slice(i, i + batchSize);
-          
+
           // Update progress message
           progress.report({
             message: `Processing ${processed} of ${total}...`,
-            increment: options.showPercentage ? (batch.length / total) * 100 : undefined
+            increment: options.showPercentage ? (batch.length / total) * 100 : undefined,
           });
 
           // Process batch in parallel
-          const batchPromises = batch.map(async (item) => {
+          const batchPromises = batch.map(async item => {
             try {
               const result = await processor(item);
               return { success: true, result, item };
@@ -125,15 +125,15 @@ export class ProgressUtils {
           });
 
           const batchResults = await Promise.all(batchPromises);
-          
+
           // Collect results and errors
           for (const batchResult of batchResults) {
             if (batchResult.success) {
               results.push(batchResult.result as R);
             } else {
-              errors.push({ 
-                item: batchResult.item, 
-                error: batchResult.error as Error 
+              errors.push({
+                item: batchResult.item,
+                error: batchResult.error as Error,
               });
             }
           }
@@ -165,13 +165,13 @@ export class ProgressUtils {
     let currentProgress: vscode.Progress<{ message?: string; increment?: number }> | undefined;
     let disposed = false;
 
-    const progressPromise = vscode.window.withProgress(
+    vscode.window.withProgress(
       {
         location: options?.location || vscode.ProgressLocation.Notification,
         title,
-        cancellable: options?.cancellable ?? false
+        cancellable: options?.cancellable ?? false,
       },
-      async (progress) => {
+      async progress => {
         currentProgress = progress;
         return new Promise<void>(resolve => {
           progressResolve = resolve;
@@ -188,7 +188,7 @@ export class ProgressUtils {
           const percentage = Math.round((current / total) * 100);
           currentProgress.report({
             message: message || `${current} of ${total} (${percentage}%)`,
-            increment: options?.showPercentage ? (1 / total) * 100 : undefined
+            increment: options?.showPercentage ? (1 / total) * 100 : undefined,
           });
         }
       },
@@ -203,7 +203,7 @@ export class ProgressUtils {
           progressResolve();
           disposed = true;
         }
-      }
+      },
     };
   }
 

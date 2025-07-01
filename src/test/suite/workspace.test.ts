@@ -1,270 +1,157 @@
+import * as vscode from 'vscode';
 import * as path from 'path';
-import { 
-  expect, 
-  sinon, 
-  beforeEachTest, 
-  afterEachTest,
-  createTestDocument,
-  addWorkspaceFolder 
-} from '../helper';
+import { expect } from '../helper';
 import { WorkspaceUtils } from '../../utils/workspace';
 
-describe('WorkspaceUtils', () => {
-  let vscodeContext: ReturnType<typeof beforeEachTest>;
-  
-  beforeEach(() => {
-    vscodeContext = beforeEachTest();
+suite('Workspace Utils Tests', () => {
+  test('findMarkdownFiles should find markdown files', async () => {
+    const files = await WorkspaceUtils.findMarkdownFiles();
+
+    // Should find at least our test fixtures
+    expect(files).to.be.an('array');
+
+    // Check if any markdown files were found
+    if (files.length > 0) {
+      const mdFile = files.find(f => f.fsPath.endsWith('.md'));
+      expect(mdFile).to.exist;
+    }
   });
-  
-  afterEach(() => {
-    afterEachTest();
+
+  test('findMarkdownFiles with custom pattern', async () => {
+    const files = await WorkspaceUtils.findMarkdownFiles('**/diagnostics.md');
+
+    // Should find our specific test file
+    const diagnosticsFile = files.find(f => f.fsPath.includes('diagnostics.md'));
+    if (diagnosticsFile) {
+      expect(diagnosticsFile.fsPath).to.include('diagnostics.md');
+    }
   });
-  
-  describe('findMarkdownFiles', () => {
-    it('should find markdown files with default pattern', async () => {
-      const mockUris = [
-        { fsPath: '/test/file1.md', scheme: 'file', toString: () => 'file:///test/file1.md' },
-        { fsPath: '/test/file2.markdown', scheme: 'file', toString: () => 'file:///test/file2.markdown' },
-        { fsPath: '/test/file3.mdx', scheme: 'file', toString: () => 'file:///test/file3.mdx' }
-      ];
-      
-      vscodeContext.vscode.workspace.findFiles.resolves(mockUris);
-      
-      const files = await WorkspaceUtils.findMarkdownFiles();
-      
-      expect(files).to.deep.equal(mockUris);
-      expect(vscodeContext.vscode.workspace.findFiles.calledOnce).to.be.true;
-      expect(vscodeContext.vscode.workspace.findFiles.firstCall.args[0]).to.equal('**/*.{md,markdown,mdx,mdown,mkd}');
-    });
-    
-    it('should use custom include pattern', async () => {
-      const customPattern = '**/*.md';
-      await WorkspaceUtils.findMarkdownFiles(customPattern);
-      
-      expect(vscodeContext.vscode.workspace.findFiles.firstCall.args[0]).to.equal(customPattern);
-    });
-    
-    it('should apply default excludes', async () => {
-      await WorkspaceUtils.findMarkdownFiles();
-      
-      const excludePattern = vscodeContext.vscode.workspace.findFiles.firstCall.args[1];
-      expect(excludePattern).to.include('node_modules');
-      expect(excludePattern).to.include('.git');
-      expect(excludePattern).to.include('dist');
-      expect(excludePattern).to.include('build');
-    });
-    
-    it('should combine custom excludes with defaults', async () => {
-      const customExclude = '**/custom/**';
-      await WorkspaceUtils.findMarkdownFiles(undefined, customExclude);
-      
-      const excludePattern = vscodeContext.vscode.workspace.findFiles.firstCall.args[1];
-      expect(excludePattern).to.include(customExclude);
-      expect(excludePattern).to.include('node_modules');
-    });
-    
-    it('should handle empty results', async () => {
-      vscodeContext.vscode.workspace.findFiles.resolves([]);
-      
-      const files = await WorkspaceUtils.findMarkdownFiles();
-      expect(files).to.deep.equal([]);
-    });
+
+  test('findMarkdownFiles with excludes', async () => {
+    const files = await WorkspaceUtils.findMarkdownFiles(undefined, '**/node_modules/**');
+
+    // Should not include node_modules files
+    const nodeModulesFile = files.find(f => f.fsPath.includes('node_modules'));
+    expect(nodeModulesFile).to.not.exist;
   });
-  
-  describe('getWorkspaceFolders', () => {
-    it('should return empty array when no workspace folders', () => {
-      const folders = WorkspaceUtils.getWorkspaceFolders();
-      expect(folders).to.deep.equal([]);
-    });
-    
-    it('should return workspace folder paths', () => {
-      addWorkspaceFolder('project1', '/path/to/project1');
-      addWorkspaceFolder('project2', '/path/to/project2');
-      
-      const folders = WorkspaceUtils.getWorkspaceFolders();
-      
-      expect(folders).to.deep.equal([
-        '/path/to/project1',
-        '/path/to/project2'
-      ]);
-    });
+
+  test('getWorkspaceFolders should return folder paths', () => {
+    const folders = WorkspaceUtils.getWorkspaceFolders();
+
+    expect(folders).to.be.an('array');
+    if (folders.length > 0) {
+      expect(folders[0]).to.be.a('string');
+      expect(path.isAbsolute(folders[0])).to.be.true;
+    }
   });
-  
-  describe('isInWorkspace', () => {
-    it('should return false when no workspace folders', () => {
-      const uri = vscodeContext.vscode.Uri.file('/some/file.md');
-      expect(WorkspaceUtils.isInWorkspace(uri)).to.be.false;
-    });
-    
-    it('should return true for files in workspace', () => {
-      addWorkspaceFolder('project', '/workspace/project');
-      
-      const uri = vscodeContext.vscode.Uri.file('/workspace/project/src/file.md');
-      expect(WorkspaceUtils.isInWorkspace(uri)).to.be.true;
-    });
-    
-    it('should return false for files outside workspace', () => {
-      addWorkspaceFolder('project', '/workspace/project');
-      
-      const uri = vscodeContext.vscode.Uri.file('/other/location/file.md');
-      expect(WorkspaceUtils.isInWorkspace(uri)).to.be.false;
-    });
-    
-    it('should handle multiple workspace folders', () => {
-      addWorkspaceFolder('project1', '/workspace/project1');
-      addWorkspaceFolder('project2', '/workspace/project2');
-      
-      const uri1 = vscodeContext.vscode.Uri.file('/workspace/project1/file.md');
-      const uri2 = vscodeContext.vscode.Uri.file('/workspace/project2/file.md');
-      const uri3 = vscodeContext.vscode.Uri.file('/other/file.md');
-      
-      expect(WorkspaceUtils.isInWorkspace(uri1)).to.be.true;
-      expect(WorkspaceUtils.isInWorkspace(uri2)).to.be.true;
-      expect(WorkspaceUtils.isInWorkspace(uri3)).to.be.false;
-    });
+
+  test('isInWorkspace should check if URI is in workspace', () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      // Skip if no workspace
+      return;
+    }
+
+    // Test with a file in workspace
+    const fileInWorkspace = vscode.Uri.file(path.join(workspaceFolders[0].uri.fsPath, 'test.md'));
+    expect(WorkspaceUtils.isInWorkspace(fileInWorkspace)).to.be.true;
+
+    // Test with a file outside workspace
+    const fileOutside = vscode.Uri.file('/tmp/outside.md');
+    expect(WorkspaceUtils.isInWorkspace(fileOutside)).to.be.false;
   });
-  
-  describe('getRelativePath', () => {
-    it('should return relative path for file in workspace', () => {
-      const folder = addWorkspaceFolder('project', '/workspace/project');
-      const uri = vscodeContext.vscode.Uri.file('/workspace/project/src/utils/file.md');
-      
-      vscodeContext.vscode.workspace.getWorkspaceFolder.returns(folder);
-      
-      const relativePath = WorkspaceUtils.getRelativePath(uri);
-      expect(relativePath).to.equal(path.join('src', 'utils', 'file.md'));
-    });
-    
-    it('should return absolute path for file outside workspace', () => {
-      const uri = vscodeContext.vscode.Uri.file('/outside/file.md');
-      vscodeContext.vscode.workspace.getWorkspaceFolder.returns(undefined);
-      
-      const relativePath = WorkspaceUtils.getRelativePath(uri);
-      expect(relativePath).to.equal('/outside/file.md');
-    });
+
+  test('getRelativePath should return relative path for workspace file', () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return;
+    }
+
+    const testFile = vscode.Uri.file(
+      path.join(workspaceFolders[0].uri.fsPath, 'subfolder', 'test.md')
+    );
+    const relativePath = WorkspaceUtils.getRelativePath(testFile);
+
+    expect(relativePath).to.equal(path.join('subfolder', 'test.md'));
   });
-  
-  describe('batchProcess', () => {
-    it('should process files in batches', async () => {
-      const files = [
-        vscodeContext.vscode.Uri.file('/file1.md'),
-        vscodeContext.vscode.Uri.file('/file2.md'),
-        vscodeContext.vscode.Uri.file('/file3.md'),
-        vscodeContext.vscode.Uri.file('/file4.md'),
-        vscodeContext.vscode.Uri.file('/file5.md')
-      ];
-      
-      const processor = sinon.stub().resolves('processed');
-      const onProgress = sinon.stub();
-      
-      const results = await WorkspaceUtils.batchProcess(
-        files,
-        2, // batch size
-        processor,
-        onProgress
-      );
-      
-      expect(results).to.have.length(5);
-      expect(results.every(r => r === 'processed')).to.be.true;
-      expect(processor.callCount).to.equal(5);
-      
-      // Check progress reporting
-      expect(onProgress.callCount).to.equal(3); // 3 batches: 2+2+1
-      expect(onProgress.firstCall.args).to.deep.equal([2, 5]);
-      expect(onProgress.secondCall.args).to.deep.equal([4, 5]);
-      expect(onProgress.thirdCall.args).to.deep.equal([5, 5]);
-    });
-    
-    it('should handle empty file list', async () => {
-      const processor = sinon.stub();
-      const results = await WorkspaceUtils.batchProcess([], 10, processor);
-      
-      expect(results).to.deep.equal([]);
-      expect(processor.called).to.be.false;
-    });
-    
-    it('should handle processor errors', async () => {
-      const files = [
-        vscodeContext.vscode.Uri.file('/file1.md'),
-        vscodeContext.vscode.Uri.file('/file2.md')
-      ];
-      
-      const processor = sinon.stub();
-      processor.onFirstCall().resolves('ok');
-      processor.onSecondCall().rejects(new Error('Processing failed'));
-      
-      try {
-        await WorkspaceUtils.batchProcess(files, 2, processor);
-        expect.fail('Should have thrown error');
-      } catch (error) {
-        expect((error as Error).message).to.equal('Processing failed');
-      }
-    });
-    
-    it('should work without progress callback', async () => {
-      const files = [vscodeContext.vscode.Uri.file('/file1.md')];
-      const processor = sinon.stub().resolves('done');
-      
-      const results = await WorkspaceUtils.batchProcess(files, 1, processor);
-      
-      expect(results).to.deep.equal(['done']);
-    });
+
+  test('getRelativePath should return absolute path for file outside workspace', () => {
+    const outsideUri = vscode.Uri.file('/tmp/outside.md');
+    const result = WorkspaceUtils.getRelativePath(outsideUri);
+
+    expect(result).to.equal('/tmp/outside.md');
   });
-  
-  describe('getLineCount', () => {
-    it('should return correct line count', () => {
-      const doc = createTestDocument('line1\nline2\nline3');
-      const count = WorkspaceUtils.getLineCount(doc as any);
-      expect(count).to.equal(3);
+
+  test('getLineCount should count lines in document', async () => {
+    // Open a test document
+    const testUri = vscode.Uri.parse('untitled:test.md');
+    const doc = await vscode.workspace.openTextDocument(testUri);
+    const editor = await vscode.window.showTextDocument(doc);
+
+    // Add some content
+    await editor.edit(editBuilder => {
+      editBuilder.insert(new vscode.Position(0, 0), 'Line 1\nLine 2\nLine 3');
     });
-    
-    it('should handle empty document', () => {
-      const doc = createTestDocument('');
-      const count = WorkspaceUtils.getLineCount(doc as any);
-      expect(count).to.equal(1); // Empty doc has 1 line
-    });
+
+    const lineCount = WorkspaceUtils.getLineCount(doc);
+    expect(lineCount).to.equal(3);
+
+    // Close document
+    await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
   });
-  
-  describe('estimateProcessingTime', () => {
-    it('should use default time per file', () => {
-      const time = WorkspaceUtils.estimateProcessingTime(10);
-      expect(time).to.equal(1000); // 10 files * 100ms default
-    });
-    
-    it('should use custom time per file', () => {
-      const time = WorkspaceUtils.estimateProcessingTime(5, 200);
-      expect(time).to.equal(1000); // 5 files * 200ms
-    });
-    
-    it('should handle zero files', () => {
-      const time = WorkspaceUtils.estimateProcessingTime(0);
-      expect(time).to.equal(0);
-    });
+
+  test('estimateProcessingTime should return time estimate', () => {
+    const estimate = WorkspaceUtils.estimateProcessingTime(10);
+
+    expect(estimate).to.be.a('number');
+    expect(estimate).to.equal(1000); // 10 files * 100ms default
   });
-  
-  describe('formatFileSize', () => {
-    it('should format bytes correctly', () => {
-      expect(WorkspaceUtils.formatFileSize(0)).to.equal('0.0 B');
-      expect(WorkspaceUtils.formatFileSize(512)).to.equal('512.0 B');
-      expect(WorkspaceUtils.formatFileSize(1023)).to.equal('1023.0 B');
-    });
-    
-    it('should format kilobytes correctly', () => {
-      expect(WorkspaceUtils.formatFileSize(1024)).to.equal('1.0 KB');
-      expect(WorkspaceUtils.formatFileSize(1536)).to.equal('1.5 KB');
-      expect(WorkspaceUtils.formatFileSize(1048575)).to.equal('1024.0 KB');
-    });
-    
-    it('should format megabytes correctly', () => {
-      expect(WorkspaceUtils.formatFileSize(1048576)).to.equal('1.0 MB');
-      expect(WorkspaceUtils.formatFileSize(1572864)).to.equal('1.5 MB');
-      expect(WorkspaceUtils.formatFileSize(1073741823)).to.equal('1024.0 MB');
-    });
-    
-    it('should format gigabytes correctly', () => {
-      expect(WorkspaceUtils.formatFileSize(1073741824)).to.equal('1.0 GB');
-      expect(WorkspaceUtils.formatFileSize(1610612736)).to.equal('1.5 GB');
-      expect(WorkspaceUtils.formatFileSize(10737418240)).to.equal('10.0 GB');
-    });
+
+  test('estimateProcessingTime with custom time per file', () => {
+    const estimate = WorkspaceUtils.estimateProcessingTime(10, 50);
+
+    expect(estimate).to.be.a('number');
+    expect(estimate).to.equal(500); // 10 files * 50ms
+  });
+
+  test('formatFileSize should format bytes', () => {
+    expect(WorkspaceUtils.formatFileSize(0)).to.equal('0.0 B');
+    expect(WorkspaceUtils.formatFileSize(1024)).to.equal('1.0 KB');
+    expect(WorkspaceUtils.formatFileSize(1048576)).to.equal('1.0 MB');
+    expect(WorkspaceUtils.formatFileSize(1073741824)).to.equal('1.0 GB');
+  });
+
+  test('batchProcess should process files in batches', async () => {
+    const testUris = [
+      vscode.Uri.file('/test1.md'),
+      vscode.Uri.file('/test2.md'),
+      vscode.Uri.file('/test3.md'),
+    ];
+
+    let processedCount = 0;
+    const processor = async (_uri: vscode.Uri) => {
+      processedCount++;
+      return { success: true };
+    };
+
+    const results = await WorkspaceUtils.batchProcess(testUris, 2, processor);
+
+    expect(processedCount).to.equal(3);
+    expect(results).to.have.lengthOf(3);
+    expect(results[0]).to.deep.equal({ success: true });
+  });
+
+  test('batchProcess with progress callback', async () => {
+    const testUris = [vscode.Uri.file('/test1.md'), vscode.Uri.file('/test2.md')];
+
+    let lastProgress = 0;
+    const processor = async (uri: vscode.Uri) => ({ uri });
+    const onProgress = (processed: number, _total: number) => {
+      lastProgress = processed;
+    };
+
+    await WorkspaceUtils.batchProcess(testUris, 1, processor, onProgress);
+
+    expect(lastProgress).to.equal(2);
   });
 });

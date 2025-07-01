@@ -13,7 +13,9 @@ let commands: CommandManager;
 let configWatcher: vscode.Disposable;
 let configDiagnostics: ConfigDiagnosticProvider;
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(
+  context: vscode.ExtensionContext
+): Promise<{ client: RumdlLanguageClient }> {
   // Initialize logger first
   Logger.initialize('rumdl');
 
@@ -83,6 +85,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     } else {
       statusBar.setDisconnected('Ready (disabled in settings)');
     }
+
+    // Return the client for testing purposes
+    return { client };
   } catch (error) {
     Logger.error('Failed to activate rumdl extension', error as Error);
     showErrorMessage(
@@ -93,6 +98,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         Logger.show();
       }
     });
+
+    // Still return client even if there was an error
+    return { client };
   }
 }
 

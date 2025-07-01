@@ -1,67 +1,99 @@
+import * as vscode from 'vscode';
+import * as path from 'path';
 import { expect } from 'chai';
-import * as sinon from 'sinon';
-import { setupVSCode, cleanupVSCode, createMockTextDocument, createMockWorkspaceFolder } from './mocks/vscode';
+import { RumdlLanguageClient } from '../client';
 
-// Export test utilities
-export { expect, sinon };
-export { setupVSCode, cleanupVSCode, createMockTextDocument, createMockWorkspaceFolder };
+export { expect };
 
-// Global test setup
-let vscodeContext: ReturnType<typeof setupVSCode>;
+const EXTENSION_ID = 'rvben.rumdl';
 
-export function beforeEachTest() {
-  vscodeContext = setupVSCode();
-  return vscodeContext;
-}
+export async function activateExtension() {
+  // Ensure rumdl is enabled in settings
+  const config = vscode.workspace.getConfiguration('rumdl');
+  await config.update('enable', true, vscode.ConfigurationTarget.Global);
 
-export function afterEachTest() {
-  cleanupVSCode();
-}
-
-// Common test utilities
-export function createTestDocument(content: string, fileName = 'test.md') {
-  const doc = createMockTextDocument(`/test/${fileName}`, content);
-  vscodeContext.mockDocuments.set(doc.uri.fsPath, doc);
-  return doc;
-}
-
-export function setConfiguration(key: string, value: any) {
-  vscodeContext.configuration.set(key, value);
-}
-
-export function addWorkspaceFolder(name: string, path: string) {
-  const folder = createMockWorkspaceFolder(name, path);
-  vscodeContext.vscode.workspace.workspaceFolders.push(folder);
-  return folder;
-}
-
-export async function executeCommand(command: string, ...args: any[]) {
-  return await vscodeContext.vscode.commands.executeCommand(command, ...args);
-}
-
-export function getRegisteredCommands() {
-  return Array.from(vscodeContext.registeredCommands.keys());
-}
-
-// Assertion helpers
-export function expectCommand(command: string) {
-  expect(getRegisteredCommands()).to.include(command);
-}
-
-export function expectNoErrors() {
-  expect(vscodeContext.vscode.window.showErrorMessage.called).to.be.false;
-}
-
-export function expectError(message?: string) {
-  expect(vscodeContext.vscode.window.showErrorMessage.called).to.be.true;
-  if (message) {
-    expect(vscodeContext.vscode.window.showErrorMessage.calledWith(message)).to.be.true;
+  const extension = vscode.extensions.getExtension(EXTENSION_ID);
+  if (!extension) {
+    throw new Error(`Extension ${EXTENSION_ID} not found`);
   }
+
+  if (!extension.isActive) {
+    await extension.activate();
+  }
+
+  // Wait for the language server to start
+  await waitForLanguageServer();
+
+  return extension;
 }
 
-export function expectInfo(message?: string) {
-  expect(vscodeContext.vscode.window.showInformationMessage.called).to.be.true;
-  if (message) {
-    expect(vscodeContext.vscode.window.showInformationMessage.calledWith(message)).to.be.true;
+export async function waitForLanguageServer(timeout = 10000): Promise<void> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    // Check if we have any language clients
+    const extension = vscode.extensions.getExtension(EXTENSION_ID);
+    if (extension && extension.isActive) {
+      // Try to get the client from the extension's exports
+      const client = getLanguageClient();
+      if (client && client.isRunning()) {
+        console.log('Language server is running');
+        return;
+      }
+    }
+
+    await sleep(500);
   }
+
+  console.warn('Language server did not start within timeout');
+}
+
+export function getLanguageClient(): RumdlLanguageClient | undefined {
+  const extension = vscode.extensions.getExtension(EXTENSION_ID);
+  if (extension && extension.isActive && extension.exports) {
+    return extension.exports.client;
+  }
+  return undefined;
+}
+
+export function getDocumentPath(fileName: string): string {
+  return path.resolve(__dirname, '../../src/testFixture', fileName);
+}
+
+export function getDocumentUri(fileName: string): vscode.Uri {
+  return vscode.Uri.file(getDocumentPath(fileName));
+}
+
+export async function openDocument(fileName: string): Promise<vscode.TextDocument> {
+  const uri = getDocumentUri(fileName);
+  return await vscode.workspace.openTextDocument(uri);
+}
+
+export async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function isWindows(): boolean {
+  return process.platform === 'win32';
+}
+
+export async function waitForDiagnostics(
+  uri: vscode.Uri,
+  timeout = 5000
+): Promise<vscode.Diagnostic[]> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const diagnostics = vscode.languages.getDiagnostics(uri);
+    if (diagnostics.length > 0) {
+      return diagnostics;
+    }
+    await sleep(100);
+  }
+
+  return [];
+}
+
+export async function closeAllEditors(): Promise<void> {
+  await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 }

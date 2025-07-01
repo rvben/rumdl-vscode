@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { RULE_SCHEMAS, RULE_NAMES, RULE_DESCRIPTIONS } from './configSchema';
+import { RULE_SCHEMAS, RULE_NAMES } from './configSchema';
 
 export interface ValidationError {
   line: number;
@@ -29,7 +28,6 @@ export class ConfigValidator {
 
     // Track current section
     let currentSection = '';
-    let inRulesSection = false;
     let currentRule = '';
 
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
@@ -45,17 +43,15 @@ export class ConfigValidator {
       const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
       if (sectionMatch) {
         const section = sectionMatch[1];
-        
+
         // Check for rules section
         if (section === 'rules') {
           currentSection = 'rules';
-          inRulesSection = true;
           currentRule = '';
         } else if (section.startsWith('rules.')) {
           // Rule-specific section
           const ruleName = section.substring(6).toUpperCase();
           currentSection = section;
-          inRulesSection = true;
           currentRule = ruleName;
 
           // Validate rule name
@@ -65,17 +61,16 @@ export class ConfigValidator {
             const message = suggestion
               ? `Unknown rule '${ruleName}'. Did you mean '${suggestion}'?`
               : `Unknown rule '${ruleName}'. Valid rules are: ${RULE_NAMES.join(', ')}`;
-            
+
             errors.push({
               line: lineNum,
               column: section.indexOf(ruleName) + 1,
               message,
-              severity: vscode.DiagnosticSeverity.Error
+              severity: vscode.DiagnosticSeverity.Error,
             });
           }
         } else if (section === 'files' || section === 'global') {
           currentSection = section;
-          inRulesSection = false;
           currentRule = '';
         } else {
           // Unknown section
@@ -83,7 +78,7 @@ export class ConfigValidator {
             line: lineNum,
             column: 0,
             message: `Unknown section '[${section}]'. Valid sections are: [rules], [files], [global], or [rules.MD###]`,
-            severity: vscode.DiagnosticSeverity.Warning
+            severity: vscode.DiagnosticSeverity.Warning,
           });
         }
         continue;
@@ -96,7 +91,7 @@ export class ConfigValidator {
           line: lineNum,
           column: 0,
           message: 'Invalid syntax. Expected: key = value',
-          severity: vscode.DiagnosticSeverity.Error
+          severity: vscode.DiagnosticSeverity.Error,
         });
         continue;
       }
@@ -121,7 +116,7 @@ export class ConfigValidator {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -130,7 +125,7 @@ export class ConfigValidator {
    */
   private static findSimilarRule(input: string): string | null {
     const upperInput = input.toUpperCase();
-    
+
     // Check for exact match first
     if (RULE_NAMES.includes(upperInput)) {
       return upperInput;
@@ -142,7 +137,7 @@ export class ConfigValidator {
       if (rule.includes(upperInput) || upperInput.includes(rule)) {
         return true;
       }
-      
+
       // Check Levenshtein distance
       return this.levenshteinDistance(rule, upperInput) <= 2;
     });
@@ -191,7 +186,7 @@ export class ConfigValidator {
     line: number,
     errors: ValidationError[]
   ): void {
-    const schema = RULE_SCHEMAS[ruleName];
+    const schema = RULE_SCHEMAS[ruleName] as any;
     if (!schema || !schema.properties) {
       return;
     }
@@ -200,15 +195,16 @@ export class ConfigValidator {
     if (!propSchema) {
       // Unknown property for this rule
       const validProps = Object.keys(schema.properties);
-      const message = validProps.length > 0
-        ? `Unknown property '${key}' for rule ${ruleName}. Valid properties: ${validProps.join(', ')}`
-        : `Rule ${ruleName} does not support configuration properties`;
-      
+      const message =
+        validProps.length > 0
+          ? `Unknown property '${key}' for rule ${ruleName}. Valid properties: ${validProps.join(', ')}`
+          : `Rule ${ruleName} does not support configuration properties`;
+
       errors.push({
         line,
         column: 0,
         message,
-        severity: vscode.DiagnosticSeverity.Warning
+        severity: vscode.DiagnosticSeverity.Warning,
       });
       return;
     }
@@ -223,21 +219,21 @@ export class ConfigValidator {
   private static validateValue(
     key: string,
     value: string,
-    schema: any,
+    schema: { type?: string; minimum?: number; maximum?: number; enum?: string[] },
     line: number,
     errors: ValidationError[]
   ): void {
     const trimmedValue = value.trim();
 
     switch (schema.type) {
-      case 'number':
+      case 'number': {
         const num = parseInt(trimmedValue, 10);
         if (isNaN(num)) {
           errors.push({
             line,
             column: 0,
             message: `Property '${key}' must be a number`,
-            severity: vscode.DiagnosticSeverity.Error
+            severity: vscode.DiagnosticSeverity.Error,
           });
           return;
         }
@@ -246,7 +242,7 @@ export class ConfigValidator {
             line,
             column: 0,
             message: `Property '${key}' must be at least ${schema.minimum}`,
-            severity: vscode.DiagnosticSeverity.Error
+            severity: vscode.DiagnosticSeverity.Error,
           });
         }
         if (schema.maximum !== undefined && num > schema.maximum) {
@@ -254,10 +250,11 @@ export class ConfigValidator {
             line,
             column: 0,
             message: `Property '${key}' must be at most ${schema.maximum}`,
-            severity: vscode.DiagnosticSeverity.Error
+            severity: vscode.DiagnosticSeverity.Error,
           });
         }
         break;
+      }
 
       case 'boolean':
         if (trimmedValue !== 'true' && trimmedValue !== 'false') {
@@ -265,7 +262,7 @@ export class ConfigValidator {
             line,
             column: 0,
             message: `Property '${key}' must be true or false`,
-            severity: vscode.DiagnosticSeverity.Error
+            severity: vscode.DiagnosticSeverity.Error,
           });
         }
         break;
@@ -278,7 +275,7 @@ export class ConfigValidator {
               line,
               column: 0,
               message: `Property '${key}' must be one of: ${schema.enum.map((v: string) => `"${v}"`).join(', ')}`,
-              severity: vscode.DiagnosticSeverity.Error
+              severity: vscode.DiagnosticSeverity.Error,
             });
           }
         }
@@ -290,7 +287,7 @@ export class ConfigValidator {
             line,
             column: 0,
             message: `Property '${key}' must be an array`,
-            severity: vscode.DiagnosticSeverity.Error
+            severity: vscode.DiagnosticSeverity.Error,
           });
         }
         break;
@@ -307,13 +304,13 @@ export class ConfigValidator {
     errors: ValidationError[]
   ): void {
     const validKeys = ['select', 'ignore'];
-    
+
     if (!validKeys.includes(key)) {
       errors.push({
         line,
         column: 0,
         message: `Unknown property '${key}' in [rules] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning
+        severity: vscode.DiagnosticSeverity.Warning,
       });
       return;
     }
@@ -324,7 +321,7 @@ export class ConfigValidator {
         line,
         column: 0,
         message: `Property '${key}' must be an array of rule names`,
-        severity: vscode.DiagnosticSeverity.Error
+        severity: vscode.DiagnosticSeverity.Error,
       });
     }
   }
@@ -339,13 +336,13 @@ export class ConfigValidator {
     errors: ValidationError[]
   ): void {
     const validKeys = ['include', 'exclude'];
-    
+
     if (!validKeys.includes(key)) {
       errors.push({
         line,
         column: 0,
         message: `Unknown property '${key}' in [files] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning
+        severity: vscode.DiagnosticSeverity.Warning,
       });
       return;
     }
@@ -356,7 +353,7 @@ export class ConfigValidator {
         line,
         column: 0,
         message: `Property '${key}' must be an array of glob patterns`,
-        severity: vscode.DiagnosticSeverity.Error
+        severity: vscode.DiagnosticSeverity.Error,
       });
     }
   }
@@ -371,13 +368,13 @@ export class ConfigValidator {
     errors: ValidationError[]
   ): void {
     const validKeys = ['enable', 'disable', 'exclude', 'include', 'respect_gitignore'];
-    
+
     if (!validKeys.includes(key)) {
       errors.push({
         line,
         column: 0,
         message: `Unknown property '${key}' in [global] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning
+        severity: vscode.DiagnosticSeverity.Warning,
       });
       return;
     }
@@ -389,7 +386,7 @@ export class ConfigValidator {
           line,
           column: 0,
           message: `Property '${key}' must be true or false`,
-          severity: vscode.DiagnosticSeverity.Error
+          severity: vscode.DiagnosticSeverity.Error,
         });
       }
     } else {
@@ -399,7 +396,7 @@ export class ConfigValidator {
           line,
           column: 0,
           message: `Property '${key}' must be an array`,
-          severity: vscode.DiagnosticSeverity.Error
+          severity: vscode.DiagnosticSeverity.Error,
         });
       }
     }
@@ -424,7 +421,7 @@ export class ConfigValidator {
         vscode.CodeActionKind.QuickFix
       );
       fix.edit = new vscode.WorkspaceEdit();
-      
+
       // Find the rule name in the line and replace it
       const line = document.lineAt(diagnostic.range.start.line);
       const ruleIndex = line.text.indexOf(wrongRule);
@@ -437,7 +434,7 @@ export class ConfigValidator {
         );
         fix.edit.replace(document.uri, range, correctRule);
       }
-      
+
       fixes.push(fix);
     }
 
@@ -455,10 +452,7 @@ export class ConfigValidator {
         );
 
         ['true', 'false'].forEach(value => {
-          const fix = new vscode.CodeAction(
-            `Change to ${value}`,
-            vscode.CodeActionKind.QuickFix
-          );
+          const fix = new vscode.CodeAction(`Change to ${value}`, vscode.CodeActionKind.QuickFix);
           fix.edit = new vscode.WorkspaceEdit();
           fix.edit.replace(document.uri, range, value);
           fixes.push(fix);

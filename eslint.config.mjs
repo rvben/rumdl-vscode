@@ -27,6 +27,14 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     ignores: ['out/', 'dist/', '**/*.d.ts', 'bundled-tools/'],
   }
 );

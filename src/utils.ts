@@ -45,6 +45,11 @@ export function showErrorMessage(
   message: string,
   ...actions: string[]
 ): Thenable<string | undefined> {
+  // In test mode, just log instead of showing UI
+  if (process.env.VSCODE_TEST === '1' || process.env.NODE_ENV === 'test') {
+    Logger.error(`[Error Message] ${message}`);
+    return Promise.resolve(undefined);
+  }
   return vscode.window.showErrorMessage(message, ...actions);
 }
 
@@ -52,6 +57,11 @@ export function showInformationMessage(
   message: string,
   ...actions: string[]
 ): Thenable<string | undefined> {
+  // In test mode, just log instead of showing UI
+  if (process.env.VSCODE_TEST === '1' || process.env.NODE_ENV === 'test') {
+    Logger.info(`[Info Message] ${message}`);
+    return Promise.resolve(undefined);
+  }
   return vscode.window.showInformationMessage(message, ...actions);
 }
 
@@ -59,6 +69,11 @@ export function showWarningMessage(
   message: string,
   ...actions: string[]
 ): Thenable<string | undefined> {
+  // In test mode, just log instead of showing UI
+  if (process.env.VSCODE_TEST === '1' || process.env.NODE_ENV === 'test') {
+    Logger.warn(`[Warning Message] ${message}`);
+    return Promise.resolve(undefined);
+  }
   return vscode.window.showWarningMessage(message, ...actions);
 }
 

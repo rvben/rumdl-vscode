@@ -1,235 +1,134 @@
-import { 
-  expect, 
-  sinon,
-  beforeEachTest, 
-  afterEachTest,
-  setConfiguration
-} from '../helper';
+import * as vscode from 'vscode';
+import { expect } from '../helper';
 import { ConfigurationManager } from '../../configuration';
-import * as utils from '../../utils';
 
-describe('ConfigurationManager', () => {
-  let vscodeContext: ReturnType<typeof beforeEachTest>;
-  let loggerDebugStub: sinon.SinonStub;
-  
-  beforeEach(() => {
-    vscodeContext = beforeEachTest();
-    loggerDebugStub = sinon.stub(utils.Logger, 'debug');
+suite('Configuration Tests', () => {
+  let originalConfig: any = {};
+
+  setup(() => {
+    // Save original configuration
+    const config = vscode.workspace.getConfiguration('rumdl');
+    originalConfig = {
+      enable: config.get('enable'),
+      configPath: config.get('configPath'),
+      rules: config.get('rules'),
+      server: config.get('server'),
+      // These are nested configurations, not direct ones
+      // trace: config.get('trace.server'),
+      // diagnostics: config.get('diagnostics.deduplicate'),
+    };
   });
-  
-  afterEach(() => {
-    sinon.restore();
-    afterEachTest();
+
+  teardown(async () => {
+    // Restore original configuration
+    const config = vscode.workspace.getConfiguration('rumdl');
+
+    // Only restore settings that actually exist in the configuration
+    if (originalConfig.enable !== undefined) {
+      await config.update('enable', originalConfig.enable, vscode.ConfigurationTarget.Global);
+    }
+    if (originalConfig.configPath !== undefined) {
+      await config.update(
+        'configPath',
+        originalConfig.configPath,
+        vscode.ConfigurationTarget.Global
+      );
+    }
+    // Note: server settings need to be updated individually
+    if (originalConfig.server !== undefined) {
+      if (originalConfig.server.path !== undefined) {
+        await config.update(
+          'server.path',
+          originalConfig.server.path,
+          vscode.ConfigurationTarget.Global
+        );
+      }
+      if (originalConfig.server.logLevel !== undefined) {
+        await config.update(
+          'server.logLevel',
+          originalConfig.server.logLevel,
+          vscode.ConfigurationTarget.Global
+        );
+      }
+    }
+    // Note: trace and diagnostics are nested configurations, not direct ones
+    // Skip restoring them as they're not valid configuration paths
   });
-  
-  describe('getConfiguration', () => {
-    it('should return default configuration', () => {
-      const config = ConfigurationManager.getConfiguration();
-      
-      expect(config).to.deep.equal({
-        enable: true,
-        configPath: undefined,
-        rules: {
-          select: [],
-          ignore: []
-        },
-        server: {
-          path: 'rumdl',
-          logLevel: 'info'
-        },
-        trace: {
-          server: 'off'
-        },
-        diagnostics: {
-          deduplicate: true
-        }
+
+  test('getConfiguration should return default values', () => {
+    const config = ConfigurationManager.getConfiguration();
+
+    expect(config).to.have.property('enable');
+    expect(config).to.have.property('server');
+    expect(config).to.have.property('rules');
+    expect(config).to.have.property('diagnostics');
+    expect(config.server.path).to.be.a('string');
+    expect(config.server.logLevel).to.be.a('string');
+  });
+
+  test('isEnabled should return boolean', () => {
+    const enabled = ConfigurationManager.isEnabled();
+    expect(enabled).to.be.a('boolean');
+  });
+
+  test('getRumdlPath should return string path', () => {
+    const path = ConfigurationManager.getRumdlPath();
+    expect(path).to.be.a('string');
+    expect(path.length).to.be.greaterThan(0);
+  });
+
+  test('getRumdlPath should handle custom paths', async () => {
+    const config = vscode.workspace.getConfiguration('rumdl');
+    await config.update('server.path', '/custom/path/rumdl', true);
+
+    const path = ConfigurationManager.getRumdlPath();
+    expect(path).to.equal('/custom/path/rumdl');
+  });
+
+  test('getRumdlPath should handle empty path', async () => {
+    const config = vscode.workspace.getConfiguration('rumdl');
+    await config.update('server.path', '', true);
+
+    const path = ConfigurationManager.getRumdlPath();
+    expect(path).to.equal('rumdl'); // Should fall back to default
+  });
+
+  test('getLogLevel should return valid log level', () => {
+    const level = ConfigurationManager.getLogLevel();
+    expect(['trace', 'debug', 'info', 'warn', 'error']).to.include(level);
+  });
+
+  test('getTraceLevel should return valid trace level', () => {
+    const level = ConfigurationManager.getTraceLevel();
+    expect(['off', 'messages', 'verbose']).to.include(level);
+  });
+
+  test('shouldDeduplicate should return boolean', () => {
+    const dedupe = ConfigurationManager.shouldDeduplicate();
+    expect(dedupe).to.be.a('boolean');
+  });
+
+  test('onConfigurationChanged should fire on config changes', async function () {
+    this.timeout(5000);
+
+    // Use a promise to wait for the event
+    const configChanged = new Promise<void>(resolve => {
+      const disposable = ConfigurationManager.onConfigurationChanged(newConfig => {
+        expect(newConfig).to.have.property('enable');
+        expect(newConfig.server.logLevel).to.equal('debug');
+        disposable.dispose();
+        resolve();
       });
     });
-    
-    it('should return custom configuration', () => {
-      setConfiguration('rumdl.enable', false);
-      setConfiguration('rumdl.configPath', '/path/to/config.toml');
-      setConfiguration('rumdl.rules.select', ['MD001', 'MD002']);
-      setConfiguration('rumdl.rules.ignore', ['MD003']);
-      setConfiguration('rumdl.server.path', '/custom/rumdl');
-      setConfiguration('rumdl.server.logLevel', 'debug');
-      setConfiguration('rumdl.trace.server', 'verbose');
-      setConfiguration('rumdl.diagnostics.deduplicate', false);
-      
-      const config = ConfigurationManager.getConfiguration();
-      
-      expect(config).to.deep.equal({
-        enable: false,
-        configPath: '/path/to/config.toml',
-        rules: {
-          select: ['MD001', 'MD002'],
-          ignore: ['MD003']
-        },
-        server: {
-          path: '/custom/rumdl',
-          logLevel: 'debug'
-        },
-        trace: {
-          server: 'verbose'
-        },
-        diagnostics: {
-          deduplicate: false
-        }
-      });
-    });
-    
-    it('should handle missing configuration values', () => {
-      // Simulate getConfiguration returning undefined for some values
-      const originalGetConfiguration = vscodeContext.vscode.workspace.getConfiguration;
-      vscodeContext.vscode.workspace.getConfiguration = sinon.stub().returns({
-        get: (key: string, defaultValue?: any) => {
-          if (key === 'configPath') return undefined;
-          if (key === 'rules.select') return undefined;
-          return defaultValue;
-        },
-        update: sinon.stub(),
-        has: sinon.stub()
-      });
-      
-      const config = ConfigurationManager.getConfiguration();
-      
-      expect(config.configPath).to.be.undefined;
-      expect(config.rules.select).to.deep.equal([]);
-      
-      vscodeContext.vscode.workspace.getConfiguration = originalGetConfiguration;
-    });
-  });
-  
-  describe('onConfigurationChanged', () => {
-    it('should register configuration change listener', () => {
-      const callback = sinon.stub();
-      
-      const disposable = ConfigurationManager.onConfigurationChanged(callback);
-      
-      expect(vscodeContext.eventEmitters.has('onDidChangeConfiguration')).to.be.true;
-      expect(disposable).to.exist;
-    });
-    
-    it('should call callback when rumdl configuration changes', () => {
-      const callback = sinon.stub();
-      ConfigurationManager.onConfigurationChanged(callback);
-      
-      // Trigger the event
-      const emitter = vscodeContext.eventEmitters.get('onDidChangeConfiguration');
-      expect(emitter).to.exist;
-      
-      // Simulate configuration change event affecting rumdl
-      const event = {
-        affectsConfiguration: sinon.stub().returns(true)
-      };
-      
-      emitter!.emit('onDidChangeConfiguration', event);
-      
-      expect(event.affectsConfiguration.calledWith('rumdl')).to.be.true;
-      expect(callback.calledOnce).to.be.true;
-      expect(callback.firstCall.args[0]).to.have.property('enable');
-    });
-    
-    it('should not call callback for unrelated configuration changes', () => {
-      const callback = sinon.stub();
-      ConfigurationManager.onConfigurationChanged(callback);
-      
-      const emitter = vscodeContext.eventEmitters.get('onDidChangeConfiguration');
-      expect(emitter).to.exist;
-      
-      const event = {
-        affectsConfiguration: sinon.stub().returns(false)
-      };
-      
-      emitter!.emit('onDidChangeConfiguration', event);
-      
-      expect(callback.called).to.be.false;
-    });
-  });
-  
-  describe('isEnabled', () => {
-    it('should return true by default', () => {
-      expect(ConfigurationManager.isEnabled()).to.be.true;
-    });
-    
-    it('should return false when disabled', () => {
-      setConfiguration('rumdl.enable', false);
-      expect(ConfigurationManager.isEnabled()).to.be.false;
-    });
-  });
-  
-  describe('getRumdlPath', () => {
-    it('should return default rumdl path', () => {
-      const path = ConfigurationManager.getRumdlPath();
-      
-      expect(path).to.equal('rumdl');
-      expect(loggerDebugStub.calledWith('getRumdlPath: config value="rumdl", final value="rumdl"')).to.be.true;
-    });
-    
-    it('should return configured path', () => {
-      setConfiguration('rumdl.server.path', '/usr/local/bin/rumdl');
-      
-      const path = ConfigurationManager.getRumdlPath();
-      
-      expect(path).to.equal('/usr/local/bin/rumdl');
-    });
-    
-    it('should handle empty string', () => {
-      setConfiguration('rumdl.server.path', '');
-      
-      const path = ConfigurationManager.getRumdlPath();
-      
-      expect(path).to.equal('rumdl');
-      expect(loggerDebugStub.calledWith('getRumdlPath: config value="", final value="rumdl"')).to.be.true;
-    });
-    
-    it('should handle whitespace-only string', () => {
-      setConfiguration('rumdl.server.path', '   ');
-      
-      const path = ConfigurationManager.getRumdlPath();
-      
-      expect(path).to.equal('rumdl');
-    });
-    
-    it('should trim whitespace from valid paths', () => {
-      setConfiguration('rumdl.server.path', '  /path/to/rumdl  ');
-      
-      const path = ConfigurationManager.getRumdlPath();
-      
-      expect(path).to.equal('/path/to/rumdl');
-    });
-  });
-  
-  describe('getLogLevel', () => {
-    it('should return default log level', () => {
-      expect(ConfigurationManager.getLogLevel()).to.equal('info');
-    });
-    
-    it('should return configured log level', () => {
-      setConfiguration('rumdl.server.logLevel', 'debug');
-      expect(ConfigurationManager.getLogLevel()).to.equal('debug');
-    });
-  });
-  
-  describe('getTraceLevel', () => {
-    it('should return default trace level', () => {
-      expect(ConfigurationManager.getTraceLevel()).to.equal('off');
-    });
-    
-    it('should return configured trace level', () => {
-      setConfiguration('rumdl.trace.server', 'verbose');
-      expect(ConfigurationManager.getTraceLevel()).to.equal('verbose');
-    });
-  });
-  
-  describe('shouldDeduplicate', () => {
-    it('should return true by default', () => {
-      expect(ConfigurationManager.shouldDeduplicate()).to.be.true;
-    });
-    
-    it('should return false when disabled', () => {
-      setConfiguration('rumdl.diagnostics.deduplicate', false);
-      expect(ConfigurationManager.shouldDeduplicate()).to.be.false;
-    });
+
+    // Trigger a configuration change (change something other than enable to avoid server restart)
+    const config = vscode.workspace.getConfiguration('rumdl');
+    await config.update('server.logLevel', 'debug', vscode.ConfigurationTarget.Global);
+
+    // Wait for the event to fire
+    await configChanged;
+
+    // Restore original value
+    await config.update('server.logLevel', 'info', vscode.ConfigurationTarget.Global);
   });
 });

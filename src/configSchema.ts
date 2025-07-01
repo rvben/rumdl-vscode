@@ -11,7 +11,7 @@ export interface RumdlConfig {
 export interface RulesConfig {
   select?: string[];
   ignore?: string[];
-  [ruleName: string]: any; // Rule-specific configuration
+  [ruleName: string]: unknown; // Rule-specific configuration
 }
 
 export interface FilesConfig {
@@ -130,31 +130,31 @@ export interface MD050Config {
 }
 
 // Complete schema with all rules
-export const RULE_SCHEMAS: Record<string, any> = {
+export const RULE_SCHEMAS: Record<string, object> = {
   MD001: { type: 'object', properties: {} },
-  MD002: { 
-    type: 'object', 
-    properties: { 
-      level: { type: 'number', minimum: 1, maximum: 6 } 
-    } 
+  MD002: {
+    type: 'object',
+    properties: {
+      level: { type: 'number', minimum: 1, maximum: 6 },
+    },
   },
   MD003: {
     type: 'object',
     properties: {
       style: {
         type: 'string',
-        enum: ['atx', 'atx_closed', 'setext', 'setext_with_atx', 'setext_with_atx_closed']
-      }
-    }
+        enum: ['atx', 'atx_closed', 'setext', 'setext_with_atx', 'setext_with_atx_closed'],
+      },
+    },
   },
   MD004: {
     type: 'object',
     properties: {
       style: {
         type: 'string',
-        enum: ['asterisk', 'dash', 'plus', 'consistent', 'sublist']
-      }
-    }
+        enum: ['asterisk', 'dash', 'plus', 'consistent', 'sublist'],
+      },
+    },
   },
   MD005: { type: 'object', properties: {} },
   MD006: { type: 'object', properties: {} },
@@ -163,30 +163,30 @@ export const RULE_SCHEMAS: Record<string, any> = {
     properties: {
       indent: { type: 'number', minimum: 1 },
       start_indented: { type: 'boolean' },
-      start_indent: { type: 'number', minimum: 0 }
-    }
+      start_indent: { type: 'number', minimum: 0 },
+    },
   },
   MD009: {
     type: 'object',
     properties: {
       br_spaces: { type: 'number', minimum: 0 },
       list_item_empty_lines: { type: 'boolean' },
-      strict: { type: 'boolean' }
-    }
+      strict: { type: 'boolean' },
+    },
   },
   MD010: {
     type: 'object',
     properties: {
       code_blocks: { type: 'boolean' },
-      spaces_per_tab: { type: 'number', minimum: 1 }
-    }
+      spaces_per_tab: { type: 'number', minimum: 1 },
+    },
   },
   MD011: { type: 'object', properties: {} },
   MD012: {
     type: 'object',
     properties: {
-      maximum: { type: 'number', minimum: 1 }
-    }
+      maximum: { type: 'number', minimum: 1 },
+    },
   },
   MD013: {
     type: 'object',
@@ -196,8 +196,8 @@ export const RULE_SCHEMAS: Record<string, any> = {
       tables: { type: 'boolean' },
       headings: { type: 'boolean' },
       strict: { type: 'boolean' },
-      stern: { type: 'boolean' }
-    }
+      stern: { type: 'boolean' },
+    },
   },
   MD014: { type: 'object', properties: {} },
   MD018: { type: 'object', properties: {} },
@@ -208,28 +208,28 @@ export const RULE_SCHEMAS: Record<string, any> = {
     type: 'object',
     properties: {
       lines_above: { type: 'number', minimum: 0 },
-      lines_below: { type: 'number', minimum: 0 }
-    }
+      lines_below: { type: 'number', minimum: 0 },
+    },
   },
   MD023: { type: 'object', properties: {} },
   MD024: {
     type: 'object',
     properties: {
-      siblings_only: { type: 'boolean' }
-    }
+      siblings_only: { type: 'boolean' },
+    },
   },
   MD025: {
     type: 'object',
     properties: {
       level: { type: 'number', minimum: 1, maximum: 6 },
-      front_matter_title: { type: 'string' }
-    }
+      front_matter_title: { type: 'string' },
+    },
   },
   MD026: {
     type: 'object',
     properties: {
-      punctuation: { type: 'string' }
-    }
+      punctuation: { type: 'string' },
+    },
   },
   MD027: { type: 'object', properties: {} },
   MD028: { type: 'object', properties: {} },
@@ -238,9 +238,9 @@ export const RULE_SCHEMAS: Record<string, any> = {
     properties: {
       style: {
         type: 'string',
-        enum: ['one', 'ordered', 'one_or_ordered', 'zero']
-      }
-    }
+        enum: ['one', 'ordered', 'one_or_ordered', 'zero'],
+      },
+    },
   },
   MD030: {
     type: 'object',
@@ -248,8 +248,8 @@ export const RULE_SCHEMAS: Record<string, any> = {
       ul_single: { type: 'number', minimum: 0 },
       ol_single: { type: 'number', minimum: 0 },
       ul_multi: { type: 'number', minimum: 0 },
-      ol_multi: { type: 'number', minimum: 0 }
-    }
+      ol_multi: { type: 'number', minimum: 0 },
+    },
   },
   MD031: { type: 'object', properties: {} },
   MD032: { type: 'object', properties: {} },
@@ -258,22 +258,22 @@ export const RULE_SCHEMAS: Record<string, any> = {
     properties: {
       allowed_elements: {
         type: 'array',
-        items: { type: 'string' }
-      }
-    }
+        items: { type: 'string' },
+      },
+    },
   },
   MD034: { type: 'object', properties: {} },
   MD035: {
     type: 'object',
     properties: {
-      style: { type: 'string' }
-    }
+      style: { type: 'string' },
+    },
   },
   MD036: {
     type: 'object',
     properties: {
-      punctuation: { type: 'string' }
-    }
+      punctuation: { type: 'string' },
+    },
   },
   MD037: { type: 'object', properties: {} },
   MD038: { type: 'object', properties: {} },
@@ -287,11 +287,11 @@ export const RULE_SCHEMAS: Record<string, any> = {
     properties: {
       names: {
         type: 'array',
-        items: { type: 'string' }
+        items: { type: 'string' },
       },
       code_blocks: { type: 'boolean' },
-      html_elements: { type: 'boolean' }
-    }
+      html_elements: { type: 'boolean' },
+    },
   },
   MD045: { type: 'object', properties: {} },
   MD046: {
@@ -299,9 +299,9 @@ export const RULE_SCHEMAS: Record<string, any> = {
     properties: {
       style: {
         type: 'string',
-        enum: ['consistent', 'fenced', 'indented']
-      }
-    }
+        enum: ['consistent', 'fenced', 'indented'],
+      },
+    },
   },
   MD047: { type: 'object', properties: {} },
   MD048: {
@@ -309,27 +309,27 @@ export const RULE_SCHEMAS: Record<string, any> = {
     properties: {
       style: {
         type: 'string',
-        enum: ['consistent', 'backtick', 'tilde']
-      }
-    }
+        enum: ['consistent', 'backtick', 'tilde'],
+      },
+    },
   },
   MD049: {
     type: 'object',
     properties: {
       style: {
         type: 'string',
-        enum: ['consistent', 'asterisk', 'underscore']
-      }
-    }
+        enum: ['consistent', 'asterisk', 'underscore'],
+      },
+    },
   },
   MD050: {
     type: 'object',
     properties: {
       style: {
         type: 'string',
-        enum: ['consistent', 'asterisk', 'underscore']
-      }
-    }
+        enum: ['consistent', 'asterisk', 'underscore'],
+      },
+    },
   },
   MD051: { type: 'object', properties: {} },
   MD052: { type: 'object', properties: {} },
@@ -338,7 +338,7 @@ export const RULE_SCHEMAS: Record<string, any> = {
   MD055: { type: 'object', properties: {} },
   MD056: { type: 'object', properties: {} },
   MD057: { type: 'object', properties: {} },
-  MD058: { type: 'object', properties: {} }
+  MD058: { type: 'object', properties: {} },
 };
 
 // List of all available rule names
@@ -399,5 +399,5 @@ export const RULE_DESCRIPTIONS: Record<string, string> = {
   MD055: 'Table pipe style',
   MD056: 'Table column count',
   MD057: 'Relative links should be valid',
-  MD058: 'Tables should be surrounded by blank lines'
+  MD058: 'Tables should be surrounded by blank lines',
 };

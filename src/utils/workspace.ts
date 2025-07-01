@@ -17,7 +17,7 @@ export class WorkspaceUtils {
   ): Promise<vscode.Uri[]> {
     const defaultPattern = '**/*.{md,markdown,mdx,mdown,mkd}';
     const pattern = includePattern || defaultPattern;
-    
+
     // Default excludes based on common patterns
     const defaultExcludes = [
       '**/node_modules/**',
@@ -37,17 +37,17 @@ export class WorkspaceUtils {
       '**/.next/**',
       '**/.nuxt/**',
       '**/coverage/**',
-      '**/.nyc_output/**'
+      '**/.nyc_output/**',
     ];
 
     // Combine default excludes with user-provided excludes
-    const excludes = excludePattern 
+    const excludes = excludePattern
       ? `{${excludePattern},${defaultExcludes.join(',')}}`
       : `{${defaultExcludes.join(',')}}`;
 
     // Find files using VS Code's built-in file search
     const files = await vscode.workspace.findFiles(pattern, excludes);
-    
+
     return files;
   }
 
@@ -112,13 +112,11 @@ export class WorkspaceUtils {
 
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(file => processor(file))
-      );
-      
+      const batchResults = await Promise.all(batch.map(file => processor(file)));
+
       results.push(...batchResults);
       processed += batch.length;
-      
+
       if (onProgress) {
         onProgress(processed, files.length);
       }

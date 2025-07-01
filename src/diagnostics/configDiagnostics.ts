@@ -58,11 +58,11 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
         [
           { scheme: 'file', pattern: '**/.rumdl.toml' },
           { scheme: 'file', pattern: '**/rumdl.toml' },
-          { scheme: 'file', pattern: '**/pyproject.toml' }
+          { scheme: 'file', pattern: '**/pyproject.toml' },
         ],
         new ConfigCodeActionProvider(),
         {
-          providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
+          providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
         }
       )
     );
@@ -102,8 +102,8 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
   /**
    * Debounced document validation
    */
-  private validateDocumentDebounced = this.debounce((document: vscode.TextDocument) => {
-    this.validateDocument(document);
+  private validateDocumentDebounced = this.debounce((document: unknown) => {
+    this.validateDocument(document as vscode.TextDocument);
   }, 500);
 
   /**
@@ -112,11 +112,11 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
   private validateDocument(document: vscode.TextDocument): void {
     const diagnostics: vscode.Diagnostic[] = [];
     const text = document.getText();
-    
+
     // For pyproject.toml, extract the [tool.rumdl] section
     let contentToValidate = text;
     let lineOffset = 0;
-    
+
     if (path.basename(document.fileName) === 'pyproject.toml') {
       const rumdlSection = this.extractRumdlSection(text);
       if (!rumdlSection) {
@@ -129,24 +129,15 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
 
     // Validate the content
     const result = ConfigValidator.validateToml(contentToValidate);
-    
+
     // Convert validation errors to diagnostics
     for (const error of result.errors) {
       const line = error.line + lineOffset;
-      const range = new vscode.Range(
-        line,
-        error.column,
-        line,
-        document.lineAt(line).text.length
-      );
-      
-      const diagnostic = new vscode.Diagnostic(
-        range,
-        error.message,
-        error.severity
-      );
+      const range = new vscode.Range(line, error.column, line, document.lineAt(line).text.length);
+
+      const diagnostic = new vscode.Diagnostic(range, error.message, error.severity);
       diagnostic.source = 'rumdl';
-      
+
       diagnostics.push(diagnostic);
     }
 
@@ -160,9 +151,8 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
   private extractRumdlSection(text: string): { content: string; startLine: number } | null {
     const lines = text.split('\n');
     let inRumdlSection = false;
-    let rumdlContent: string[] = [];
+    const rumdlContent: string[] = [];
     let startLine = -1;
-    let currentIndent = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -174,7 +164,7 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
         if (startLine === -1) {
           startLine = i;
         }
-        
+
         // Convert [tool.rumdl.X] to [rules.X]
         if (trimmed.startsWith('[tool.rumdl.') && trimmed.endsWith(']')) {
           const converted = trimmed.replace('[tool.rumdl.', '[rules.');
@@ -202,19 +192,19 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
 
     return {
       content: rumdlContent.join('\n'),
-      startLine
+      startLine,
     };
   }
 
   /**
    * Debounce helper function
    */
-  private debounce<T extends (...args: any[]) => void>(
+  private debounce<T extends (...args: unknown[]) => void>(
     func: T,
     wait: number
   ): (...args: Parameters<T>) => void {
     let timeout: NodeJS.Timeout;
-    
+
     return (...args: Parameters<T>) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
@@ -233,8 +223,7 @@ class ConfigCodeActionProvider implements vscode.CodeActionProvider {
   provideCodeActions(
     document: vscode.TextDocument,
     range: vscode.Range | vscode.Selection,
-    context: vscode.CodeActionContext,
-    token: vscode.CancellationToken
+    context: vscode.CodeActionContext
   ): vscode.ProviderResult<vscode.CodeAction[]> {
     const actions: vscode.CodeAction[] = [];
 

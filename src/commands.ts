@@ -129,7 +129,7 @@ export class CommandManager implements vscode.Disposable {
 
       // Find all Markdown files
       const markdownFiles = await WorkspaceUtils.findMarkdownFiles();
-      
+
       if (markdownFiles.length === 0) {
         showInformationMessage('No Markdown files found in workspace');
         return;
@@ -143,13 +143,13 @@ export class CommandManager implements vscode.Disposable {
           title: 'Fixing Markdown files',
           location: vscode.ProgressLocation.Notification,
           cancellable: true,
-          showPercentage: true
+          showPercentage: true,
         },
         markdownFiles,
-        async (fileUri) => {
+        async fileUri => {
           // Open the document
           const document = await vscode.workspace.openTextDocument(fileUri);
-          
+
           // Get all code actions for the document
           const range = new vscode.Range(
             document.positionAt(0),

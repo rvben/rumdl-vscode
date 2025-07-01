@@ -7,3 +7,5 @@ test.md
 .vscode-test
 .DS_Store
 .env
+.nyc_output
+coverage

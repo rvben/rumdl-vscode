@@ -1,0 +1,6 @@
+[rules]
+select = ["MD001", "MD009", "MD010", "MD013"]
+ignore = ["MD012"]
+
+[rules.MD013]
+line_length = 80
