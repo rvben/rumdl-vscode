@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.0.30] - 2025-08-02
+
+### Added
+- Comprehensive JSON schema for rumdl configuration with all 27 configurable rules
+- Schema provides IntelliSense support and validation for configuration files
+
+### Fixed
+- Fixed release workflow by updating Node.js version from 18 to 20
+- Fixed packaging issue by adding .env to .vscodeignore
+- Fixed TypeScript compilation errors with glob v11 API
+- Fixed linting issues in test suite and config validator
+
+### Changed
+- Updated dependencies to latest versions:
+  - Replaced deprecated `vsce` with `@vscode/vsce` v3.6.0
+  - Updated `glob` from v8.1.0 to v11.0.3
+  - Updated `sinon` from v20.0.0 to v21.0.0
+  - Updated `mocha` from v10.x to v11.7.1
+  - Updated `@types/node` from 16.x to 24.x
+- Resolved all security vulnerabilities (4 fixed)
+
 ## [0.0.29] - 2025-08-01
 
 ### Changed
