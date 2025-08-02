@@ -186,7 +186,7 @@ export class ConfigValidator {
     line: number,
     errors: ValidationError[]
   ): void {
-    const schema = RULE_SCHEMAS[ruleName] as any;
+    const schema = RULE_SCHEMAS[ruleName] as { properties?: Record<string, unknown> };
     if (!schema || !schema.properties) {
       return;
     }
