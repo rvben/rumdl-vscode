@@ -1,0 +1,476 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "rumdl Configuration Schema",
+  "description": "Schema for rumdl Markdown linter configuration files",
+  "type": "object",
+  "properties": {
+    "rules": {
+      "type": "object",
+      "description": "Rule configuration section",
+      "properties": {
+        "select": {
+          "type": "array",
+          "description": "Rules to enable",
+          "items": {
+            "type": "string",
+            "pattern": "^MD[0-9]{3}$"
+          }
+        },
+        "ignore": {
+          "type": "array",
+          "description": "Rules to disable",
+          "items": {
+            "type": "string",
+            "pattern": "^MD[0-9]{3}$"
+          }
+        }
+      }
+    },
+    "line-length": {
+      "type": "integer",
+      "description": "Global line length setting (default: 80)",
+      "minimum": 1
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Patterns to exclude from linting",
+      "items": {
+        "type": "string"
+      }
+    },
+    "disabled-rules": {
+      "type": "array",
+      "description": "Rules to disable globally",
+      "items": {
+        "type": "string",
+        "pattern": "^MD[0-9]{3}$"
+      }
+    },
+    "MD002": {
+      "type": "object",
+      "description": "First heading should be a top-level heading",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "description": "Expected heading level (default: 1)",
+          "minimum": 1,
+          "maximum": 6
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD003": {
+      "type": "object",
+      "description": "Heading style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Heading style (default: consistent)",
+          "enum": ["consistent", "atx", "atx-closed", "setext"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD004": {
+      "type": "object",
+      "description": "Unordered list style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "List marker style (default: consistent)",
+          "enum": ["consistent", "asterisk", "plus", "dash"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD007": {
+      "type": "object",
+      "description": "Unordered list indentation",
+      "properties": {
+        "indent": {
+          "type": "integer",
+          "description": "Indentation size for nested unordered lists (default: 2)",
+          "minimum": 1
+        },
+        "start-indented": {
+          "type": "boolean",
+          "description": "Allow first level lists to start indented (default: false)"
+        },
+        "start-indent": {
+          "type": "integer",
+          "description": "Number of spaces for first level indent when start_indented is true (default: 2)",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD009": {
+      "type": "object",
+      "description": "Trailing spaces",
+      "properties": {
+        "br-spaces": {
+          "type": "integer",
+          "description": "Number of trailing spaces allowed for line breaks (default: 2)",
+          "minimum": 0
+        },
+        "list-item-empty-lines": {
+          "type": "boolean",
+          "description": "Allow empty list items with trailing spaces (default: false)"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Strict mode - no trailing spaces allowed (default: false)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD010": {
+      "type": "object",
+      "description": "Hard tabs",
+      "properties": {
+        "code-blocks": {
+          "type": "boolean",
+          "description": "Include code blocks (default: true)"
+        },
+        "spaces-per-tab": {
+          "type": "integer",
+          "description": "Number of spaces per hard tab for reporting (default: 1)",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD012": {
+      "type": "object",
+      "description": "Multiple consecutive blank lines",
+      "properties": {
+        "maximum": {
+          "type": "integer",
+          "description": "Maximum number of consecutive blank lines (default: 1)",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD013": {
+      "type": "object",
+      "description": "Line length",
+      "properties": {
+        "line-length": {
+          "type": "integer",
+          "description": "Maximum line length (default: 80)",
+          "minimum": 1
+        },
+        "code-blocks": {
+          "type": "boolean",
+          "description": "Apply rule to code blocks (default: true)"
+        },
+        "tables": {
+          "type": "boolean",
+          "description": "Apply rule to tables (default: true)"
+        },
+        "headings": {
+          "type": "boolean",
+          "description": "Apply rule to headings (default: true)"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Strict mode - disables exceptions for URLs, etc. (default: false)"
+        },
+        "heading-line-length": {
+          "type": "integer",
+          "description": "Maximum line length for headings (default: uses line-length)",
+          "minimum": 1
+        },
+        "code-block-line-length": {
+          "type": "integer",
+          "description": "Maximum line length for code blocks (default: uses line-length)",
+          "minimum": 1
+        },
+        "stern": {
+          "type": "boolean",
+          "description": "Stern mode - stricter checking without exceptions (default: false)"
+        },
+        "enable-reflow": {
+          "type": "boolean",
+          "description": "Enable text reflow to wrap long lines (default: false)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD014": {
+      "type": "object",
+      "description": "Dollar signs used before commands without showing output",
+      "properties": {
+        "commands-show-output": {
+          "type": "boolean",
+          "description": "Whether commands show output (default: true)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD022": {
+      "type": "object",
+      "description": "Headings should be surrounded by blank lines",
+      "properties": {
+        "lines-above": {
+          "type": "integer",
+          "description": "Number of blank lines above heading (default: 1)",
+          "minimum": 0
+        },
+        "lines-below": {
+          "type": "integer",
+          "description": "Number of blank lines below heading (default: 1)",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD024": {
+      "type": "object",
+      "description": "Multiple headings with the same content",
+      "properties": {
+        "siblings-only": {
+          "type": "boolean",
+          "description": "Only check sibling headings (default: false)"
+        },
+        "allow-different-nesting": {
+          "type": "boolean",
+          "description": "Allow duplicate headings at different nesting levels (default: false)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD025": {
+      "type": "object",
+      "description": "Multiple top-level headings in the same document",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "description": "Top level heading level (default: 1)",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "front-matter-title": {
+          "type": "boolean",
+          "description": "Count front matter title as a heading (default: true)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD026": {
+      "type": "object",
+      "description": "Trailing punctuation in heading",
+      "properties": {
+        "punctuation": {
+          "type": "string",
+          "description": "Characters to consider as trailing punctuation (default: .,;:!?。，；：！？)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD029": {
+      "type": "object",
+      "description": "Ordered list item prefix",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "List item prefix style (default: one-or-ordered)",
+          "enum": ["one", "ordered", "one-or-ordered", "zero"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD030": {
+      "type": "object",
+      "description": "Spaces after list markers",
+      "properties": {
+        "ul-single": {
+          "type": "integer",
+          "description": "Spaces after single-line unordered list marker (default: 1)",
+          "minimum": 1
+        },
+        "ol-single": {
+          "type": "integer",
+          "description": "Spaces after single-line ordered list marker (default: 1)",
+          "minimum": 1
+        },
+        "ul-multi": {
+          "type": "integer",
+          "description": "Spaces after multi-line unordered list marker (default: 1)",
+          "minimum": 1
+        },
+        "ol-multi": {
+          "type": "integer",
+          "description": "Spaces after multi-line ordered list marker (default: 1)",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD033": {
+      "type": "object",
+      "description": "Inline HTML",
+      "properties": {
+        "allowed-elements": {
+          "type": "array",
+          "description": "Allowed HTML element names (default: [])",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD035": {
+      "type": "object",
+      "description": "Horizontal rule style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Horizontal rule style (default: consistent)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD036": {
+      "type": "object",
+      "description": "Emphasis used instead of a heading",
+      "properties": {
+        "punctuation": {
+          "type": "string",
+          "description": "Punctuation characters to check (default: .,;:!?。，；：！？)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD044": {
+      "type": "object",
+      "description": "Proper names should have the correct capitalization",
+      "properties": {
+        "names": {
+          "type": "array",
+          "description": "List of proper names (default: [])",
+          "items": {
+            "type": "string"
+          }
+        },
+        "code-blocks": {
+          "type": "boolean",
+          "description": "Check proper names in code blocks (default: true)"
+        },
+        "html-elements": {
+          "type": "boolean",
+          "description": "Check proper names in HTML elements (default: true)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD045": {
+      "type": "object",
+      "description": "Images should have alternate text (alt text)",
+      "properties": {
+        "first-image-is-logo": {
+          "type": "boolean",
+          "description": "First image is a logo, doesn't require alt text (default: false)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD046": {
+      "type": "object",
+      "description": "Code block style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Code block style (default: consistent)",
+          "enum": ["consistent", "fenced", "indented"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD048": {
+      "type": "object",
+      "description": "Code fence style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Code fence style (default: consistent)",
+          "enum": ["consistent", "tilde", "backtick"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD049": {
+      "type": "object",
+      "description": "Emphasis style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Emphasis style (default: consistent)",
+          "enum": ["consistent", "asterisk", "underscore"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD050": {
+      "type": "object",
+      "description": "Strong style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Strong style (default: consistent)",
+          "enum": ["consistent", "asterisk", "underscore"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD054": {
+      "type": "object",
+      "description": "Link and image style",
+      "properties": {
+        "url-inline": {
+          "type": "boolean",
+          "description": "Allow URLs inline in links (default: true)"
+        },
+        "collapsed": {
+          "type": "boolean",
+          "description": "Allow collapsed reference links (default: true)"
+        },
+        "shortcut": {
+          "type": "boolean",
+          "description": "Allow shortcut reference links (default: true)"
+        },
+        "full": {
+          "type": "boolean",
+          "description": "Allow full reference links (default: true)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD055": {
+      "type": "object",
+      "description": "Table pipe style",
+      "properties": {
+        "style": {
+          "type": "string",
+          "description": "Table pipe style (default: consistent)",
+          "enum": ["consistent", "leading-and-trailing", "no-leading-or-trailing", "leading-only", "trailing-only"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MD057": {
+      "type": "object",
+      "description": "Relative links should exist",
+      "properties": {
+        "check-external-links": {
+          "type": "boolean",
+          "description": "Check external links (default: false)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
