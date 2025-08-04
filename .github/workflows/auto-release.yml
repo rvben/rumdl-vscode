@@ -138,7 +138,9 @@ jobs:
             
             ## Installation
             
-            Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl) or download the `.vsix` file below.
+            - **VS Code**: Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
+            - **Cursor/VSCodium**: Install from [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)
+            - **Manual**: Download the `.vsix` file below
           files: |
             *.vsix
             
@@ -150,6 +152,16 @@ jobs:
           npm install -g @vscode/vsce
           vsce publish --pat $VSCE_PAT
           
+      - name: Publish to Open VSX Registry
+        if: ${{ !inputs.dry_run }}
+        env:
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+        run: |
+          npm install -g ovsx
+          # Find the VSIX file
+          VSIX_FILE=$(ls *.vsix | head -1)
+          ovsx publish "$VSIX_FILE" -p $OVSX_TOKEN
+          
       - name: Dry Run Summary
         if: ${{ inputs.dry_run }}
         run: |
@@ -160,6 +172,7 @@ jobs:
           echo "- Bumped extension version to ${{ steps.bump.outputs.new_version }}"
           echo "- Created git tag v${{ steps.bump.outputs.new_version }}"
           echo "- Published to VS Code Marketplace"
+          echo "- Published to Open VSX Registry"
           echo ""
           echo "Files changed:"
           git diff --name-only

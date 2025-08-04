@@ -3,6 +3,7 @@
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/rvben.rumdl)](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
 [![Visual Studio Marketplace Downloads](https://img.shields.io/visual-studio-marketplace/d/rvben.rumdl)](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
 [![Visual Studio Marketplace Rating](https://img.shields.io/visual-studio-marketplace/r/rvben.rumdl)](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
+[![Open VSX Version](https://img.shields.io/open-vsx/v/rvben/rumdl)](https://open-vsx.org/extension/rvben/rumdl)
 
 A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.com/rumdl/rumdl), a Rust-based linter with 97.2% markdownlint compatibility and 5x performance improvement.
 
@@ -22,8 +23,13 @@ A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.c
 
 ## Installation
 
-1. **Install the extension** from the VS Code Marketplace
+### From VS Code
+1. **Install the extension** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
 2. **That's it!** rumdl is bundled with the extension - no additional setup required
+
+### From Cursor / VSCodium / Other VS Code Forks
+1. **Install the extension** from [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)
+2. **That's it!** The extension works the same in all VS Code-compatible editors
 
 The extension includes optimized rumdl binaries for all supported platforms:
 - Windows (x64)
