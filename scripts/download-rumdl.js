@@ -9,12 +9,19 @@ const GITHUB_API_URL = `https://api.github.com/repos/rvben/rumdl/releases/tags/v
 const BUNDLED_TOOLS_DIR = path.join(__dirname, '..', 'bundled-tools');
 
 // Platform mapping for rumdl binary names
+// For Linux, we prefer musl (static) binaries but fall back to gnu (dynamic) for older releases
 const PLATFORM_MAP = {
   'win32-x64': 'rumdl-x86_64-pc-windows-msvc.exe',
   'darwin-x64': 'rumdl-x86_64-apple-darwin',
   'darwin-arm64': 'rumdl-aarch64-apple-darwin',
-  'linux-x64': 'rumdl-x86_64-unknown-linux-gnu',
-  'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu'
+  'linux-x64': 'rumdl-x86_64-unknown-linux-musl',  // Static binary (preferred)
+  'linux-arm64': 'rumdl-aarch64-unknown-linux-musl' // Static binary (preferred)
+};
+
+// Fallback mapping for Linux platforms (for older releases without musl binaries)
+const PLATFORM_FALLBACK_MAP = {
+  'linux-x64': 'rumdl-x86_64-unknown-linux-gnu',   // Dynamic binary (fallback)
+  'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu' // Dynamic binary (fallback)
 };
 
 function getPlatformKey() {
@@ -106,13 +113,26 @@ async function downloadRumdlBinaries() {
     const downloadPromises = [];
 
     for (const [platformKey, binaryName] of Object.entries(PLATFORM_MAP)) {
-      const asset = releaseData.assets.find(a => a.name === binaryName);
+      let asset = releaseData.assets.find(a => a.name === binaryName);
+      let actualBinaryName = binaryName;
+      
+      // If primary binary not found and we have a fallback, try the fallback
+      if (!asset && PLATFORM_FALLBACK_MAP[platformKey]) {
+        const fallbackBinary = PLATFORM_FALLBACK_MAP[platformKey];
+        asset = releaseData.assets.find(a => a.name === fallbackBinary);
+        if (asset) {
+          actualBinaryName = fallbackBinary;
+          console.log(`Using fallback binary for ${platformKey}: ${fallbackBinary}`);
+        }
+      }
+      
       if (!asset) {
-        console.warn(`Binary not found for platform ${platformKey}: ${binaryName}`);
+        console.warn(`Binary not found for platform ${platformKey}: ${binaryName}` + 
+                    (PLATFORM_FALLBACK_MAP[platformKey] ? ` (also tried fallback: ${PLATFORM_FALLBACK_MAP[platformKey]})` : ''));
         continue;
       }
 
-      const destPath = path.join(BUNDLED_TOOLS_DIR, binaryName);
+      const destPath = path.join(BUNDLED_TOOLS_DIR, actualBinaryName);
       downloadPromises.push(
         downloadFile(asset.browser_download_url, destPath)
           .then(() => makeExecutable(destPath))
@@ -163,4 +183,4 @@ if (require.main === module) {
   downloadRumdlBinaries();
 }
 
-module.exports = { downloadRumdlBinaries, PLATFORM_MAP, BUNDLED_TOOLS_DIR };
+module.exports = { downloadRumdlBinaries, PLATFORM_MAP, PLATFORM_FALLBACK_MAP, BUNDLED_TOOLS_DIR };

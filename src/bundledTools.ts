@@ -11,12 +11,19 @@ interface BundledVersion {
 export class BundledToolsManager {
   private static readonly BUNDLED_TOOLS_DIR = path.join(__dirname, '..', 'bundled-tools');
 
+  // Primary platform mapping - prefer static (musl) binaries for Linux
   private static readonly PLATFORM_MAP: Record<string, string> = {
     'win32-x64': 'rumdl-x86_64-pc-windows-msvc.exe',
     'darwin-x64': 'rumdl-x86_64-apple-darwin',
     'darwin-arm64': 'rumdl-aarch64-apple-darwin',
-    'linux-x64': 'rumdl-x86_64-unknown-linux-gnu',
-    'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu',
+    'linux-x64': 'rumdl-x86_64-unknown-linux-musl',  // Static binary (preferred)
+    'linux-arm64': 'rumdl-aarch64-unknown-linux-musl', // Static binary (preferred)
+  };
+
+  // Fallback mapping for Linux platforms (for older releases without musl binaries)
+  private static readonly PLATFORM_FALLBACK_MAP: Record<string, string> = {
+    'linux-x64': 'rumdl-x86_64-unknown-linux-gnu',   // Dynamic binary (fallback)
+    'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu', // Dynamic binary (fallback)
   };
 
   /**
@@ -81,14 +88,30 @@ export class BundledToolsManager {
 
     try {
       const platformKey = this.getPlatformKey();
-      const binaryName = this.PLATFORM_MAP[platformKey];
+      let binaryName = this.PLATFORM_MAP[platformKey];
+      let binaryPath = path.join(this.BUNDLED_TOOLS_DIR, binaryName);
 
       if (!binaryName) {
         Logger.warn(`No bundled binary available for platform: ${platformKey}`);
         return null;
       }
 
-      const binaryPath = path.join(this.BUNDLED_TOOLS_DIR, binaryName);
+      // If primary binary doesn't exist, try fallback for Linux platforms
+      if (!fs.existsSync(binaryPath) && this.PLATFORM_FALLBACK_MAP[platformKey]) {
+        const fallbackBinary = this.PLATFORM_FALLBACK_MAP[platformKey];
+        const fallbackPath = path.join(this.BUNDLED_TOOLS_DIR, fallbackBinary);
+        
+        if (fs.existsSync(fallbackPath)) {
+          Logger.info(`Using fallback binary for ${platformKey}: ${fallbackBinary}`);
+          binaryName = fallbackBinary;
+          binaryPath = fallbackPath;
+        } else {
+          Logger.warn(`Neither primary nor fallback binary found for ${platformKey}`);
+          Logger.warn(`  Primary: ${binaryPath}`);
+          Logger.warn(`  Fallback: ${fallbackPath}`);
+          return null;
+        }
+      }
 
       if (!fs.existsSync(binaryPath)) {
         Logger.warn(`Bundled binary not found: ${binaryPath}`);
