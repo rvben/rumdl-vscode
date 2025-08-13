@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const RUMDL_VERSION = '0.0.114'; // Pin to specific version for consistency
+const RUMDL_VERSION = '0.0.115'; // Pin to specific version for consistency
 const GITHUB_API_URL = `https://api.github.com/repos/rvben/rumdl/releases/tags/v${RUMDL_VERSION}`;
 const BUNDLED_TOOLS_DIR = path.join(__dirname, '..', 'bundled-tools');
 
