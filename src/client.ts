@@ -68,29 +68,8 @@ export class RumdlLanguageClient implements vscode.Disposable {
       const workingDirectory = workspaceFolder?.uri.fsPath || process.cwd();
       Logger.info(`Using working directory: ${workingDirectory}`);
 
-      // Build server arguments
+      // Build server arguments (no config arguments, they go through initialization options)
       const serverArgs = ['server', '--stdio'];
-
-      // Only add config path if explicitly configured by user
-      if (config.configPath) {
-        const configPath = path.isAbsolute(config.configPath)
-          ? config.configPath
-          : path.join(workingDirectory, config.configPath);
-        Logger.info(`Using explicit config file: ${configPath}`);
-        serverArgs.push('--config', configPath);
-      } else {
-        Logger.info('No explicit config file set, letting rumdl auto-discover configuration files');
-      }
-
-      // Add selected rules if specified
-      if (config.rules.select.length > 0) {
-        serverArgs.push('--select', config.rules.select.join(','));
-      }
-
-      // Add ignored rules if specified
-      if (config.rules.ignore.length > 0) {
-        serverArgs.push('--ignore', config.rules.ignore.join(','));
-      }
 
       const serverOptions: ServerOptions = {
         command: rumdlPath,
@@ -102,6 +81,15 @@ export class RumdlLanguageClient implements vscode.Disposable {
             RUST_LOG: config.server.logLevel,
           },
         },
+      };
+
+      // Build initialization options from VSCode settings
+      const initializationOptions = {
+        config_path: config.configPath,
+        enable_linting: true,
+        enable_auto_fix: false,
+        select_rules: config.rules.select.length > 0 ? config.rules.select : undefined,
+        ignore_rules: config.rules.ignore.length > 0 ? config.rules.ignore : undefined,
       };
 
       const clientOptions: LanguageClientOptions = {
@@ -126,6 +114,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
             ? vscode.window.createOutputChannel('rumdl Language Server Trace')
             : undefined,
         diagnosticCollectionName: 'rumdl',
+        initializationOptions,
       };
 
       this.client = new LanguageClient(
