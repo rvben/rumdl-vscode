@@ -88,8 +88,8 @@ export class RumdlLanguageClient implements vscode.Disposable {
         config_path: config.configPath,
         enable_linting: true,
         enable_auto_fix: false,
-        select_rules: config.rules.select.length > 0 ? config.rules.select : undefined,
-        ignore_rules: config.rules.ignore.length > 0 ? config.rules.ignore : undefined,
+        enable_rules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
+        disable_rules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
       };
 
       const clientOptions: LanguageClientOptions = {

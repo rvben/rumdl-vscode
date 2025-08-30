@@ -5,8 +5,8 @@ export interface RumdlConfig {
   enable: boolean;
   configPath?: string;
   rules: {
-    select: string[];
-    ignore: string[];
+    enable: string[];
+    disable: string[];
   };
   server: {
     path: string;
@@ -28,8 +28,8 @@ export class ConfigurationManager {
       enable: config.get('enable', true),
       configPath: config.get('configPath'),
       rules: {
-        select: config.get('rules.select', []),
-        ignore: config.get('rules.ignore', []),
+        enable: config.get('rules.enable', []),
+        disable: config.get('rules.disable', []),
       },
       server: {
         path: config.get('server.path', 'rumdl'),

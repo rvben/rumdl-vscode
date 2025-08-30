@@ -104,14 +104,14 @@
           "type": "string",
           "description": "Path to rumdl configuration file"
         },
-        "rumdl.rules.select": {
+        "rumdl.rules.enable": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Rules to enable"
+          "description": "Rules to enable (if specified, only these rules will be active)"
         },
-        "rumdl.rules.ignore": {
+        "rumdl.rules.disable": {
           "type": "array",
           "items": {
             "type": "string"

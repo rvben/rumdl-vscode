@@ -425,8 +425,8 @@ export class CommandManager implements vscode.Disposable {
     statusMessage += `⚙️ Configuration:\n`;
     statusMessage += `  • Enabled: ${config.enable ? '✅' : '❌'}\n`;
     statusMessage += `  • Log Level: ${config.server.logLevel}\n`;
-    statusMessage += `  • Selected Rules: ${config.rules.select.length > 0 ? config.rules.select.join(', ') : 'All'}\n`;
-    statusMessage += `  • Ignored Rules: ${config.rules.ignore.length > 0 ? config.rules.ignore.join(', ') : 'None'}\n\n`;
+    statusMessage += `  • Enabled Rules: ${config.rules.enable.length > 0 ? config.rules.enable.join(', ') : 'All'}\n`;
+    statusMessage += `  • Disabled Rules: ${config.rules.disable.length > 0 ? config.rules.disable.join(', ') : 'None'}\n\n`;
 
     // Workspace info
     const workspaceFolders = vscode.workspace.workspaceFolders?.map(f => f.name) || [];
@@ -505,8 +505,8 @@ export class CommandManager implements vscode.Disposable {
     // VS Code configuration
     discoveryReport += `\n⚙️ VS Code Configuration:\n`;
     discoveryReport += `  • Config Path: ${config.configPath || 'not set (auto-discovery)'}\n`;
-    discoveryReport += `  • Selected Rules: ${config.rules.select.length > 0 ? config.rules.select.join(', ') : 'none'}\n`;
-    discoveryReport += `  • Ignored Rules: ${config.rules.ignore.length > 0 ? config.rules.ignore.join(', ') : 'none'}\n`;
+    discoveryReport += `  • Enabled Rules: ${config.rules.enable.length > 0 ? config.rules.enable.join(', ') : 'none'}\n`;
+    discoveryReport += `  • Disabled Rules: ${config.rules.disable.length > 0 ? config.rules.disable.join(', ') : 'none'}\n`;
 
     // Test rumdl configuration discovery
     discoveryReport += `\n🔧 Testing rumdl Configuration Discovery:\n`;
