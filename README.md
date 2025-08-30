@@ -97,6 +97,25 @@ Access these commands via the Command Palette (`Cmd/Ctrl + Shift + P`):
 - **`rumdl: Check Extension Status`** - Display extension status and configuration
 - **`rumdl: Test Configuration Discovery`** - Debug configuration file discovery and test rumdl settings
 
+## Format on Save
+
+To automatically fix Markdown issues when saving files, enable VS Code's format on save feature:
+
+```json
+{
+  "[markdown]": {
+    "editor.formatOnSave": true
+  }
+}
+```
+
+Or globally for all file types:
+```json
+{
+  "editor.formatOnSave": true
+}
+```
+
 ## Configuration
 
 The extension uses VS Code's standard configuration system. Open Settings (Cmd/Ctrl + `,`) and search for "rumdl" to configure:
