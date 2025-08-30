@@ -76,6 +76,12 @@ export async function activate(
 
     // Register additional event handlers
     registerEventHandlers(context);
+    
+    // Initialize status bar with current document if any
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor && activeEditor.document.languageId === 'markdown') {
+      updateStatusBarForDocument(activeEditor.document);
+    }
 
     Logger.info('rumdl extension activated successfully');
 
@@ -119,6 +125,10 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
   const activeEditorWatcher = vscode.window.onDidChangeActiveTextEditor(editor => {
     if (editor && editor.document.languageId === 'markdown') {
       Logger.debug(`Active editor changed to Markdown file: ${editor.document.uri.fsPath}`);
+      updateStatusBarForDocument(editor.document);
+    } else {
+      // Clear issue count when not in a markdown file
+      statusBar.updateIssueCount(0, 0);
     }
   });
 
@@ -129,7 +139,41 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
     }
   });
 
-  context.subscriptions.push(workspaceFoldersWatcher, activeEditorWatcher, documentSaveWatcher);
+  // Handle diagnostics changes to update status bar
+  const diagnosticsWatcher = vscode.languages.onDidChangeDiagnostics(event => {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor && activeEditor.document.languageId === 'markdown') {
+      // Check if the active document's URI is in the changed URIs
+      const docUri = activeEditor.document.uri;
+      if (event.uris.some(uri => uri.toString() === docUri.toString())) {
+        updateStatusBarForDocument(activeEditor.document);
+      }
+    }
+  });
+
+  context.subscriptions.push(workspaceFoldersWatcher, activeEditorWatcher, documentSaveWatcher, diagnosticsWatcher);
+}
+
+function updateStatusBarForDocument(document: vscode.TextDocument): void {
+  // Get diagnostics for the current document
+  const diagnostics = vscode.languages.getDiagnostics(document.uri);
+  
+  // Filter for rumdl diagnostics (you might want to check the source)
+  const rumdlDiagnostics = diagnostics.filter(d => 
+    d.source === 'rumdl' || d.source === 'rumdl Language Server'
+  );
+  
+  // Count total and fixable issues
+  const totalIssues = rumdlDiagnostics.length;
+  // We consider issues with code actions as potentially fixable
+  // In reality, we'd need to check if the diagnostic has associated code actions
+  // For now, we'll estimate based on severity
+  const fixableIssues = rumdlDiagnostics.filter(d => 
+    d.severity === vscode.DiagnosticSeverity.Warning ||
+    d.severity === vscode.DiagnosticSeverity.Information
+  ).length;
+  
+  statusBar.updateIssueCount(totalIssues, fixableIssues);
 }
 
 export async function deactivate(): Promise<void> {

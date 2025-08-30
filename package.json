@@ -150,6 +150,24 @@
           "description": "Remove duplicate diagnostics (useful if multiple markdown linters are active)"
         }
       }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceExtname == .md && rumdl.enabled",
+          "command": "rumdl.fixAll",
+          "group": "1_modification@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "rumdl.fixAll",
+          "when": "resourceExtname == .md"
+        },
+        {
+          "command": "rumdl.fixAllWorkspace"
+        }
+      ]
     }
   },
   "scripts": {

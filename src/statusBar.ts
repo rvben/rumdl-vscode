@@ -11,6 +11,8 @@ export enum ServerStatus {
 export class StatusBarManager implements vscode.Disposable {
   private statusBarItem: vscode.StatusBarItem;
   private currentStatus: ServerStatus = ServerStatus.Disconnected;
+  private issueCount: number = 0;
+  private fixableCount: number = 0;
 
   constructor() {
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -41,6 +43,12 @@ export class StatusBarManager implements vscode.Disposable {
     this.setStatus(ServerStatus.Error, error);
   }
 
+  public updateIssueCount(total: number, fixable: number): void {
+    this.issueCount = total;
+    this.fixableCount = fixable;
+    this.updateStatusBar();
+  }
+
   private updateStatusBar(message?: string): void {
     switch (this.currentStatus) {
       case ServerStatus.Starting:
@@ -50,9 +58,17 @@ export class StatusBarManager implements vscode.Disposable {
         break;
 
       case ServerStatus.Connected:
-        this.statusBarItem.text = '$(check) rumdl';
-        this.statusBarItem.tooltip = message || 'rumdl server is running';
-        this.statusBarItem.backgroundColor = undefined;
+        if (this.issueCount > 0) {
+          const icon = this.fixableCount > 0 ? '$(warning)' : '$(info)';
+          this.statusBarItem.text = `${icon} rumdl: ${this.issueCount} issue${this.issueCount === 1 ? '' : 's'}`;
+          const fixableText = this.fixableCount > 0 ? ` (${this.fixableCount} fixable)` : '';
+          this.statusBarItem.tooltip = `rumdl: ${this.issueCount} issue${this.issueCount === 1 ? '' : 's'}${fixableText}\nClick to show logs`;
+          this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+        } else {
+          this.statusBarItem.text = '$(check) rumdl';
+          this.statusBarItem.tooltip = message || 'rumdl: No issues found\nClick to show logs';
+          this.statusBarItem.backgroundColor = undefined;
+        }
         break;
 
       case ServerStatus.Disconnected:
