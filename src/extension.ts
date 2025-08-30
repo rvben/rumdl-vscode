@@ -76,7 +76,7 @@ export async function activate(
 
     // Register additional event handlers
     registerEventHandlers(context);
-    
+
     // Initialize status bar with current document if any
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor && activeEditor.document.languageId === 'markdown') {
@@ -151,28 +151,34 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
     }
   });
 
-  context.subscriptions.push(workspaceFoldersWatcher, activeEditorWatcher, documentSaveWatcher, diagnosticsWatcher);
+  context.subscriptions.push(
+    workspaceFoldersWatcher,
+    activeEditorWatcher,
+    documentSaveWatcher,
+    diagnosticsWatcher
+  );
 }
 
 function updateStatusBarForDocument(document: vscode.TextDocument): void {
   // Get diagnostics for the current document
   const diagnostics = vscode.languages.getDiagnostics(document.uri);
-  
+
   // Filter for rumdl diagnostics (you might want to check the source)
-  const rumdlDiagnostics = diagnostics.filter(d => 
-    d.source === 'rumdl' || d.source === 'rumdl Language Server'
+  const rumdlDiagnostics = diagnostics.filter(
+    d => d.source === 'rumdl' || d.source === 'rumdl Language Server'
   );
-  
+
   // Count total and fixable issues
   const totalIssues = rumdlDiagnostics.length;
   // We consider issues with code actions as potentially fixable
   // In reality, we'd need to check if the diagnostic has associated code actions
   // For now, we'll estimate based on severity
-  const fixableIssues = rumdlDiagnostics.filter(d => 
-    d.severity === vscode.DiagnosticSeverity.Warning ||
-    d.severity === vscode.DiagnosticSeverity.Information
+  const fixableIssues = rumdlDiagnostics.filter(
+    d =>
+      d.severity === vscode.DiagnosticSeverity.Warning ||
+      d.severity === vscode.DiagnosticSeverity.Information
   ).length;
-  
+
   statusBar.updateIssueCount(totalIssues, fixableIssues);
 }
 

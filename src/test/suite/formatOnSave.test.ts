@@ -16,10 +16,10 @@ suite('Format on Save Test', () => {
   teardown(async () => {
     const editorConfig = vscode.workspace.getConfiguration('editor');
     await editorConfig.update('formatOnSave', undefined, vscode.ConfigurationTarget.Workspace);
-    
+
     const rumdlConfig = vscode.workspace.getConfiguration('rumdl');
     await rumdlConfig.update('server.path', undefined, vscode.ConfigurationTarget.Workspace);
-    
+
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
@@ -34,7 +34,11 @@ Trailing spaces here   `;
 
     // Use the local release build
     const rumdlConfig = vscode.workspace.getConfiguration('rumdl');
-    await rumdlConfig.update('server.path', '/Users/ruben/Projects/rumdl-repos/rumdl/target/release/rumdl', vscode.ConfigurationTarget.Workspace);
+    await rumdlConfig.update(
+      'server.path',
+      '/Users/ruben/Projects/rumdl-repos/rumdl/target/release/rumdl',
+      vscode.ConfigurationTarget.Workspace
+    );
 
     // Enable VSCode's formatOnSave
     const editorConfig = vscode.workspace.getConfiguration('editor');
@@ -55,7 +59,7 @@ Trailing spaces here   `;
     const formattedText = document.getText();
     assert.ok(formattedText.includes('# Missing space'), 'Manual formatting should work');
     assert.ok(!formattedText.includes('   '), 'Trailing spaces should be removed');
-    
+
     // Note: Actual save-triggered formatting would need to be tested manually
     // as the VSCode test environment doesn't trigger all save events properly
   });

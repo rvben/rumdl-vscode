@@ -63,7 +63,9 @@ export class StatusBarManager implements vscode.Disposable {
           this.statusBarItem.text = `${icon} rumdl: ${this.issueCount} issue${this.issueCount === 1 ? '' : 's'}`;
           const fixableText = this.fixableCount > 0 ? ` (${this.fixableCount} fixable)` : '';
           this.statusBarItem.tooltip = `rumdl: ${this.issueCount} issue${this.issueCount === 1 ? '' : 's'}${fixableText}\nClick to show logs`;
-          this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+          this.statusBarItem.backgroundColor = new vscode.ThemeColor(
+            'statusBarItem.warningBackground'
+          );
         } else {
           this.statusBarItem.text = '$(check) rumdl';
           this.statusBarItem.tooltip = message || 'rumdl: No issues found\nClick to show logs';

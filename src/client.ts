@@ -10,7 +10,6 @@ import { ConfigurationManager } from './configuration';
 import { Logger, checkRumdlInstallation, getRumdlVersion, showErrorMessage } from './utils';
 import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
-import path from 'path';
 
 export class RumdlLanguageClient implements vscode.Disposable {
   private client: LanguageClient | undefined;
