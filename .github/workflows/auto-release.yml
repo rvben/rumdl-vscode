@@ -44,14 +44,25 @@ jobs:
           fi
           echo "rumdl_version=$VERSION" >> $GITHUB_OUTPUT
           
-          # Verify the version exists
+          # Verify the version exists with retries (to handle API propagation delays)
           echo "Verifying rumdl v$VERSION exists..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/rvben/rumdl/releases/tags/v$VERSION")
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Error: rumdl v$VERSION not found on GitHub releases"
-            exit 1
-          fi
-          echo "✅ rumdl v$VERSION found"
+          MAX_RETRIES=3
+          RETRY_DELAY=60
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/rvben/rumdl/releases/tags/v$VERSION")
+            
+            if [ "$RESPONSE" = "200" ]; then
+              echo "✅ rumdl v$VERSION found"
+              break
+            elif [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "⏳ rumdl v$VERSION not found yet (attempt $i/$MAX_RETRIES), waiting ${RETRY_DELAY}s for API propagation..."
+              sleep $RETRY_DELAY
+            else
+              echo "Error: rumdl v$VERSION not found on GitHub releases after $MAX_RETRIES attempts"
+              exit 1
+            fi
+          done
           
       - name: Update rumdl version in download script
         run: |
