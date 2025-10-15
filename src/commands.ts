@@ -63,7 +63,7 @@ export class CommandManager implements vscode.Disposable {
         'vscode.executeCodeActionProvider',
         editor.document.uri,
         range,
-        vscode.CodeActionKind.QuickFix
+        vscode.CodeActionKind.QuickFix.value
       );
 
       if (!codeActions || codeActions.length === 0) {
@@ -160,7 +160,7 @@ export class CommandManager implements vscode.Disposable {
             'vscode.executeCodeActionProvider',
             document.uri,
             range,
-            vscode.CodeActionKind.QuickFix
+            vscode.CodeActionKind.QuickFix.value
           );
 
           if (!codeActions || codeActions.length === 0) {
