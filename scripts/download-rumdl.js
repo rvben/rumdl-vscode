@@ -3,25 +3,26 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const { execSync } = require('child_process');
 
 const RUMDL_VERSION = '0.0.161'; // Pin to specific version for consistency
 const GITHUB_API_URL = `https://api.github.com/repos/rvben/rumdl/releases/tags/v${RUMDL_VERSION}`;
 const BUNDLED_TOOLS_DIR = path.join(__dirname, '..', 'bundled-tools');
 
-// Platform mapping for rumdl binary names
+// Platform mapping for rumdl binary names and their archive formats
 // For Linux, we prefer musl (static) binaries but fall back to gnu (dynamic) for older releases
 const PLATFORM_MAP = {
-  'win32-x64': 'rumdl-x86_64-pc-windows-msvc.exe',
-  'darwin-x64': 'rumdl-x86_64-apple-darwin',
-  'darwin-arm64': 'rumdl-aarch64-apple-darwin',
-  'linux-x64': 'rumdl-x86_64-unknown-linux-musl',  // Static binary (preferred)
-  'linux-arm64': 'rumdl-aarch64-unknown-linux-musl' // Static binary (preferred)
+  'win32-x64': { binary: 'rumdl-x86_64-pc-windows-msvc.exe', archive: 'rumdl-v{VERSION}-x86_64-pc-windows-msvc.zip', ext: 'zip' },
+  'darwin-x64': { binary: 'rumdl-x86_64-apple-darwin', archive: 'rumdl-v{VERSION}-x86_64-apple-darwin.tar.gz', ext: 'tar.gz' },
+  'darwin-arm64': { binary: 'rumdl-aarch64-apple-darwin', archive: 'rumdl-v{VERSION}-aarch64-apple-darwin.tar.gz', ext: 'tar.gz' },
+  'linux-x64': { binary: 'rumdl-x86_64-unknown-linux-musl', archive: 'rumdl-v{VERSION}-x86_64-unknown-linux-musl.tar.gz', ext: 'tar.gz' },
+  'linux-arm64': { binary: 'rumdl-aarch64-unknown-linux-musl', archive: 'rumdl-v{VERSION}-aarch64-unknown-linux-musl.tar.gz', ext: 'tar.gz' }
 };
 
 // Fallback mapping for Linux platforms (for older releases without musl binaries)
 const PLATFORM_FALLBACK_MAP = {
-  'linux-x64': 'rumdl-x86_64-unknown-linux-gnu',   // Dynamic binary (fallback)
-  'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu' // Dynamic binary (fallback)
+  'linux-x64': { binary: 'rumdl-x86_64-unknown-linux-gnu', archive: 'rumdl-v{VERSION}-x86_64-unknown-linux-gnu.tar.gz', ext: 'tar.gz' },
+  'linux-arm64': { binary: 'rumdl-aarch64-unknown-linux-gnu', archive: 'rumdl-v{VERSION}-aarch64-unknown-linux-gnu.tar.gz', ext: 'tar.gz' }
 };
 
 function getPlatformKey() {
@@ -81,6 +82,52 @@ function makeExecutable(filePath) {
   }
 }
 
+function extractArchive(archivePath, destDir, binaryName) {
+  console.log(`Extracting ${archivePath}...`);
+  const ext = path.extname(archivePath);
+
+  try {
+    if (ext === '.zip') {
+      // Extract zip (cross-platform using unzip or tar)
+      if (process.platform === 'win32') {
+        execSync(`powershell -command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force"`, { stdio: 'inherit' });
+      } else {
+        execSync(`unzip -o "${archivePath}" -d "${destDir}"`, { stdio: 'inherit' });
+      }
+    } else if (archivePath.endsWith('.tar.gz')) {
+      // Extract tar.gz
+      execSync(`tar -xzf "${archivePath}" -C "${destDir}"`, { stdio: 'inherit' });
+    } else {
+      throw new Error(`Unsupported archive format: ${ext}`);
+    }
+
+    // Find the extracted binary (could be "rumdl" or "rumdl.exe")
+    const extractedName = ext === '.zip' ? 'rumdl.exe' : 'rumdl';
+    const extractedPath = path.join(destDir, extractedName);
+    const targetPath = path.join(destDir, binaryName);
+
+    // Rename to platform-specific name if needed
+    if (extractedName !== binaryName && fs.existsSync(extractedPath)) {
+      fs.renameSync(extractedPath, targetPath);
+      console.log(`Renamed ${extractedName} to ${binaryName}`);
+    }
+
+    // Make the binary executable
+    if (fs.existsSync(targetPath)) {
+      makeExecutable(targetPath);
+    } else {
+      throw new Error(`Binary not found after extraction: ${targetPath}`);
+    }
+
+    // Clean up archive
+    fs.unlinkSync(archivePath);
+    console.log(`Extracted and cleaned up: ${archivePath}`);
+  } catch (error) {
+    console.error(`Failed to extract ${archivePath}:`, error.message);
+    throw error;
+  }
+}
+
 async function downloadRumdlBinaries() {
   try {
     console.log(`Downloading rumdl binaries for version ${RUMDL_VERSION}...`);
@@ -109,33 +156,39 @@ async function downloadRumdlBinaries() {
       throw new Error('No assets found in release');
     }
 
-    // Download binaries for all platforms
+    // Download and extract binaries for all platforms
     const downloadPromises = [];
 
-    for (const [platformKey, binaryName] of Object.entries(PLATFORM_MAP)) {
-      let asset = releaseData.assets.find(a => a.name === binaryName);
-      let actualBinaryName = binaryName;
-      
-      // If primary binary not found and we have a fallback, try the fallback
+    for (const [platformKey, platformInfo] of Object.entries(PLATFORM_MAP)) {
+      const archiveName = platformInfo.archive.replace('{VERSION}', RUMDL_VERSION);
+      let asset = releaseData.assets.find(a => a.name === archiveName);
+      let actualBinaryName = platformInfo.binary;
+      let actualArchiveName = archiveName;
+
+      // If primary archive not found and we have a fallback, try the fallback
       if (!asset && PLATFORM_FALLBACK_MAP[platformKey]) {
-        const fallbackBinary = PLATFORM_FALLBACK_MAP[platformKey];
-        asset = releaseData.assets.find(a => a.name === fallbackBinary);
+        const fallbackInfo = PLATFORM_FALLBACK_MAP[platformKey];
+        const fallbackArchiveName = fallbackInfo.archive.replace('{VERSION}', RUMDL_VERSION);
+        asset = releaseData.assets.find(a => a.name === fallbackArchiveName);
         if (asset) {
-          actualBinaryName = fallbackBinary;
-          console.log(`Using fallback binary for ${platformKey}: ${fallbackBinary}`);
+          actualBinaryName = fallbackInfo.binary;
+          actualArchiveName = fallbackArchiveName;
+          console.log(`Using fallback archive for ${platformKey}: ${fallbackArchiveName}`);
         }
       }
-      
+
       if (!asset) {
-        console.warn(`Binary not found for platform ${platformKey}: ${binaryName}` + 
-                    (PLATFORM_FALLBACK_MAP[platformKey] ? ` (also tried fallback: ${PLATFORM_FALLBACK_MAP[platformKey]})` : ''));
+        const fallbackMsg = PLATFORM_FALLBACK_MAP[platformKey]
+          ? ` (also tried fallback: ${PLATFORM_FALLBACK_MAP[platformKey].archive.replace('{VERSION}', RUMDL_VERSION)})`
+          : '';
+        console.warn(`Archive not found for platform ${platformKey}: ${archiveName}${fallbackMsg}`);
         continue;
       }
 
-      const destPath = path.join(BUNDLED_TOOLS_DIR, actualBinaryName);
+      const archivePath = path.join(BUNDLED_TOOLS_DIR, actualArchiveName);
       downloadPromises.push(
-        downloadFile(asset.browser_download_url, destPath)
-          .then(() => makeExecutable(destPath))
+        downloadFile(asset.browser_download_url, archivePath)
+          .then(() => extractArchive(archivePath, BUNDLED_TOOLS_DIR, actualBinaryName))
       );
     }
 
@@ -161,8 +214,8 @@ async function downloadRumdlBinaries() {
 // Allow running specific platform only for development
 if (process.argv.includes('--current-platform-only')) {
   const platformKey = getPlatformKey();
-  const binaryName = PLATFORM_MAP[platformKey];
-  console.log(`🔧 Development mode: Downloading only for current platform: ${platformKey} (${binaryName})`);
+  const platformInfo = PLATFORM_MAP[platformKey];
+  console.log(`🔧 Development mode: Downloading only for current platform: ${platformKey} (${platformInfo.binary})`);
 
   // Modify PLATFORM_MAP to only include current platform
   Object.keys(PLATFORM_MAP).forEach(key => {
