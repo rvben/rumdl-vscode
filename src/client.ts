@@ -84,7 +84,8 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
       // Build initialization options from VSCode settings
       const initializationOptions = {
-        config_path: config.configPath && config.configPath.trim() !== '' ? config.configPath : undefined,
+        config_path:
+          config.configPath && config.configPath.trim() !== '' ? config.configPath : undefined,
         enable_linting: true,
         enable_auto_fix: true, // Always enable auto-fix capability in LSP, autoFixOnSave controls when it's applied
         enable_rules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
