@@ -18,6 +18,9 @@ export interface RumdlConfig {
   diagnostics: {
     deduplicate: boolean;
   };
+  format: {
+    autoFixOnSave: boolean;
+  };
 }
 
 export class ConfigurationManager {
@@ -40,6 +43,9 @@ export class ConfigurationManager {
       },
       diagnostics: {
         deduplicate: config.get('diagnostics.deduplicate', true),
+      },
+      format: {
+        autoFixOnSave: config.get('format.autoFixOnSave', false),
       },
     };
   }
@@ -78,5 +84,9 @@ export class ConfigurationManager {
 
   public static shouldDeduplicate(): boolean {
     return this.getConfiguration().diagnostics.deduplicate;
+  }
+
+  public static isAutoFixOnSaveEnabled(): boolean {
+    return this.getConfiguration().format.autoFixOnSave;
   }
 }

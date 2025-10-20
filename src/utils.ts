@@ -18,7 +18,7 @@ export class Logger {
   public static error(message: string, error?: Error): void {
     const errorMessage = error ? `${message}: ${error.message}` : message;
     this.log('ERROR', errorMessage);
-    if (error?.stack) {
+    if (error?.stack && this.outputChannel) {
       this.outputChannel.appendLine(error.stack);
     }
   }
@@ -28,16 +28,24 @@ export class Logger {
   }
 
   private static log(level: string, message: string): void {
+    // If outputChannel is not initialized (e.g., in tests), skip logging
+    if (!this.outputChannel) {
+      return;
+    }
     const timestamp = new Date().toISOString();
     this.outputChannel.appendLine(`[${timestamp}] [${level}] ${message}`);
   }
 
   public static show(): void {
-    this.outputChannel.show();
+    if (this.outputChannel) {
+      this.outputChannel.show();
+    }
   }
 
   public static dispose(): void {
-    this.outputChannel.dispose();
+    if (this.outputChannel) {
+      this.outputChannel.dispose();
+    }
   }
 }
 

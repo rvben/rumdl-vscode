@@ -148,6 +148,11 @@
           "type": "boolean",
           "default": true,
           "description": "Remove duplicate diagnostics (useful if multiple markdown linters are active)"
+        },
+        "rumdl.format.autoFixOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically fix markdown issues when saving a file"
         }
       }
     },

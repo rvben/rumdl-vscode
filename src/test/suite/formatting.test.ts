@@ -41,10 +41,15 @@ Trailing spaces here
     // Wait for extension and LSP to be ready
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    // Try to get formatting edits
+    // Try to get formatting edits with proper formatting options
+    const formattingOptions: vscode.FormattingOptions = {
+      tabSize: 2,
+      insertSpaces: true,
+    };
     const formattingEdits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
       'vscode.executeFormatDocumentProvider',
-      document.uri
+      document.uri,
+      formattingOptions
     );
 
     console.log('Formatting edits:', formattingEdits);

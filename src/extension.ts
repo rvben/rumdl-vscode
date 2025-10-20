@@ -132,11 +132,80 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
     }
   });
 
-  // Handle document saves to trigger re-linting
-  const documentSaveWatcher = vscode.workspace.onDidSaveTextDocument(document => {
-    if (document.languageId === 'markdown') {
-      Logger.debug(`Markdown document saved: ${document.uri.fsPath}`);
+  // Handle document saves to apply auto-fix if enabled
+  const documentSaveWatcher = vscode.workspace.onWillSaveTextDocument(async event => {
+    const document = event.document;
+
+    if (document.languageId !== 'markdown') {
+      return;
     }
+
+    // Check if autoFixOnSave is enabled
+    if (!ConfigurationManager.isAutoFixOnSaveEnabled()) {
+      return;
+    }
+
+    // Check if client is running
+    if (!client.isRunning()) {
+      return;
+    }
+
+    Logger.debug(`Auto-fixing markdown document on save: ${document.uri.fsPath}`);
+
+    // Use waitUntil to apply edits before save
+    event.waitUntil(
+      (async () => {
+        try {
+          // Get all code actions for the document
+          const range = new vscode.Range(
+            document.positionAt(0),
+            document.positionAt(document.getText().length)
+          );
+
+          const codeActions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+            'vscode.executeCodeActionProvider',
+            document.uri,
+            range,
+            vscode.CodeActionKind.QuickFix.value
+          );
+
+          if (!codeActions || codeActions.length === 0) {
+            return [];
+          }
+
+          // Filter for rumdl fix actions
+          const rumdlFixActions = codeActions.filter(
+            action =>
+              action.kind?.value.startsWith('quickfix.rumdl') ||
+              action.title.toLowerCase().includes('rumdl')
+          );
+
+          if (rumdlFixActions.length === 0) {
+            return [];
+          }
+
+          // Collect all edits from all fix actions
+          const edits: vscode.TextEdit[] = [];
+          for (const action of rumdlFixActions) {
+            if (action.edit) {
+              // Get edits for this document from the workspace edit
+              const docEdits = action.edit.get(document.uri);
+              if (docEdits && docEdits.length > 0) {
+                edits.push(...docEdits);
+              }
+            }
+          }
+
+          if (edits.length > 0) {
+            Logger.debug(`Applying ${edits.length} auto-fixes on save`);
+          }
+          return edits;
+        } catch (error) {
+          Logger.error('Error collecting auto-fixes on save', error as Error);
+          return [];
+        }
+      })()
+    );
   });
 
   // Handle diagnostics changes to update status bar
