@@ -50,7 +50,7 @@ suite('BundledTools Tests', () => {
   });
 
   test('getBestRumdlPath should use bundled if available', async () => {
-    const result = await BundledToolsManager.getBestRumdlPath('rumdl');
+    const result = await BundledToolsManager.getBestRumdlPath('rumdl-not-found'); // Use a path that is unlikely to exist
 
     // Should prefer bundled if available
     expect(result).to.be.a('string');
