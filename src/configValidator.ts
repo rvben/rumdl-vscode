@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as TOML from '@iarna/toml';
 import { RULE_SCHEMAS, RULE_NAMES } from './configSchema';
 
 export interface ValidationError {
@@ -24,9 +25,41 @@ export class ConfigValidator {
    */
   static validateToml(content: string): ConfigValidationResult {
     const errors: ValidationError[] = [];
-    const lines = content.split('\n');
 
-    // Track current section
+    // First, validate TOML syntax using proper parser
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = TOML.parse(content) as Record<string, unknown>;
+    } catch (error) {
+      // TOML parsing failed - report syntax error
+      let line = 0;
+      let message = 'Invalid TOML syntax';
+
+      if (error instanceof Error) {
+        message = error.message;
+        // Try to extract line number from error message if available
+        const lineMatch = error.message.match(/line (\d+)/i);
+        if (lineMatch) {
+          line = parseInt(lineMatch[1], 10) - 1; // Convert to 0-indexed
+        }
+      }
+
+      errors.push({
+        line,
+        column: 0,
+        message,
+        severity: vscode.DiagnosticSeverity.Error,
+      });
+
+      return {
+        valid: false,
+        errors,
+      };
+    }
+
+    // TOML syntax is valid, now validate semantic rules
+    // Parse line-by-line for detailed error reporting
+    const lines = content.split('\n');
     let currentSection = '';
     let currentRule = '';
 
@@ -84,33 +117,46 @@ export class ConfigValidator {
         continue;
       }
 
-      // Parse key-value pairs
-      const kvMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/);
+      // Parse key-value pairs - but we can be more lenient now since TOML parser validated it
+      const kvMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*=/);
       if (!kvMatch) {
-        errors.push({
-          line: lineNum,
-          column: 0,
-          message: 'Invalid syntax. Expected: key = value',
-          severity: vscode.DiagnosticSeverity.Error,
-        });
+        // Not a key-value line, might be part of multiline value - skip
         continue;
       }
 
-      const [, key, value] = kvMatch;
+      const key = kvMatch[1];
+
+      // Get value from parsed structure instead of trying to parse the line
+      let value: unknown = undefined;
+      if (currentRule) {
+        // For rule-specific sections like [rules.MD013], the structure is rules -> MD013 -> key
+        if (parsed.rules && typeof parsed.rules === 'object') {
+          const rulesObj = parsed.rules as Record<string, unknown>;
+          if (rulesObj[currentRule] && typeof rulesObj[currentRule] === 'object') {
+            value = (rulesObj[currentRule] as Record<string, unknown>)[key];
+          }
+        }
+      } else if (
+        currentSection &&
+        parsed[currentSection] &&
+        typeof parsed[currentSection] === 'object'
+      ) {
+        value = (parsed[currentSection] as Record<string, unknown>)[key];
+      }
 
       // Validate based on current section
       if (currentRule) {
         // Validate rule-specific configuration
-        this.validateRuleConfig(currentRule, key, value, lineNum, errors);
+        this.validateRuleConfigFromValue(currentRule, key, value, lineNum, errors);
       } else if (currentSection === 'rules') {
         // Validate rules section keys
-        this.validateRulesSection(key, value, lineNum, errors);
+        this.validateRulesSectionFromValue(key, value, lineNum, errors);
       } else if (currentSection === 'files') {
         // Validate files section keys
-        this.validateFilesSection(key, value, lineNum, errors);
+        this.validateFilesSectionFromValue(key, value, lineNum, errors);
       } else if (currentSection === 'global') {
         // Validate global section keys
-        this.validateGlobalSection(key, value, lineNum, errors);
+        this.validateGlobalSectionFromValue(key, value, lineNum, errors);
       }
     }
 
@@ -177,7 +223,243 @@ export class ConfigValidator {
   }
 
   /**
-   * Validate rule-specific configuration
+   * Validate rule-specific configuration from parsed value
+   */
+  private static validateRuleConfigFromValue(
+    ruleName: string,
+    key: string,
+    value: unknown,
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    const schema = RULE_SCHEMAS[ruleName] as { properties?: Record<string, unknown> };
+    if (!schema || !schema.properties) {
+      return;
+    }
+
+    const propSchema = schema.properties[key];
+    if (!propSchema) {
+      // Unknown property for this rule
+      const validProps = Object.keys(schema.properties);
+      const message =
+        validProps.length > 0
+          ? `Unknown property '${key}' for rule ${ruleName}. Valid properties: ${validProps.join(', ')}`
+          : `Rule ${ruleName} does not support configuration properties`;
+
+      errors.push({
+        line,
+        column: 0,
+        message,
+        severity: vscode.DiagnosticSeverity.Warning,
+      });
+      return;
+    }
+
+    // Validate value type from parsed structure
+    this.validateParsedValue(key, value, propSchema, line, errors);
+  }
+
+  /**
+   * Validate rules section properties from parsed value
+   */
+  private static validateRulesSectionFromValue(
+    key: string,
+    value: unknown,
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    const validKeys = ['select', 'ignore'];
+
+    if (!validKeys.includes(key)) {
+      errors.push({
+        line,
+        column: 0,
+        message: `Unknown property '${key}' in [rules] section. Valid properties: ${validKeys.join(', ')}`,
+        severity: vscode.DiagnosticSeverity.Warning,
+      });
+      return;
+    }
+
+    // Both should be arrays
+    if (!Array.isArray(value)) {
+      errors.push({
+        line,
+        column: 0,
+        message: `Property '${key}' must be an array of rule names`,
+        severity: vscode.DiagnosticSeverity.Error,
+      });
+    }
+  }
+
+  /**
+   * Validate files section properties from parsed value
+   */
+  private static validateFilesSectionFromValue(
+    key: string,
+    value: unknown,
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    const validKeys = ['include', 'exclude'];
+
+    if (!validKeys.includes(key)) {
+      errors.push({
+        line,
+        column: 0,
+        message: `Unknown property '${key}' in [files] section. Valid properties: ${validKeys.join(', ')}`,
+        severity: vscode.DiagnosticSeverity.Warning,
+      });
+      return;
+    }
+
+    // Both should be arrays
+    if (!Array.isArray(value)) {
+      errors.push({
+        line,
+        column: 0,
+        message: `Property '${key}' must be an array of glob patterns`,
+        severity: vscode.DiagnosticSeverity.Error,
+      });
+    }
+  }
+
+  /**
+   * Validate global section properties from parsed value
+   */
+  private static validateGlobalSectionFromValue(
+    key: string,
+    value: unknown,
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    const validKeys = ['enable', 'disable', 'exclude', 'include', 'respect_gitignore', 'flavor'];
+
+    if (!validKeys.includes(key)) {
+      errors.push({
+        line,
+        column: 0,
+        message: `Unknown property '${key}' in [global] section. Valid properties: ${validKeys.join(', ')}`,
+        severity: vscode.DiagnosticSeverity.Warning,
+      });
+      return;
+    }
+
+    // Validate types
+    if (key === 'respect_gitignore') {
+      if (typeof value !== 'boolean') {
+        errors.push({
+          line,
+          column: 0,
+          message: `Property '${key}' must be true or false`,
+          severity: vscode.DiagnosticSeverity.Error,
+        });
+      }
+    } else if (key === 'flavor') {
+      if (typeof value !== 'string') {
+        errors.push({
+          line,
+          column: 0,
+          message: `Property '${key}' must be a string`,
+          severity: vscode.DiagnosticSeverity.Error,
+        });
+      }
+    } else {
+      // All others should be arrays
+      if (!Array.isArray(value)) {
+        errors.push({
+          line,
+          column: 0,
+          message: `Property '${key}' must be an array`,
+          severity: vscode.DiagnosticSeverity.Error,
+        });
+      }
+    }
+  }
+
+  /**
+   * Validate a parsed value against a schema
+   */
+  private static validateParsedValue(
+    key: string,
+    value: unknown,
+    schema: { type?: string; minimum?: number; maximum?: number; enum?: string[] },
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    switch (schema.type) {
+      case 'number': {
+        if (typeof value !== 'number') {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be a number`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+          return;
+        }
+        if (schema.minimum !== undefined && value < schema.minimum) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be at least ${schema.minimum}`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        if (schema.maximum !== undefined && value > schema.maximum) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be at most ${schema.maximum}`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
+      }
+
+      case 'boolean':
+        if (typeof value !== 'boolean') {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be true or false`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
+
+      case 'string':
+        if (typeof value !== 'string') {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be a string`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        } else if (schema.enum && !schema.enum.includes(value)) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be one of: ${schema.enum.map((v: string) => `"${v}"`).join(', ')}`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
+
+      case 'array':
+        if (!Array.isArray(value)) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be an array`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
+    }
+  }
+
+  /**
+   * Validate rule-specific configuration (DEPRECATED: kept for backwards compatibility)
    */
   private static validateRuleConfig(
     ruleName: string,
