@@ -147,7 +147,7 @@ export class BundledToolsManager {
    */
   public static async getBestRumdlPath(configuredPath?: string): Promise<string> {
     // 1. Use explicitly configured path if provided
-    if (configuredPath && configuredPath !== 'rumdl') {
+    if (configuredPath) {
       Logger.info(`Using configured rumdl path: ${configuredPath}`);
       return configuredPath;
     }
