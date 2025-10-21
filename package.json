@@ -120,7 +120,7 @@
         },
         "rumdl.server.path": {
           "type": "string",
-          "description": "Path to rumdl executable"
+          "description": "Path to rumdl executable. Leave empty to use bundled binary (recommended). Set to 'rumdl' to use system PATH. Set to an absolute path for custom installations (e.g., '/usr/local/bin/rumdl')."
         },
         "rumdl.server.logLevel": {
           "type": "string",

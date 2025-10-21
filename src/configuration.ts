@@ -9,7 +9,7 @@ export interface RumdlConfig {
     disable: string[];
   };
   server: {
-    path: string;
+    path?: string; // undefined = use bundled if available, 'rumdl' = use system PATH, custom = use that path
     logLevel: string;
   };
   trace: {
@@ -35,7 +35,7 @@ export class ConfigurationManager {
         disable: config.get('rules.disable', []),
       },
       server: {
-        path: config.get('server.path', 'rumdl'),
+        path: config.get('server.path'), // undefined by default - let getBestRumdlPath decide
         logLevel: config.get('server.logLevel', 'info'),
       },
       trace: {
@@ -62,12 +62,12 @@ export class ConfigurationManager {
     return this.getConfiguration().enable;
   }
 
-  public static getRumdlPath(): string {
+  public static getRumdlPath(): string | undefined {
     const config = vscode.workspace.getConfiguration('rumdl');
-    const path = config.get('server.path', 'rumdl');
+    const path = config.get<string>('server.path');
 
-    // Ensure we never return an empty string
-    const finalPath = path && path.trim() !== '' ? path : 'rumdl';
+    // Return undefined if not configured or empty - let getBestRumdlPath decide
+    const finalPath = path && path.trim() !== '' ? path : undefined;
 
     Logger.debug(`getRumdlPath: config value="${path}", final value="${finalPath}"`);
 

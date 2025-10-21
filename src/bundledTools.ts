@@ -143,16 +143,19 @@ export class BundledToolsManager {
   }
 
   /**
-   * Get the best available rumdl path (bundled first, then system)
+   * Get the best available rumdl path with smart resolution:
+   * - undefined/empty: Prefer bundled binary, fall back to system 'rumdl'
+   * - 'rumdl': Explicitly use system PATH (bypass bundled)
+   * - Custom path: Use the specified path directly
    */
   public static async getBestRumdlPath(configuredPath?: string): Promise<string> {
-    // 1. Use explicitly configured path if provided
+    // 1. If explicitly configured (including 'rumdl'), use it
     if (configuredPath) {
       Logger.info(`Using configured rumdl path: ${configuredPath}`);
       return configuredPath;
     }
 
-    // 2. Try bundled binary first
+    // 2. Not configured - prefer bundled binary if available
     const bundledPath = this.getBundledRumdlPath();
     if (bundledPath) {
       const version = this.getBundledVersion();
@@ -160,7 +163,7 @@ export class BundledToolsManager {
       return bundledPath;
     }
 
-    // 3. Fall back to system rumdl
+    // 3. No bundled binary - fall back to system rumdl
     Logger.info('No bundled rumdl found, falling back to system rumdl');
     return 'rumdl';
   }

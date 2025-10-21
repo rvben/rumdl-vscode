@@ -146,7 +146,7 @@ export async function checkRumdlInstallation(rumdlPath: string): Promise<boolean
   }
 }
 
-export async function getRumdlVersion(rumdlPath: string): Promise<string | null> {
+export async function getRumdlVersion(rumdlPath?: string): Promise<string | null> {
   if (!rumdlPath || rumdlPath.trim() === '') {
     return null;
   }

@@ -62,7 +62,10 @@ suite('Configuration Tests', () => {
     expect(config).to.have.property('server');
     expect(config).to.have.property('rules');
     expect(config).to.have.property('diagnostics');
-    expect(config.server.path).to.be.a('string');
+    // path can be undefined (not configured) or a string
+    if (config.server.path !== undefined) {
+      expect(config.server.path).to.be.a('string');
+    }
     expect(config.server.logLevel).to.be.a('string');
   });
 
@@ -71,10 +74,13 @@ suite('Configuration Tests', () => {
     expect(enabled).to.be.a('boolean');
   });
 
-  test('getRumdlPath should return string path', () => {
+  test('getRumdlPath should return undefined when not configured', () => {
     const path = ConfigurationManager.getRumdlPath();
-    expect(path).to.be.a('string');
-    expect(path.length).to.be.greaterThan(0);
+    // When not configured, should return undefined (getBestRumdlPath will handle the default)
+    if (path !== undefined) {
+      expect(path).to.be.a('string');
+      expect(path.length).to.be.greaterThan(0);
+    }
   });
 
   test('getRumdlPath should handle custom paths', async () => {
@@ -85,12 +91,12 @@ suite('Configuration Tests', () => {
     expect(path).to.equal('/custom/path/rumdl');
   });
 
-  test('getRumdlPath should handle empty path', async () => {
+  test('getRumdlPath should return undefined for empty path', async () => {
     const config = vscode.workspace.getConfiguration('rumdl');
     await config.update('server.path', '', true);
 
     const path = ConfigurationManager.getRumdlPath();
-    expect(path).to.equal('rumdl'); // Should fall back to default
+    expect(path).to.be.undefined; // Empty string treated as not configured
   });
 
   test('getLogLevel should return valid log level', () => {

@@ -68,6 +68,25 @@ suite('BundledTools Tests', () => {
     }
   });
 
+  test('getBestRumdlPath should use system PATH when explicitly set to "rumdl"', async () => {
+    const result = await BundledToolsManager.getBestRumdlPath('rumdl');
+
+    // Should return 'rumdl' to use system PATH, even if bundled is available
+    expect(result).to.equal('rumdl');
+  });
+
+  test('getBestRumdlPath should handle empty string as unconfigured', async () => {
+    const result = await BundledToolsManager.getBestRumdlPath('');
+
+    // Empty string should be treated as unconfigured - prefer bundled
+    expect(result).to.be.a('string');
+    if (BundledToolsManager.hasBundledTools() && BundledToolsManager.getBundledRumdlPath()) {
+      expect(result).to.include('bundled-tools');
+    } else {
+      expect(result).to.equal('rumdl');
+    }
+  });
+
   test('logBundledToolsInfo should not throw', () => {
     expect(() => BundledToolsManager.logBundledToolsInfo()).to.not.throw();
   });

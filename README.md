@@ -126,7 +126,7 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 | `rumdl.configPath` | Path to rumdl configuration file (relative to workspace root or absolute). If not specified, rumdl will auto-discover configuration files in the workspace. | `undefined` |
 | `rumdl.rules.select` | Array of rule IDs to enable. Empty array enables all rules. | `[]` |
 | `rumdl.rules.ignore` | Array of rule IDs to ignore/disable | `[]` |
-| `rumdl.server.path` | Custom path to rumdl binary | `"rumdl"` |
+| `rumdl.server.path` | Path to rumdl binary. Leave empty (recommended) to use bundled binary with fallback to system PATH. Set to `"rumdl"` to explicitly use system PATH (useful with version managers like Nix, mise, or asdf). Set to absolute path for custom installations. | `undefined` |
 | `rumdl.server.logLevel` | Server log level (`error`, `warn`, `info`, `debug`, `trace`) | `"info"` |
 
 ### Project Configuration
