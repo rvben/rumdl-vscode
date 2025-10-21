@@ -26,7 +26,8 @@ export class CommandManager implements vscode.Disposable {
         this.checkDuplicateDiagnostics()
       ),
       vscode.commands.registerCommand('rumdl.checkStatus', () => this.checkStatus()),
-      vscode.commands.registerCommand('rumdl.testConfigDiscovery', () => this.testConfigDiscovery())
+      vscode.commands.registerCommand('rumdl.testConfigDiscovery', () => this.testConfigDiscovery()),
+      vscode.commands.registerCommand('rumdl.openConfigFile', () => this.openConfigFile())
     );
 
     // Add disposables to context
@@ -700,6 +701,71 @@ exclude = [
         });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to create config file: ${error}`);
+    }
+  }
+
+  private async openConfigFile(): Promise<void> {
+    Logger.info('Open config file command executed');
+
+    const workspaceFolders = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
+    const workingDirectory = workspaceFolders[0] || process.cwd();
+
+    const configFiles = [
+      '.rumdl.toml',
+      'rumdl.toml',
+      '.markdownlint.json',
+      '.markdownlint.jsonc',
+      '.markdownlint.yaml',
+      '.markdownlint.yml',
+    ];
+
+    const foundFiles: string[] = [];
+
+    for (const configFile of configFiles) {
+      const configPath = path.join(workingDirectory, configFile);
+      if (fs.existsSync(configPath)) {
+        foundFiles.push(configPath);
+      }
+    }
+
+    if (foundFiles.length === 0) {
+      const action = await vscode.window.showInformationMessage(
+        'No configuration file found. Would you like to create one?',
+        'Create .rumdl.toml',
+        'Cancel'
+      );
+
+      if (action === 'Create .rumdl.toml') {
+        await this.createSampleConfig(workingDirectory);
+        const configPath = path.join(workingDirectory, '.rumdl.toml');
+        const doc = await vscode.workspace.openTextDocument(configPath);
+        await vscode.window.showTextDocument(doc);
+      }
+      return;
+    }
+
+    if (foundFiles.length === 1) {
+      const doc = await vscode.workspace.openTextDocument(foundFiles[0]);
+      await vscode.window.showTextDocument(doc);
+      return;
+    }
+
+    // Multiple config files - let user choose
+    const selected = await vscode.window.showQuickPick(
+      foundFiles.map(filePath => ({
+        label: path.basename(filePath),
+        description: filePath,
+        filePath,
+      })),
+      {
+        placeHolder: 'Select configuration file to open',
+        title: 'Multiple Configuration Files Found',
+      }
+    );
+
+    if (selected) {
+      const doc = await vscode.workspace.openTextDocument(selected.filePath);
+      await vscode.window.showTextDocument(doc);
     }
   }
 

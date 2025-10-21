@@ -17,6 +17,16 @@
   "engines": {
     "vscode": "^1.74.0"
   },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "rumdl only lints files when the workspace is trusted. In untrusted workspaces, diagnostics are disabled.",
+      "restrictedConfigurations": [
+        "rumdl.server.path",
+        "rumdl.configPath"
+      ]
+    }
+  },
   "categories": [
     "Linters",
     "Other"
@@ -89,6 +99,12 @@
         "command": "rumdl.checkStatus",
         "title": "Check Extension Status",
         "category": "rumdl"
+      },
+      {
+        "command": "rumdl.openConfigFile",
+        "title": "Open Configuration File",
+        "category": "rumdl",
+        "icon": "$(file)"
       }
     ],
     "configuration": {
@@ -148,11 +164,6 @@
           "type": "boolean",
           "default": true,
           "description": "Remove duplicate diagnostics (useful if multiple markdown linters are active)"
-        },
-        "rumdl.format.autoFixOnSave": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically fix markdown issues when saving a file"
         }
       }
     },
@@ -173,7 +184,25 @@
           "command": "rumdl.fixAllWorkspace"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "rumdl.fixAll",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus && editorLangId == markdown"
+      },
+      {
+        "command": "rumdl.fixAllWorkspace",
+        "key": "ctrl+shift+alt+r",
+        "mac": "cmd+shift+alt+r"
+      },
+      {
+        "command": "rumdl.openConfigFile",
+        "key": "ctrl+shift+.",
+        "mac": "cmd+shift+."
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run download-rumdl && npm run package",

@@ -4,28 +4,25 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 
-suite('Format on Save Test', () => {
+suite('Direct Formatting Test', () => {
   let tempDir: string;
   let testFilePath: string;
 
   setup(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rumdl-format-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rumdl-fmt-'));
     testFilePath = path.join(tempDir, 'test.md');
   });
 
   teardown(async () => {
-    const editorConfig = vscode.workspace.getConfiguration('editor');
-    await editorConfig.update('formatOnSave', undefined, vscode.ConfigurationTarget.Workspace);
-
-    const rumdlConfig = vscode.workspace.getConfiguration('rumdl');
-    await rumdlConfig.update('server.path', undefined, vscode.ConfigurationTarget.Workspace);
+    const config = vscode.workspace.getConfiguration('rumdl');
+    await config.update('server.path', undefined, vscode.ConfigurationTarget.Workspace);
 
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
   });
 
-  test('VSCode formatOnSave should work with rumdl formatter', async function () {
+  test('Format document directly via command', async function () {
     this.timeout(30000);
 
     const contentWithIssues = `#Missing space after hash
@@ -33,26 +30,22 @@ suite('Format on Save Test', () => {
 Trailing spaces here   `;
 
     // Use the local release build
-    const rumdlConfig = vscode.workspace.getConfiguration('rumdl');
-    await rumdlConfig.update(
+    const config = vscode.workspace.getConfiguration('rumdl');
+    await config.update(
       'server.path',
       '/Users/ruben/Projects/rumdl-repos/rumdl/target/release/rumdl',
       vscode.ConfigurationTarget.Workspace
     );
 
-    // Enable VSCode's formatOnSave
-    const editorConfig = vscode.workspace.getConfiguration('editor');
-    await editorConfig.update('formatOnSave', true, vscode.ConfigurationTarget.Workspace);
-
     // Write and open document
     fs.writeFileSync(testFilePath, contentWithIssues);
     const document = await vscode.workspace.openTextDocument(testFilePath);
-    await vscode.window.showTextDocument(document);
+    const editor = await vscode.window.showTextDocument(document);
 
     // Wait for LSP to be ready
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    // Verify that manual formatting works by directly calling the format provider
+    // Execute format document command by directly calling the format provider
     const formattingOptions: vscode.FormattingOptions = {
       tabSize: 2,
       insertSpaces: true,
@@ -63,6 +56,8 @@ Trailing spaces here   `;
       formattingOptions
     );
 
+    console.log('Formatting edits:', formattingEdits);
+
     // If we got edits, apply them
     if (formattingEdits && formattingEdits.length > 0) {
       const workspaceEdit = new vscode.WorkspaceEdit();
@@ -70,12 +65,12 @@ Trailing spaces here   `;
       await vscode.workspace.applyEdit(workspaceEdit);
     }
 
-    const formattedText = document.getText();
-    assert.ok(formattingEdits, 'Should return formatting edits');
-    assert.ok(formattedText.includes('# Missing space'), 'Manual formatting should work');
-    assert.ok(!formattedText.includes('   '), 'Trailing spaces should be removed');
+    // Check the document content in the editor
+    const formattedText = editor.document.getText();
+    console.log('Formatted text:', JSON.stringify(formattedText));
 
-    // Note: Actual save-triggered formatting would need to be tested manually
-    // as the VSCode test environment doesn't trigger all save events properly
+    assert.ok(formattingEdits, 'Should return formatting edits');
+    assert.ok(formattedText.includes('# Missing space'), 'Should have space after hash');
+    assert.ok(!formattedText.includes('   '), 'Should not have trailing spaces');
   });
 });
