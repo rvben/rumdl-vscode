@@ -49,10 +49,19 @@ suite('BundledTools Tests', () => {
     }
   });
 
-  test('getBestRumdlPath should use bundled if available', async () => {
-    const result = await BundledToolsManager.getBestRumdlPath('rumdl-not-found'); // Use a path that is unlikely to exist
+  test('getBestRumdlPath should respect configured path', async () => {
+    const customPath = 'custom-rumdl';
+    const result = await BundledToolsManager.getBestRumdlPath(customPath);
 
-    // Should prefer bundled if available
+    // Should use the configured path directly, even if it doesn't exist
+    // (validation happens later in checkRumdlInstallation)
+    expect(result).to.equal(customPath);
+  });
+
+  test('getBestRumdlPath should prefer bundled when unconfigured', async () => {
+    const result = await BundledToolsManager.getBestRumdlPath();
+
+    // Should return either bundled path or 'rumdl'
     expect(result).to.be.a('string');
     if (BundledToolsManager.hasBundledTools() && BundledToolsManager.getBundledRumdlPath()) {
       expect(result).to.include('bundled-tools');
