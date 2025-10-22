@@ -15,8 +15,8 @@ export class RumdlFormattingProvider implements vscode.DocumentFormattingEditPro
    */
   public async provideDocumentFormattingEdits(
     document: vscode.TextDocument,
-    options: vscode.FormattingOptions,
-    token: vscode.CancellationToken
+    _options: vscode.FormattingOptions,
+    _token: vscode.CancellationToken
   ): Promise<vscode.TextEdit[]> {
     Logger.info(`Format document requested: ${document.uri.fsPath}`);
 
@@ -83,9 +83,7 @@ export class RumdlFormattingProvider implements vscode.DocumentFormattingEditPro
 /**
  * Register the formatting provider for Markdown documents
  */
-export function registerFormattingProvider(
-  context: vscode.ExtensionContext
-): vscode.Disposable {
+export function registerFormattingProvider(context: vscode.ExtensionContext): vscode.Disposable {
   const provider = new RumdlFormattingProvider();
 
   const disposable = vscode.languages.registerDocumentFormattingEditProvider(

@@ -26,7 +26,9 @@ export class CommandManager implements vscode.Disposable {
         this.checkDuplicateDiagnostics()
       ),
       vscode.commands.registerCommand('rumdl.checkStatus', () => this.checkStatus()),
-      vscode.commands.registerCommand('rumdl.testConfigDiscovery', () => this.testConfigDiscovery()),
+      vscode.commands.registerCommand('rumdl.testConfigDiscovery', () =>
+        this.testConfigDiscovery()
+      ),
       vscode.commands.registerCommand('rumdl.openConfigFile', () => this.openConfigFile())
     );
 

@@ -3,7 +3,7 @@ import { RumdlLanguageClient } from './client';
 import { StatusBarManager } from './statusBar';
 import { CommandManager } from './commands';
 import { ConfigurationManager } from './configuration';
-import { Logger, showErrorMessage, showWarningMessage } from './utils';
+import { Logger, showErrorMessage } from './utils';
 import { BundledToolsManager } from './bundledTools';
 import { ConfigDiagnosticProvider } from './diagnostics/configDiagnostics';
 import { registerFormattingProvider } from './formatter';
@@ -148,11 +148,7 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
     }
   });
 
-  context.subscriptions.push(
-    workspaceFoldersWatcher,
-    activeEditorWatcher,
-    diagnosticsWatcher
-  );
+  context.subscriptions.push(workspaceFoldersWatcher, activeEditorWatcher, diagnosticsWatcher);
 }
 
 function updateStatusBarForDocument(document: vscode.TextDocument): void {
