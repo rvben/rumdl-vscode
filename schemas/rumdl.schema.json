@@ -191,9 +191,18 @@
           "type": "boolean",
           "description": "Stern mode - stricter checking without exceptions (default: false)"
         },
-        "enable-reflow": {
+        "paragraphs": {
+          "type": "boolean",
+          "description": "Check paragraph/text line length (default: true)"
+        },
+        "reflow": {
           "type": "boolean",
           "description": "Enable text reflow to wrap long lines (default: false)"
+        },
+        "reflow-mode": {
+          "type": "string",
+          "description": "Reflow mode (default: default)",
+          "enum": ["default", "normalize", "sentence-per-line"]
         }
       },
       "additionalProperties": false
