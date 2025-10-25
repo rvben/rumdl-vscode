@@ -205,7 +205,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run download-rumdl && npm run package",
+    "vscode:prepublish": "npm run download-rumdl && npm run sync-schema && npm run package",
     "compile": "webpack",
     "compile:dev": "webpack --mode development",
     "watch": "webpack --watch",
@@ -230,6 +230,7 @@
     "update-rumdl": "node scripts/download-rumdl.js --latest",
     "clean-rumdl": "rm -rf bundled-tools && mkdir -p bundled-tools",
     "verify-rumdl": "node -e \"const fs = require('fs'); const path = require('path'); const version = JSON.parse(fs.readFileSync('bundled-tools/version.json', 'utf8')); console.log('✅ rumdl version:', version.version); console.log('📁 Binaries:', fs.readdirSync('bundled-tools').filter(f => f.startsWith('rumdl-')).length + ' platforms');\"",
+    "sync-schema": "node scripts/sync-schema.js",
     "create-icon": "node scripts/create-icon.js",
     "resize-icon": "node scripts/resize-icon.js",
     "vsce:package": "vsce package"
