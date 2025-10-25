@@ -21,9 +21,33 @@ const path = require('path');
 // Parse command line arguments
 const args = process.argv.slice(2);
 const rumdlPathIndex = args.indexOf('--rumdl-path');
-const rumdlPath = rumdlPathIndex !== -1 && args[rumdlPathIndex + 1]
-  ? args[rumdlPathIndex + 1]
-  : '../rumdl/target/release/rumdl';
+
+// Determine rumdl binary path
+let rumdlPath;
+if (rumdlPathIndex !== -1 && args[rumdlPathIndex + 1]) {
+  // Use provided path
+  rumdlPath = args[rumdlPathIndex + 1];
+} else {
+  // Check if we're in CI (bundled tools available)
+  const bundledToolsDir = path.join(__dirname, '..', 'bundled-tools');
+  if (fs.existsSync(bundledToolsDir)) {
+    // Use platform-appropriate bundled binary
+    const platform = process.platform;
+    const arch = process.arch;
+    let binaryName;
+    if (platform === 'win32') {
+      binaryName = 'rumdl-x86_64-pc-windows-msvc.exe';
+    } else if (platform === 'darwin') {
+      binaryName = arch === 'arm64' ? 'rumdl-aarch64-apple-darwin' : 'rumdl-x86_64-apple-darwin';
+    } else {
+      binaryName = arch === 'arm64' ? 'rumdl-aarch64-unknown-linux-musl' : 'rumdl-x86_64-unknown-linux-musl';
+    }
+    rumdlPath = path.join(bundledToolsDir, binaryName);
+  } else {
+    // Fall back to local development path
+    rumdlPath = '../rumdl/target/release/rumdl';
+  }
+}
 
 const schemaOutputPath = path.join(__dirname, '..', 'schemas', 'rumdl.schema.json');
 const configSchemaPath = path.join(__dirname, '..', 'src', 'configSchema.ts');
