@@ -54,9 +54,7 @@ export class CommandManager implements vscode.Disposable {
     }
 
     try {
-      Logger.info('Executing fix all command');
-
-      // Get all code actions for the document
+      // Get source.fixAll code action from LSP
       const range = new vscode.Range(
         editor.document.positionAt(0),
         editor.document.positionAt(editor.document.getText().length)
@@ -66,7 +64,7 @@ export class CommandManager implements vscode.Disposable {
         'vscode.executeCodeActionProvider',
         editor.document.uri,
         range,
-        vscode.CodeActionKind.QuickFix.value
+        vscode.CodeActionKind.SourceFixAll.value
       );
 
       if (!codeActions || codeActions.length === 0) {
@@ -74,40 +72,29 @@ export class CommandManager implements vscode.Disposable {
         return;
       }
 
-      // Filter for rumdl fix actions
-      const rumdlFixActions = codeActions.filter(
-        action =>
-          action.kind?.value.startsWith('quickfix.rumdl') ||
-          action.title.toLowerCase().includes('rumdl')
+      // Find the source.fixAll action
+      const fixAllAction = codeActions.find(
+        action => action.kind?.value === vscode.CodeActionKind.SourceFixAll.value
       );
 
-      if (rumdlFixActions.length === 0) {
+      if (!fixAllAction) {
         showInformationMessage('No rumdl auto-fixes available');
         return;
       }
 
-      // Apply all fix actions
-      let fixedCount = 0;
-      for (const action of rumdlFixActions) {
-        if (action.edit) {
-          const success = await vscode.workspace.applyEdit(action.edit);
-          if (success) {
-            fixedCount++;
-          }
-        } else if (action.command) {
-          await vscode.commands.executeCommand(
-            action.command.command,
-            ...(action.command.arguments || [])
-          );
-          fixedCount++;
+      // Apply the fix action
+      if (fixAllAction.edit) {
+        const success = await vscode.workspace.applyEdit(fixAllAction.edit);
+        if (!success) {
+          showErrorMessage('Failed to apply fixes');
         }
-      }
-
-      if (fixedCount > 0) {
-        showInformationMessage(`Fixed ${fixedCount} issue${fixedCount === 1 ? '' : 's'}`);
-        Logger.info(`Applied ${fixedCount} auto-fixes`);
+      } else if (fixAllAction.command) {
+        await vscode.commands.executeCommand(
+          fixAllAction.command.command,
+          ...(fixAllAction.command.arguments || [])
+        );
       } else {
-        showErrorMessage('Failed to apply fixes');
+        showErrorMessage('Fix action has no edit or command');
       }
     } catch (error) {
       Logger.error('Error executing fix all command', error as Error);
@@ -163,39 +150,35 @@ export class CommandManager implements vscode.Disposable {
             'vscode.executeCodeActionProvider',
             document.uri,
             range,
-            vscode.CodeActionKind.QuickFix.value
+            vscode.CodeActionKind.SourceFixAll.value
           );
 
           if (!codeActions || codeActions.length === 0) {
             return { file: fileUri, fixedCount: 0 };
           }
 
-          // Filter for rumdl fix actions
-          const rumdlFixActions = codeActions.filter(
-            action =>
-              action.kind?.value.startsWith('quickfix.rumdl') ||
-              action.title.toLowerCase().includes('rumdl')
+          // Find the source.fixAll action
+          const fixAllAction = codeActions.find(
+            action => action.kind?.value === vscode.CodeActionKind.SourceFixAll.value
           );
 
-          if (rumdlFixActions.length === 0) {
+          if (!fixAllAction) {
             return { file: fileUri, fixedCount: 0 };
           }
 
-          // Apply all fix actions
+          // Apply the fix action
           let fixedCount = 0;
-          for (const action of rumdlFixActions) {
-            if (action.edit) {
-              const success = await vscode.workspace.applyEdit(action.edit);
-              if (success) {
-                fixedCount++;
-              }
-            } else if (action.command) {
-              await vscode.commands.executeCommand(
-                action.command.command,
-                ...(action.command.arguments || [])
-              );
-              fixedCount++;
+          if (fixAllAction.edit) {
+            const success = await vscode.workspace.applyEdit(fixAllAction.edit);
+            if (success) {
+              fixedCount = 1; // source.fixAll fixes all issues at once
             }
+          } else if (fixAllAction.command) {
+            await vscode.commands.executeCommand(
+              fixAllAction.command.command,
+              ...(fixAllAction.command.arguments || [])
+            );
+            fixedCount = 1; // source.fixAll fixes all issues at once
           }
 
           // Save the document if fixes were applied
