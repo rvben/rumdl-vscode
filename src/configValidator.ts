@@ -374,7 +374,19 @@ export class ConfigValidator {
     line: number,
     errors: ValidationError[]
   ): void {
-    const validKeys = ['enable', 'disable', 'exclude', 'include', 'respect_gitignore', 'flavor'];
+    const validKeys = [
+      'enable',
+      'disable',
+      'exclude',
+      'include',
+      'respect_gitignore',
+      'flavor',
+      'line_length',
+      'output_format',
+      'fixable',
+      'unfixable',
+      'force_exclude', // deprecated but still accepted
+    ];
 
     if (!validKeys.includes(key)) {
       errors.push({
@@ -387,7 +399,7 @@ export class ConfigValidator {
     }
 
     // Validate types
-    if (key === 'respect_gitignore') {
+    if (key === 'respect_gitignore' || key === 'force_exclude') {
       if (typeof value !== 'boolean') {
         errors.push({
           line,
@@ -396,7 +408,15 @@ export class ConfigValidator {
           severity: vscode.DiagnosticSeverity.Error,
         });
       }
-    } else if (key === 'flavor') {
+      if (key === 'force_exclude') {
+        errors.push({
+          line,
+          column: 0,
+          message: `Property 'force_exclude' is deprecated. Use 'exclude' instead.`,
+          severity: vscode.DiagnosticSeverity.Warning,
+        });
+      }
+    } else if (key === 'flavor' || key === 'output_format') {
       if (typeof value !== 'string') {
         errors.push({
           line,
@@ -405,8 +425,17 @@ export class ConfigValidator {
           severity: vscode.DiagnosticSeverity.Error,
         });
       }
+    } else if (key === 'line_length') {
+      if (typeof value !== 'number' || value < 0) {
+        errors.push({
+          line,
+          column: 0,
+          message: `Property '${key}' must be a positive number`,
+          severity: vscode.DiagnosticSeverity.Error,
+        });
+      }
     } else {
-      // All others should be arrays
+      // All others should be arrays (enable, disable, exclude, include, fixable, unfixable)
       if (!Array.isArray(value)) {
         errors.push({
           line,
