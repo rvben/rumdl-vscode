@@ -77,12 +77,42 @@ export class ConfigValidator {
       if (sectionMatch) {
         const section = sectionMatch[1];
 
-        // Check for rules section
-        if (section === 'rules') {
+        // Handle tool.rumdl.* sections for pyproject.toml
+        if (section.startsWith('tool.rumdl.')) {
+          const subSection = section.substring(11); // Remove 'tool.rumdl.' prefix
+
+          // Handle [tool.rumdl.MD###] - rule-specific sections
+          if (RULE_NAMES.includes(subSection.toUpperCase())) {
+            const ruleName = subSection.toUpperCase();
+            currentSection = section;
+            currentRule = ruleName;
+          } else if (subSection === 'per-file-ignores') {
+            // [tool.rumdl.per-file-ignores] section
+            currentSection = 'per-file-ignores';
+            currentRule = '';
+          } else if (subSection === 'global') {
+            // [tool.rumdl.global] is not used, just [tool.rumdl] for global config
+            currentSection = 'global';
+            currentRule = '';
+          } else {
+            // Unknown tool.rumdl subsection
+            errors.push({
+              line: lineNum,
+              column: 0,
+              message: `Unknown section '[${section}]'. Valid sections are: [tool.rumdl], [tool.rumdl.per-file-ignores], or [tool.rumdl.MD###]`,
+              severity: vscode.DiagnosticSeverity.Warning,
+            });
+          }
+        } else if (section === 'tool.rumdl') {
+          // [tool.rumdl] section for pyproject.toml global config
+          currentSection = 'global';
+          currentRule = '';
+        } else if (section === 'rules') {
+          // Check for rules section
           currentSection = 'rules';
           currentRule = '';
         } else if (section.startsWith('rules.')) {
-          // Rule-specific section
+          // Rule-specific section for .rumdl.toml
           const ruleName = section.substring(6).toUpperCase();
           currentSection = section;
           currentRule = ruleName;
@@ -105,12 +135,21 @@ export class ConfigValidator {
         } else if (section === 'files' || section === 'global') {
           currentSection = section;
           currentRule = '';
+        } else if (section === 'per-file-ignores') {
+          // [per-file-ignores] section for .rumdl.toml
+          currentSection = 'per-file-ignores';
+          currentRule = '';
+        } else if (section.startsWith('MD') && RULE_NAMES.includes(section.toUpperCase())) {
+          // Root-level [MD###] sections (shorthand for [rules.MD###])
+          const ruleName = section.toUpperCase();
+          currentSection = section;
+          currentRule = ruleName;
         } else {
           // Unknown section
           errors.push({
             line: lineNum,
             column: 0,
-            message: `Unknown section '[${section}]'. Valid sections are: [rules], [files], [global], or [rules.MD###]`,
+            message: `Unknown section '[${section}]'. Valid sections are: [rules], [files], [global], [per-file-ignores], [MD###], or [rules.MD###]`,
             severity: vscode.DiagnosticSeverity.Warning,
           });
         }
@@ -157,6 +196,9 @@ export class ConfigValidator {
       } else if (currentSection === 'global') {
         // Validate global section keys
         this.validateGlobalSectionFromValue(key, value, lineNum, errors);
+      } else if (currentSection === 'per-file-ignores') {
+        // Validate per-file-ignores section keys
+        this.validatePerFileIgnoresSectionFromValue(key, value, lineNum, errors);
       }
     }
 
@@ -371,6 +413,47 @@ export class ConfigValidator {
           column: 0,
           message: `Property '${key}' must be an array`,
           severity: vscode.DiagnosticSeverity.Error,
+        });
+      }
+    }
+  }
+
+  /**
+   * Validate per-file-ignores section properties from parsed value
+   */
+  private static validatePerFileIgnoresSectionFromValue(
+    key: string,
+    value: unknown,
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    // Per-file-ignores is a map of file patterns to arrays of rule names
+    // Key is a file pattern (glob), value should be an array of rule names
+    if (!Array.isArray(value)) {
+      errors.push({
+        line,
+        column: 0,
+        message: `Value for pattern '${key}' must be an array of rule names`,
+        severity: vscode.DiagnosticSeverity.Error,
+      });
+      return;
+    }
+
+    // Validate that each item in the array is a valid rule name
+    for (const ruleName of value) {
+      if (typeof ruleName !== 'string') {
+        errors.push({
+          line,
+          column: 0,
+          message: `Rule names in per-file-ignores must be strings`,
+          severity: vscode.DiagnosticSeverity.Error,
+        });
+      } else if (!RULE_NAMES.includes(ruleName.toUpperCase())) {
+        errors.push({
+          line,
+          column: 0,
+          message: `Unknown rule '${ruleName}' in per-file-ignores. Valid rules: ${RULE_NAMES.join(', ')}`,
+          severity: vscode.DiagnosticSeverity.Warning,
         });
       }
     }
