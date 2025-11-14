@@ -106,11 +106,18 @@ for (const [key, prop] of Object.entries(globalConfigProps)) {
   const optionalMarker = isOptional ? '?' : '';
 
   let tsType = 'any';
-  if (prop.type === 'string') tsType = 'string';
-  else if (prop.type === 'boolean') tsType = 'boolean';
-  else if (prop.type === 'integer' || prop.type === 'number') tsType = 'number';
-  else if (prop.type === 'array') tsType = prop.items?.type === 'string' ? 'string[]' : 'any[]';
-  else if (prop.type && Array.isArray(prop.type) && prop.type.includes('null')) {
+  if (prop.$ref) {
+    // Handle $ref types (like MarkdownFlavor enum) - treat as string
+    tsType = 'string';
+  } else if (prop.type === 'string') {
+    tsType = 'string';
+  } else if (prop.type === 'boolean') {
+    tsType = 'boolean';
+  } else if (prop.type === 'integer' || prop.type === 'number') {
+    tsType = 'number';
+  } else if (prop.type === 'array') {
+    tsType = prop.items?.type === 'string' ? 'string[]' : 'any[]';
+  } else if (prop.type && Array.isArray(prop.type) && prop.type.includes('null')) {
     // Handle nullable types (e.g., string | null)
     const nonNullType = prop.type.find(t => t !== 'null');
     if (nonNullType === 'string') tsType = 'string | null';
@@ -121,7 +128,7 @@ for (const [key, prop] of Object.entries(globalConfigProps)) {
   if (description) {
     tsGlobalConfig += `  /** ${description} */\n`;
   }
-  tsGlobalConfig += `  '${key}'${optionalMarker}: ${tsType};\n`;
+  tsGlobalConfig += `  ${key}${optionalMarker}: ${tsType};\n`;
 }
 tsGlobalConfig += `}\n`;
 
