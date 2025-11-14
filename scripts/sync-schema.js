@@ -83,7 +83,19 @@ try {
 console.log('\n🔨 Step 3: Generating TypeScript types...');
 
 // Extract GlobalConfig properties
-const globalConfigDef = schema.definitions.GlobalConfig;
+// Support both old "definitions" and new "$defs" (JSON Schema 2020-12)
+const defs = schema.$defs || schema.definitions;
+if (!defs) {
+  console.error('   ❌ Schema does not contain $defs or definitions');
+  console.error(`   Schema keys: ${Object.keys(schema).join(', ')}`);
+  process.exit(1);
+}
+const globalConfigDef = defs.GlobalConfig;
+if (!globalConfigDef) {
+  console.error('   ❌ Schema does not contain GlobalConfig definition');
+  console.error(`   Available definitions: ${Object.keys(defs).join(', ')}`);
+  process.exit(1);
+}
 const globalConfigProps = globalConfigDef.properties;
 
 // Build GlobalConfig interface
@@ -119,7 +131,7 @@ let tsRuleSchemas = 'export const RULE_SCHEMAS: Record<string, any> = {\n';
 // Scan schema properties for rule configurations (MD###)
 for (const [key, value] of Object.entries(schema.properties || {})) {
   if (key.match(/^MD\d+$/)) {
-    const ruleDef = schema.definitions[value.allOf?.[0]?.$ref?.split('/').pop()];
+    const ruleDef = defs[value.allOf?.[0]?.$ref?.split('/').pop()];
     if (ruleDef && ruleDef.properties) {
       const props = Object.keys(ruleDef.properties);
       tsRuleSchemas += `  '${key}': ${JSON.stringify(props)},\n`;
