@@ -83,13 +83,14 @@ export class RumdlLanguageClient implements vscode.Disposable {
       };
 
       // Build initialization options from VSCode settings
+      // Use camelCase per LSP specification (rumdl v0.0.171+)
       const initializationOptions = {
-        config_path:
+        configPath:
           config.configPath && config.configPath.trim() !== '' ? config.configPath : undefined,
-        enable_linting: true,
-        enable_auto_fix: true, // Always enable auto-fix capability in LSP, autoFixOnSave controls when it's applied
-        enable_rules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
-        disable_rules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
+        enableLinting: true,
+        enableAutoFix: true, // Always enable auto-fix capability in LSP, autoFixOnSave controls when it's applied
+        enableRules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
+        disableRules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
       };
 
       const clientOptions: LanguageClientOptions = {
