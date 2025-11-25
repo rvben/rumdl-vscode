@@ -128,7 +128,9 @@ for (const [key, prop] of Object.entries(globalConfigProps)) {
   if (description) {
     tsGlobalConfig += `  /** ${description} */\n`;
   }
-  tsGlobalConfig += `  ${key}${optionalMarker}: ${tsType};\n`;
+  // Quote property names that contain hyphens (not valid JS identifiers)
+  const quotedKey = key.includes('-') ? `'${key}'` : key;
+  tsGlobalConfig += `  ${quotedKey}${optionalMarker}: ${tsType};\n`;
 }
 tsGlobalConfig += `}\n`;
 

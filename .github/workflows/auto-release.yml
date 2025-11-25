@@ -73,7 +73,10 @@ jobs:
           npm run clean-rumdl
           npm run download-rumdl
           npm run verify-rumdl
-        
+
+      - name: Sync schema from new rumdl binary
+        run: npm run sync-schema
+
       - name: Run tests
         run: |
           npm run lint
