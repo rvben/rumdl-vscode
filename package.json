@@ -244,7 +244,7 @@
     "@types/mocha": "^10.0.1",
     "@types/node": "24.x",
     "@types/sinon": "^17.0.4",
-    "@types/vscode": "^1.74.0",
+    "@types/vscode": "^1.106.1",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.46.2",
     "@vscode/test-cli": "^0.0.11",
