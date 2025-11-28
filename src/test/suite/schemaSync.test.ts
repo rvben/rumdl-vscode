@@ -16,7 +16,8 @@ function findRumdlBinary(): string | null {
   } else if (platform === 'darwin') {
     binaryName = arch === 'arm64' ? 'rumdl-aarch64-apple-darwin' : 'rumdl-x86_64-apple-darwin';
   } else {
-    binaryName = arch === 'arm64' ? 'rumdl-aarch64-unknown-linux-musl' : 'rumdl-x86_64-unknown-linux-musl';
+    binaryName =
+      arch === 'arm64' ? 'rumdl-aarch64-unknown-linux-musl' : 'rumdl-x86_64-unknown-linux-musl';
   }
 
   const rumdlPath = path.join(bundledToolsDir, binaryName);
@@ -90,22 +91,10 @@ suite('Schema Sync Test Suite', () => {
     );
 
     // Verify common properties exist
-    assert.ok(
-      GLOBAL_PROPERTIES.includes('disable'),
-      'GLOBAL_PROPERTIES should include disable'
-    );
-    assert.ok(
-      GLOBAL_PROPERTIES.includes('enable'),
-      'GLOBAL_PROPERTIES should include enable'
-    );
-    assert.ok(
-      GLOBAL_PROPERTIES.includes('exclude'),
-      'GLOBAL_PROPERTIES should include exclude'
-    );
-    assert.ok(
-      GLOBAL_PROPERTIES.includes('include'),
-      'GLOBAL_PROPERTIES should include include'
-    );
+    assert.ok(GLOBAL_PROPERTIES.includes('disable'), 'GLOBAL_PROPERTIES should include disable');
+    assert.ok(GLOBAL_PROPERTIES.includes('enable'), 'GLOBAL_PROPERTIES should include enable');
+    assert.ok(GLOBAL_PROPERTIES.includes('exclude'), 'GLOBAL_PROPERTIES should include exclude');
+    assert.ok(GLOBAL_PROPERTIES.includes('include'), 'GLOBAL_PROPERTIES should include include');
   });
 
   test('JSON schema should be valid JSON', () => {
@@ -149,8 +138,10 @@ suite('Schema Sync Test Suite', () => {
     const generatedSchema = JSON.parse(generatedSchemaJson);
 
     // Compare GlobalConfig properties
-    const committedProps = (committedSchema.$defs || committedSchema.definitions)?.GlobalConfig?.properties;
-    const generatedProps = (generatedSchema.$defs || generatedSchema.definitions)?.GlobalConfig?.properties;
+    const committedProps = (committedSchema.$defs || committedSchema.definitions)?.GlobalConfig
+      ?.properties;
+    const generatedProps = (generatedSchema.$defs || generatedSchema.definitions)?.GlobalConfig
+      ?.properties;
 
     assert.ok(committedProps, 'Committed schema should have GlobalConfig properties');
     assert.ok(generatedProps, 'Generated schema should have GlobalConfig properties');

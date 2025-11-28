@@ -192,6 +192,17 @@ try {
   process.exit(1);
 }
 
+// Step 5: Format the generated file with prettier
+console.log('\n🎨 Step 5: Formatting generated TypeScript with prettier...');
+try {
+  execSync(`npx prettier --write "${configSchemaPath}"`, { encoding: 'utf-8', stdio: 'pipe' });
+  console.log('   ✅ File formatted successfully');
+} catch (error) {
+  console.error('   ⚠️  Failed to format file with prettier:');
+  console.error(`   ${error.message}`);
+  console.error('   The file was written but may have formatting issues.');
+}
+
 console.log('\n✨ Schema sync complete!\n');
 console.log('Summary:');
 console.log(`   - Schema version: ${schema.title || 'Config'}`);
