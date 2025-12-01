@@ -254,7 +254,7 @@
     "chai": "^6.2.1",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-prettier": "^5.4.1",
+    "eslint-plugin-prettier": "^5.5.4",
     "glob": "^11.0.3",
     "mocha": "^11.7.5",
     "nyc": "^17.1.0",
