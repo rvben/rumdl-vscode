@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2025-12-06T20:29:11.364Z
+ * Generated: 2025-12-08T10:41:53.660Z
  */
 
 export interface GlobalConfig {
@@ -29,7 +29,7 @@ This prevents duplication between rumdl config and tool configs like pre-commit.
   /** Files to include */
   include?: string[];
   /** Global line length setting (used by MD013 and other rules if not overridden) */
-  'line-length'?: number;
+  'line-length'?: string;
   /** Output format for linting results (e.g., "text", "json", "pylint", etc.) */
   'output-format'?: string | null;
   /** Respect .gitignore files when scanning directories */

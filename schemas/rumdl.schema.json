@@ -62,11 +62,9 @@
           "type": "array"
         },
         "line-length": {
+          "$ref": "#/$defs/LineLength",
           "default": 80,
-          "description": "Global line length setting (used by MD013 and other rules if not overridden)",
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
+          "description": "Global line length setting (used by MD013 and other rules if not overridden)"
         },
         "output-format": {
           "description": "Output format for linting results (e.g., \"text\", \"json\", \"pylint\", etc.)",
@@ -90,6 +88,15 @@
         }
       },
       "type": "object"
+    },
+    "LineLength": {
+      "description": "A line length value that can be 0 (meaning no limit) or a positive value (≥1)\n\nMany configuration values for line length need to support both:\n- 0: Special value meaning \"no line length limit\"\n- ≥1: Actual line length limit\n\nThis type enforces those constraints at deserialization time.",
+      "format": "uint",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
     },
     "MarkdownFlavor": {
       "description": "Markdown flavor/dialect enumeration",
