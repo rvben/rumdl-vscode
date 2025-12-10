@@ -3,6 +3,11 @@
     "GlobalConfig": {
       "description": "Global configuration options",
       "properties": {
+        "cache": {
+          "default": true,
+          "description": "Whether caching is enabled (default: true)\nCan also be disabled via --no-cache CLI flag",
+          "type": "boolean"
+        },
         "cache-dir": {
           "description": "Directory to store cache files (default: .rumdl_cache)\nCan also be set via --cache-dir CLI flag or RUMDL_CACHE_DIR environment variable",
           "type": [
@@ -138,6 +143,7 @@
     "global": {
       "$ref": "#/$defs/GlobalConfig",
       "default": {
+        "cache": true,
         "disable": [],
         "enable": [],
         "exclude": [],

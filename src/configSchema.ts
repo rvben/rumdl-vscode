@@ -2,10 +2,13 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2025-12-08T10:41:53.660Z
+ * Generated: 2025-12-10T10:37:45.774Z
  */
 
 export interface GlobalConfig {
+  /** Whether caching is enabled (default: true)
+Can also be disabled via --no-cache CLI flag */
+  cache?: boolean;
   /** Directory to store cache files (default: .rumdl_cache)
 Can also be set via --cache-dir CLI flag or RUMDL_CACHE_DIR environment variable */
   'cache-dir'?: string | null;
@@ -42,6 +45,7 @@ Takes precedence over fixable */
 export const RULE_SCHEMAS: Record<string, any> = {};
 
 export const GLOBAL_PROPERTIES = [
+  'cache',
   'cache-dir',
   'disable',
   'enable',
