@@ -5,7 +5,7 @@ const path = require('path');
 const https = require('https');
 const { execSync } = require('child_process');
 
-const RUMDL_VERSION = '0.0.196'; // Pin to specific version for consistency
+const RUMDL_VERSION = '0.0.197'; // Pin to specific version for consistency
 const GITHUB_API_URL = `https://api.github.com/repos/rvben/rumdl/releases/tags/v${RUMDL_VERSION}`;
 const BUNDLED_TOOLS_DIR = path.join(__dirname, '..', 'bundled-tools');
 
