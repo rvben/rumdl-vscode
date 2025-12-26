@@ -2,7 +2,7 @@
   "name": "rumdl",
   "displayName": "rumdl - Markdown Linter",
   "description": "Fast Rust-based Markdown linter with real-time diagnostics and auto-fixes",
-  "version": "0.0.122",
+  "version": "0.0.123",
   "publisher": "rvben",
   "license": "MIT",
   "repository": {
