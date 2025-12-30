@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.126] - 2025-12-30
+
+### Changed
+- Updated bundled rumdl to v0.0.207
+
+
 ## [0.0.125] - 2025-12-28
 
 ### Changed
