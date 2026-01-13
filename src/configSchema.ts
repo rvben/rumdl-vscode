@@ -2,25 +2,30 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-01-12T14:58:34.883Z
+ * Generated: 2026-01-13T10:11:19.139Z
  */
 
 export interface GlobalConfig {
-  /** Whether caching is enabled (default: true)
-Can also be disabled via --no-cache CLI flag */
-  cache?: boolean;
-  /** Directory to store cache files (default: .rumdl_cache)
-Can also be set via --cache-dir CLI flag or RUMDL_CACHE_DIR environment variable */
-  'cache-dir'?: string | null;
-  /** Disabled rules */
-  disable?: string[];
   /** Enabled rules */
   enable?: string[];
+  /** Disabled rules */
+  disable?: string[];
   /** Files to exclude */
   exclude?: string[];
+  /** Files to include */
+  include?: string[];
+  /** Respect .gitignore files when scanning directories */
+  'respect-gitignore'?: boolean;
+  /** Global line length setting (used by MD013 and other rules if not overridden) */
+  'line-length'?: string;
+  /** Output format for linting results (e.g., "text", "json", "pylint", etc.) */
+  'output-format'?: string | null;
   /** Rules that are allowed to be fixed when --fix is used
 If specified, only these rules will be fixed */
   fixable?: string[];
+  /** Rules that should never be fixed, even when --fix is used
+Takes precedence over fixable */
+  unfixable?: string[];
   /** Markdown flavor/dialect to use (mkdocs, gfm, commonmark, etc.)
 When set, adjusts parsing and validation rules for that specific Markdown variant */
   flavor?: string;
@@ -29,35 +34,30 @@ This option is deprecated as of v0.0.156 and has no effect.
 Exclude patterns are now always respected, even for explicitly provided files.
 This prevents duplication between rumdl config and tool configs like pre-commit. */
   'force-exclude'?: boolean;
-  /** Files to include */
-  include?: string[];
-  /** Global line length setting (used by MD013 and other rules if not overridden) */
-  'line-length'?: string;
-  /** Output format for linting results (e.g., "text", "json", "pylint", etc.) */
-  'output-format'?: string | null;
-  /** Respect .gitignore files when scanning directories */
-  'respect-gitignore'?: boolean;
-  /** Rules that should never be fixed, even when --fix is used
-Takes precedence over fixable */
-  unfixable?: string[];
+  /** Directory to store cache files (default: .rumdl_cache)
+Can also be set via --cache-dir CLI flag or RUMDL_CACHE_DIR environment variable */
+  'cache-dir'?: string | null;
+  /** Whether caching is enabled (default: true)
+Can also be disabled via --no-cache CLI flag */
+  cache?: boolean;
 }
 
 export const RULE_SCHEMAS: Record<string, any> = {};
 
 export const GLOBAL_PROPERTIES = [
-  'cache',
-  'cache-dir',
-  'disable',
   'enable',
+  'disable',
   'exclude',
-  'fixable',
-  'flavor',
-  'force-exclude',
   'include',
+  'respect-gitignore',
   'line-length',
   'output-format',
-  'respect-gitignore',
+  'fixable',
   'unfixable',
+  'flavor',
+  'force-exclude',
+  'cache-dir',
+  'cache',
 ];
 
 export const RULE_NAMES = [
