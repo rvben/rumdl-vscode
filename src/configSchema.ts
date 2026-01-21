@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-01-20T14:18:54.828Z
+ * Generated: 2026-01-21T23:33:35.991Z
  */
 
 export interface GlobalConfig {
