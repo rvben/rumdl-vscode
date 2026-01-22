@@ -18,6 +18,12 @@ updates:
     labels:
       - "dependencies"
       - "npm"
+    ignore:
+      # @types/vscode must match engines.vscode for vsce packaging.
+      # Updating it breaks compatibility with Cursor/VSCodium.
+      # Only update manually when new VS Code APIs are actually needed.
+      # See: https://github.com/rvben/rumdl/issues/326
+      - dependency-name: "@types/vscode"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
