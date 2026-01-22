@@ -1,0 +1,9 @@
+# upd configuration
+# See: https://github.com/rvben/upd
+
+# Packages to ignore during updates (never updated)
+ignore = [
+    # Must match engines.vscode (^1.82.0) for Cursor/VSCodium compatibility
+    # See CLAUDE.md for details
+    "@types/vscode",
+]
