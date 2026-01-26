@@ -242,7 +242,7 @@
     "@types/glob": "^9.0.0",
     "@types/iarna__toml": "^2.0.5",
     "@types/mocha": "^10.0.10",
-    "@types/node": "24.x",
+    "@types/node": "25.x",
     "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.82.0",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
