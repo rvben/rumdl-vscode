@@ -58,46 +58,40 @@ suite('BundledTools Tests', () => {
     expect(result).to.equal(customPath);
   });
 
-  test('getBestRumdlPath should prefer bundled when unconfigured', async () => {
+  test('getBestRumdlPath should return a valid path when unconfigured', async () => {
     const result = await BundledToolsManager.getBestRumdlPath();
 
-    // Should return either bundled path or 'rumdl'
+    // Should return one of: venv path, system PATH, bundled path, or 'rumdl'
     expect(result).to.be.a('string');
-    if (BundledToolsManager.hasBundledTools() && BundledToolsManager.getBundledRumdlPath()) {
-      expect(result).to.include('bundled-tools');
-    }
+    expect(result.length).to.be.greaterThan(0);
   });
 
-  test('getBestRumdlPath should use system PATH when explicitly set to "rumdl"', async () => {
+  test('getBestRumdlPath should use configured path when explicitly set', async () => {
     const result = await BundledToolsManager.getBestRumdlPath('rumdl');
 
-    // Should return 'rumdl' to use system PATH, even if bundled is available
+    // Should return the configured path as-is
     expect(result).to.equal('rumdl');
   });
 
   test('getBestRumdlPath should handle empty string as unconfigured', async () => {
     const result = await BundledToolsManager.getBestRumdlPath('');
 
-    // Empty string should be treated as unconfigured - prefer bundled
+    // Empty string is falsy, so should trigger auto-detection
     expect(result).to.be.a('string');
-    if (BundledToolsManager.hasBundledTools() && BundledToolsManager.getBundledRumdlPath()) {
-      expect(result).to.include('bundled-tools');
-    } else {
-      expect(result).to.equal('rumdl');
-    }
+    expect(result.length).to.be.greaterThan(0);
   });
 
   test('logBundledToolsInfo should not throw', () => {
     expect(() => BundledToolsManager.logBundledToolsInfo()).to.not.throw();
   });
 
-  test('shouldPreferBundled should return boolean', () => {
-    const shouldPrefer = BundledToolsManager.shouldPreferBundled();
+  test('hasBundledBinary should return boolean', () => {
+    const hasBundled = BundledToolsManager.hasBundledBinary();
 
-    expect(shouldPrefer).to.be.a('boolean');
+    expect(hasBundled).to.be.a('boolean');
 
     // Should match whether bundled path exists
     const bundledPath = BundledToolsManager.getBundledRumdlPath();
-    expect(shouldPrefer).to.equal(bundledPath !== null);
+    expect(hasBundled).to.equal(bundledPath !== null);
   });
 });

@@ -136,7 +136,7 @@
         },
         "rumdl.server.path": {
           "type": "string",
-          "description": "Path to rumdl executable. Leave empty to use bundled binary (recommended). Set to 'rumdl' to use system PATH. Set to an absolute path for custom installations (e.g., '/usr/local/bin/rumdl')."
+          "description": "Path to rumdl executable. Leave empty for auto-detection (checks workspace .venv, then system PATH, then bundled binary). Set to an absolute path for custom installations."
         },
         "rumdl.server.logLevel": {
           "type": "string",
@@ -245,6 +245,7 @@
     "@types/node": "24.x",
     "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.82.0",
+    "@types/which": "^3.0.4",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "@vscode/test-cli": "^0.0.12",
@@ -268,7 +269,8 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^9.0.1",
+    "which": "^5.0.0"
   },
   "nyc": {
     "extends": "@istanbuljs/nyc-config-typescript",

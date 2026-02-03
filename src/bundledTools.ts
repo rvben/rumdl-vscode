@@ -1,11 +1,32 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import * as vscode from 'vscode';
 import { Logger } from './utils';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import which = require('which');
 
 interface BundledVersion {
   version: string;
   downloadedAt: string;
   platforms: string[];
+}
+
+/**
+ * Name of the rumdl binary based on the current platform.
+ */
+const RUMDL_BINARY_NAME = process.platform === 'win32' ? 'rumdl.exe' : 'rumdl';
+
+/**
+ * Common virtual environment directory names to check.
+ */
+const VENV_DIRS = ['.venv', 'venv'];
+
+/**
+ * Get the bin directory name for the current platform.
+ * Windows uses 'Scripts', Unix uses 'bin'.
+ */
+function getVenvBinDir(): string {
+  return process.platform === 'win32' ? 'Scripts' : 'bin';
 }
 
 export class BundledToolsManager {
@@ -88,34 +109,27 @@ export class BundledToolsManager {
 
     try {
       const platformKey = this.getPlatformKey();
-      let binaryName = this.PLATFORM_MAP[platformKey];
-      let binaryPath = path.join(this.BUNDLED_TOOLS_DIR, binaryName);
+      const binaryName = this.PLATFORM_MAP[platformKey];
 
       if (!binaryName) {
-        Logger.warn(`No bundled binary available for platform: ${platformKey}`);
         return null;
       }
+
+      let binaryPath = path.join(this.BUNDLED_TOOLS_DIR, binaryName);
 
       // If primary binary doesn't exist, try fallback for Linux platforms
-      if (!fs.existsSync(binaryPath) && this.PLATFORM_FALLBACK_MAP[platformKey]) {
+      if (!fs.existsSync(binaryPath)) {
         const fallbackBinary = this.PLATFORM_FALLBACK_MAP[platformKey];
-        const fallbackPath = path.join(this.BUNDLED_TOOLS_DIR, fallbackBinary);
-
-        if (fs.existsSync(fallbackPath)) {
-          Logger.info(`Using fallback binary for ${platformKey}: ${fallbackBinary}`);
-          binaryName = fallbackBinary;
-          binaryPath = fallbackPath;
+        if (fallbackBinary) {
+          const fallbackPath = path.join(this.BUNDLED_TOOLS_DIR, fallbackBinary);
+          if (fs.existsSync(fallbackPath)) {
+            binaryPath = fallbackPath;
+          } else {
+            return null;
+          }
         } else {
-          Logger.warn(`Neither primary nor fallback binary found for ${platformKey}`);
-          Logger.warn(`  Primary: ${binaryPath}`);
-          Logger.warn(`  Fallback: ${fallbackPath}`);
           return null;
         }
-      }
-
-      if (!fs.existsSync(binaryPath)) {
-        Logger.warn(`Bundled binary not found: ${binaryPath}`);
-        return null;
       }
 
       // Verify the binary is executable (on Unix systems)
@@ -123,39 +137,96 @@ export class BundledToolsManager {
         try {
           const stats = fs.statSync(binaryPath);
           if (!(stats.mode & parseInt('111', 8))) {
-            Logger.warn(`Bundled binary is not executable: ${binaryPath}`);
-            // Try to make it executable
             fs.chmodSync(binaryPath, 0o755);
-            Logger.info(`Made bundled binary executable: ${binaryPath}`);
           }
-        } catch (error) {
-          Logger.error(`Failed to check/set executable permissions: ${error}`);
+        } catch {
           return null;
         }
       }
 
-      Logger.info(`Found bundled rumdl binary: ${binaryPath}`);
       return binaryPath;
-    } catch (error) {
-      Logger.error(`Failed to get bundled rumdl path: ${error}`);
+    } catch {
       return null;
     }
   }
 
   /**
+   * Find rumdl binary in workspace virtual environments.
+   * Checks .venv and venv directories in all workspace folders.
+   */
+  private static getWorkspaceVenvRumdlPath(): string | null {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return null;
+    }
+
+    const binDir = getVenvBinDir();
+
+    for (const folder of workspaceFolders) {
+      for (const venvDir of VENV_DIRS) {
+        const rumdlPath = path.join(folder.uri.fsPath, venvDir, binDir, RUMDL_BINARY_NAME);
+        if (fs.existsSync(rumdlPath)) {
+          return rumdlPath;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find rumdl binary in system PATH.
+   * This catches homebrew, cargo, mise (if activated), etc.
+   */
+  private static async getSystemPathRumdlPath(): Promise<string | null> {
+    const rumdlPath = await which(RUMDL_BINARY_NAME, { nothrow: true });
+    return rumdlPath || null;
+  }
+
+  /**
    * Get the best available rumdl path with smart resolution:
-   * - undefined/empty: Prefer bundled binary, fall back to system 'rumdl'
-   * - 'rumdl': Explicitly use system PATH (bypass bundled)
-   * - Custom path: Use the specified path directly
+   *
+   * Resolution order (trusted workspaces):
+   * 1. Explicit path setting (user always wins)
+   * 2. Workspace venv (.venv/bin/rumdl, venv/bin/rumdl)
+   * 3. System PATH (homebrew, cargo, mise if activated, etc.)
+   * 4. Bundled binary (guaranteed fallback)
+   *
+   * For untrusted workspaces, only bundled binary is used (security).
    */
   public static async getBestRumdlPath(configuredPath?: string): Promise<string> {
-    // 1. If explicitly configured (including 'rumdl'), use it
+    // Security: In untrusted workspaces, only use bundled binary
+    if (!vscode.workspace.isTrusted) {
+      const bundledPath = this.getBundledRumdlPath();
+      if (bundledPath) {
+        Logger.info(`Untrusted workspace - using bundled rumdl: ${bundledPath}`);
+        return bundledPath;
+      }
+      Logger.warn('Untrusted workspace and no bundled binary available');
+      return 'rumdl';
+    }
+
+    // 1. Explicit path setting (user always wins)
     if (configuredPath) {
-      Logger.info(`Using configured rumdl path: ${configuredPath}`);
+      Logger.info(`Using configured rumdl: ${configuredPath}`);
       return configuredPath;
     }
 
-    // 2. Not configured - prefer bundled binary if available
+    // 2. Workspace virtual environment
+    const venvPath = this.getWorkspaceVenvRumdlPath();
+    if (venvPath) {
+      Logger.info(`Using workspace venv rumdl: ${venvPath}`);
+      return venvPath;
+    }
+
+    // 3. System PATH (homebrew, cargo, mise if activated, etc.)
+    const systemPath = await this.getSystemPathRumdlPath();
+    if (systemPath) {
+      Logger.info(`Using system PATH rumdl: ${systemPath}`);
+      return systemPath;
+    }
+
+    // 4. Bundled binary (guaranteed fallback)
     const bundledPath = this.getBundledRumdlPath();
     if (bundledPath) {
       const version = this.getBundledVersion();
@@ -163,41 +234,32 @@ export class BundledToolsManager {
       return bundledPath;
     }
 
-    // 3. No bundled binary - fall back to system rumdl
-    Logger.info('No bundled rumdl found, falling back to system rumdl');
+    // Last resort
+    Logger.warn('No rumdl binary found, falling back to "rumdl" command');
     return 'rumdl';
   }
 
   /**
-   * Log information about bundled tools
+   * Log information about available rumdl sources.
    */
   public static logBundledToolsInfo(): void {
-    if (!this.hasBundledTools()) {
-      Logger.info('No bundled tools found - will use system rumdl');
-      return;
-    }
-
     const version = this.getBundledVersion();
     if (version) {
-      Logger.info(
-        `Bundled tools available: rumdl ${version.version} (downloaded ${version.downloadedAt})`
-      );
-      Logger.info(`Supported platforms: ${version.platforms.join(', ')}`);
+      Logger.info(`Bundled rumdl ${version.version} available`);
+    } else {
+      Logger.info('No bundled rumdl available');
     }
 
-    const currentPlatformBinary = this.getBundledRumdlPath();
-    if (currentPlatformBinary) {
-      Logger.info(`Current platform binary: ${currentPlatformBinary}`);
-    } else {
-      Logger.warn(`No bundled binary available for current platform: ${this.getPlatformKey()}`);
-    }
+    // Log resolution order for debugging
+    Logger.debug(
+      'Resolution order: configured path → workspace venv → system PATH → bundled binary'
+    );
   }
 
   /**
-   * Check if we should prefer bundled tools over system tools
+   * Check if bundled binary is available for the current platform.
    */
-  public static shouldPreferBundled(): boolean {
-    // Always prefer bundled if available for consistency
+  public static hasBundledBinary(): boolean {
     return this.getBundledRumdlPath() !== null;
   }
 }
