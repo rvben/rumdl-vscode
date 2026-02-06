@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-02-04T15:39:58.181Z
+ * Generated: 2026-02-06T19:12:02.387Z
  */
 
 export interface GlobalConfig {
@@ -29,7 +29,7 @@ Takes precedence over fixable */
   /** Markdown flavor/dialect to use (mkdocs, gfm, commonmark, etc.)
 When set, adjusts parsing and validation rules for that specific Markdown variant */
   flavor?: string;
-  /** [DEPRECATED] Whether to enforce exclude patterns for explicitly passed paths.
+  /** \[DEPRECATED\] Whether to enforce exclude patterns for explicitly passed paths.
 This option is deprecated as of v0.0.156 and has no effect.
 Exclude patterns are now always respected, even for explicitly provided files.
 This prevents duplication between rumdl config and tool configs like pre-commit. */
@@ -128,4 +128,5 @@ export const RULE_NAMES = [
   'MD071',
   'MD072',
   'MD073',
+  'MD074',
 ];
