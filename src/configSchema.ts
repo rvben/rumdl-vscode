@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-02-21T11:44:44.014Z
+ * Generated: 2026-02-23T19:06:44.133Z
  */
 
 export interface GlobalConfig {
@@ -136,4 +136,5 @@ export const RULE_NAMES = [
   'MD073',
   'MD074',
   'MD075',
+  'MD076',
 ];
