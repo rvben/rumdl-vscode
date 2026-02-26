@@ -38,18 +38,19 @@ function getPlatformKey() {
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
 }
 
-function downloadFile(url, dest) {
+function downloadFileOnce(url, dest) {
   return new Promise((resolve, reject) => {
-    console.log(`Downloading ${url} to ${dest}`);
-
     const file = fs.createWriteStream(dest);
     const request = https.get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
-        // Follow redirect
-        return downloadFile(response.headers.location, dest).then(resolve).catch(reject);
+        file.close();
+        fs.unlink(dest, () => {});
+        return downloadFileOnce(response.headers.location, dest).then(resolve).catch(reject);
       }
 
       if (response.statusCode !== 200) {
+        file.close();
+        fs.unlink(dest, () => {});
         reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
         return;
       }
@@ -58,21 +59,40 @@ function downloadFile(url, dest) {
 
       file.on('finish', () => {
         file.close();
-        console.log(`Downloaded: ${dest}`);
         resolve();
       });
     });
 
     request.on('error', (err) => {
-      fs.unlink(dest, () => {}); // Delete partial file
+      file.close();
+      fs.unlink(dest, () => {});
       reject(err);
     });
 
     file.on('error', (err) => {
-      fs.unlink(dest, () => {}); // Delete partial file
+      fs.unlink(dest, () => {});
       reject(err);
     });
   });
+}
+
+async function downloadFile(url, dest, retries = 3) {
+  console.log(`Downloading ${url} to ${dest}`);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await downloadFileOnce(url, dest);
+      console.log(`Downloaded: ${dest}`);
+      return;
+    } catch (err) {
+      if (attempt < retries) {
+        const delay = attempt * 5;
+        console.warn(`Download attempt ${attempt} failed (${err.message}), retrying in ${delay}s...`);
+        await new Promise(r => setTimeout(r, delay * 1000));
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 function makeExecutable(filePath) {
