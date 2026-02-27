@@ -3,6 +3,7 @@ import { Logger } from './utils';
 
 export interface RumdlConfig {
   enable: boolean;
+  fixOnSave: boolean;
   configPath?: string;
   rules: {
     enable: string[];
@@ -26,6 +27,7 @@ export class ConfigurationManager {
 
     return {
       enable: config.get('enable', true),
+      fixOnSave: config.get('fixOnSave', false),
       configPath: config.get('configPath'),
       rules: {
         enable: config.get('rules.enable', []),

@@ -116,6 +116,11 @@
           "default": true,
           "description": "Enable rumdl linting"
         },
+        "rumdl.fixOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically fix all auto-fixable problems when saving a file. For more control, use editor.codeActionsOnSave with source.fixAll.rumdl instead."
+        },
         "rumdl.configPath": {
           "type": "string",
           "description": "Path to rumdl configuration file"

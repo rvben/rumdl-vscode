@@ -16,13 +16,14 @@ import { expect } from '../helper';
  */
 function buildInitializationOptions(config: {
   configPath?: string;
+  fixOnSave?: boolean;
   rules: { enable: string[]; disable: string[] };
 }) {
   return {
     configPath:
       config.configPath && config.configPath.trim() !== '' ? config.configPath : undefined,
     enableLinting: true,
-    enableAutoFix: true,
+    enableAutoFix: config.fixOnSave ?? false,
     enableRules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
     disableRules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
   };
@@ -33,6 +34,7 @@ suite('Initialization Options Tests', () => {
     // Test configuration (what would come from VS Code settings)
     const mockConfig = {
       configPath: '/custom/config.toml',
+      fixOnSave: true,
       rules: {
         enable: ['MD001', 'MD003'],
         disable: ['MD013', 'MD024'],
@@ -62,6 +64,29 @@ suite('Initialization Options Tests', () => {
     expect(initializationOptions.enableAutoFix).to.be.true;
     expect(initializationOptions.enableRules).to.deep.equal(['MD001', 'MD003']);
     expect(initializationOptions.disableRules).to.deep.equal(['MD013', 'MD024']);
+  });
+
+  test('enableAutoFix should default to false when fixOnSave is not set', () => {
+    const initializationOptions = buildInitializationOptions({
+      rules: { enable: [], disable: [] },
+    });
+    expect(initializationOptions.enableAutoFix).to.be.false;
+  });
+
+  test('enableAutoFix should be true when fixOnSave is true', () => {
+    const initializationOptions = buildInitializationOptions({
+      fixOnSave: true,
+      rules: { enable: [], disable: [] },
+    });
+    expect(initializationOptions.enableAutoFix).to.be.true;
+  });
+
+  test('enableAutoFix should be false when fixOnSave is false', () => {
+    const initializationOptions = buildInitializationOptions({
+      fixOnSave: false,
+      rules: { enable: [], disable: [] },
+    });
+    expect(initializationOptions.enableAutoFix).to.be.false;
   });
 
   test('disable rules configuration should be properly formatted', () => {

@@ -97,22 +97,43 @@ Access these commands via the Command Palette (`Cmd/Ctrl + Shift + P`):
 - **`rumdl: Check Extension Status`** - Display extension status and configuration
 - **`rumdl: Test Configuration Discovery`** - Debug configuration file discovery and test rumdl settings
 
-## Format on Save
+## Fix on Save
 
-To automatically fix Markdown issues when saving files, enable VS Code's format on save feature:
+There are two ways to automatically fix Markdown issues when saving files:
+
+### Option 1: `editor.codeActionsOnSave` (Recommended)
+
+This is the standard VS Code mechanism, used by ESLint, Ruff, and other linters. It gives you fine-grained control:
+
+```json
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.rumdl": "explicit"
+  }
+}
+```
+
+Use `"explicit"` to only fix on manual save (Cmd+S / Ctrl+S), or `"always"` to also fix on auto-save.
+
+### Option 2: `rumdl.fixOnSave`
+
+A simpler toggle that applies all fixes via the LSP server before saving:
+
+```json
+{
+  "rumdl.fixOnSave": true
+}
+```
+
+### Option 3: `editor.formatOnSave`
+
+Uses VS Code's formatting infrastructure to apply rumdl fixes as formatting edits:
 
 ```json
 {
   "[markdown]": {
     "editor.formatOnSave": true
   }
-}
-```
-
-Or globally for all file types:
-```json
-{
-  "editor.formatOnSave": true
 }
 ```
 
@@ -123,6 +144,7 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `rumdl.enable` | Enable/disable the extension | `true` |
+| `rumdl.fixOnSave` | Automatically fix all auto-fixable problems on save | `false` |
 | `rumdl.configPath` | Path to rumdl configuration file (relative to workspace root or absolute). If not specified, rumdl will auto-discover configuration files in the workspace. | `undefined` |
 | `rumdl.rules.select` | Array of rule IDs to enable. Empty array enables all rules. | `[]` |
 | `rumdl.rules.ignore` | Array of rule IDs to ignore/disable | `[]` |

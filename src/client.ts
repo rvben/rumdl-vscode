@@ -88,7 +88,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
         configPath:
           config.configPath && config.configPath.trim() !== '' ? config.configPath : undefined,
         enableLinting: true,
-        enableAutoFix: true, // Always enable auto-fix capability in LSP, autoFixOnSave controls when it's applied
+        enableAutoFix: config.fixOnSave,
         enableRules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
         disableRules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
       };
