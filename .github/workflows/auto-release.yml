@@ -178,6 +178,7 @@ jobs:
 
       - name: Build VSIX for ${{ matrix.code-target }}
         run: |
+          mkdir -p dist
           npx @vscode/vsce package --target ${{ matrix.code-target }} \
             --out dist/rumdl-${{ needs.prepare.outputs.new_version }}-${{ matrix.code-target }}.vsix
           ls -lh dist/
