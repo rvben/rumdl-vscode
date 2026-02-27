@@ -210,7 +210,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run download-rumdl && npm run sync-schema && npm run package",
+    "vscode:prepublish": "npm run package",
     "compile": "webpack",
     "compile:dev": "webpack --mode development",
     "watch": "webpack --watch",
@@ -231,6 +231,7 @@
     "test:unit:coverage": "nyc npm run test:unit",
     "coverage:report": "nyc report --reporter=html && open coverage/index.html",
     "download-rumdl": "node scripts/download-rumdl.js",
+    "download-rumdl-target": "node scripts/download-rumdl.js --target",
     "download-rumdl-current": "node scripts/download-rumdl.js --current-platform-only",
     "update-rumdl": "node scripts/download-rumdl.js --latest",
     "clean-rumdl": "rm -rf bundled-tools && mkdir -p bundled-tools",

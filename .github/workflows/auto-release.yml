@@ -16,10 +16,14 @@ on:
         type: boolean
 
 jobs:
-  update-and-release:
+  # Phase 1: Verify release, bump version, commit changes
+  prepare:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      rumdl_version: ${{ steps.version.outputs.rumdl_version }}
+      new_version: ${{ steps.bump.outputs.new_version }}
 
     steps:
       - uses: actions/checkout@v6
@@ -68,11 +72,10 @@ jobs:
         run: |
           sed -i "s/const RUMDL_VERSION = '[0-9.]*'/const RUMDL_VERSION = '${{ steps.version.outputs.rumdl_version }}'/" scripts/download-rumdl.js
 
-      - name: Download new rumdl binaries
+      - name: Download rumdl binary for schema sync
         run: |
           npm run clean-rumdl
-          npm run download-rumdl
-          npm run verify-rumdl
+          npm run download-rumdl-current
 
       - name: Sync schema from new rumdl binary
         run: npm run sync-schema
@@ -112,74 +115,168 @@ jobs:
 
           mv CHANGELOG.tmp.md CHANGELOG.md
 
-      - name: Commit changes
+      - name: Clean bundled-tools before commit
+        run: rm -rf bundled-tools
+
+      - name: Commit and push changes
         if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add -A
+          git add scripts/download-rumdl.js package.json package-lock.json CHANGELOG.md
+          # Add schema if it was updated
+          git add -f schemas/ 2>/dev/null || true
           git commit -m "chore: update rumdl to v${{ steps.version.outputs.rumdl_version }}
 
           - Updated bundled rumdl binaries to v${{ steps.version.outputs.rumdl_version }}
           - Bumped extension version to ${{ steps.bump.outputs.new_version }}"
+          git push origin main
 
-      - name: Build VSIX package
-        id: package
+  # Phase 2: Build platform-specific VSIX packages in parallel
+  build:
+    needs: prepare
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - code-target: win32-x64
+            rumdl-platform: win32-x64
+          - code-target: darwin-x64
+            rumdl-platform: darwin-x64
+          - code-target: darwin-arm64
+            rumdl-platform: darwin-arm64
+          - code-target: linux-x64
+            rumdl-platform: linux-x64
+          - code-target: linux-arm64
+            rumdl-platform: linux-arm64
+          - code-target: alpine-x64
+            rumdl-platform: linux-x64
+          - code-target: alpine-arm64
+            rumdl-platform: linux-arm64
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download rumdl binary for ${{ matrix.code-target }}
         run: |
-          npx @vscode/vsce package --out rumdl-${{ steps.bump.outputs.new_version }}.vsix
-          VSIX_FILE="rumdl-${{ steps.bump.outputs.new_version }}.vsix"
-          echo "vsix_file=$VSIX_FILE" >> $GITHUB_OUTPUT
-          ls -lh "$VSIX_FILE"
+          npm run clean-rumdl
+          npm run download-rumdl-target -- ${{ matrix.code-target }}
+          ls -lh bundled-tools/
+
+      - name: Build VSIX for ${{ matrix.code-target }}
+        run: |
+          npx @vscode/vsce package --target ${{ matrix.code-target }} \
+            --out dist/rumdl-${{ needs.prepare.outputs.new_version }}-${{ matrix.code-target }}.vsix
+          ls -lh dist/
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.code-target }}
+          path: dist/*.vsix
+
+  # Phase 3: Publish all platform-specific VSIXs
+  publish:
+    needs: [prepare, build]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          path: dist/
+          merge-multiple: true
+
+      - name: List VSIX files
+        run: ls -lh dist/
 
       - name: Create and push tag
-        if: ${{ !inputs.dry_run }}
         run: |
-          git tag "v${{ steps.bump.outputs.new_version }}"
-          git push origin main --tags
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag "v${{ needs.prepare.outputs.new_version }}"
+          git push origin "v${{ needs.prepare.outputs.new_version }}"
 
       - name: Create GitHub Release
-        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.bump.outputs.new_version }}
-          name: v${{ steps.bump.outputs.new_version }}
+          tag_name: v${{ needs.prepare.outputs.new_version }}
+          name: v${{ needs.prepare.outputs.new_version }}
           body: |
             ## Changes
-            - Updated bundled rumdl to v${{ steps.version.outputs.rumdl_version }}
+            - Updated bundled rumdl to v${{ needs.prepare.outputs.rumdl_version }}
+            - Platform-specific VSIX packages (~5 MB each instead of ~25 MB universal)
 
-            ### rumdl v${{ steps.version.outputs.rumdl_version }} highlights
-            See [rumdl release notes](https://github.com/rvben/rumdl/releases/tag/v${{ steps.version.outputs.rumdl_version }}) for details.
+            ### rumdl v${{ needs.prepare.outputs.rumdl_version }} highlights
+            See [rumdl release notes](https://github.com/rvben/rumdl/releases/tag/v${{ needs.prepare.outputs.rumdl_version }}) for details.
 
             ## Installation
 
             - **VS Code**: Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
             - **Cursor/VSCodium**: Install from [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)
-            - **Manual**: Download the `.vsix` file below
-          files: ${{ steps.package.outputs.vsix_file }}
+            - **Manual**: Download the `.vsix` file for your platform below
+          files: dist/*.vsix
 
       - name: Publish to VS Code Marketplace
-        if: ${{ !inputs.dry_run }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
-          npx @vscode/vsce publish --packagePath ${{ steps.package.outputs.vsix_file }} --pat $VSCE_PAT
+          npx @vscode/vsce publish --packagePath dist/*.vsix --pat $VSCE_PAT
 
       - name: Publish to Open VSX Registry
-        if: ${{ !inputs.dry_run }}
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
         run: |
-          npx ovsx publish ${{ steps.package.outputs.vsix_file }} -p $OVSX_TOKEN
+          npx ovsx publish --packagePath dist/*.vsix -p $OVSX_TOKEN
+
+  # Dry run summary (separate job so it runs even when build/publish are skipped)
+  dry-run-summary:
+    needs: prepare
+    if: ${{ inputs.dry_run }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
 
       - name: Dry Run Summary
-        if: ${{ inputs.dry_run }}
         run: |
           echo "## 🧪 Dry Run Complete!"
           echo ""
           echo "Would have performed:"
-          echo "- Updated rumdl to v${{ steps.version.outputs.rumdl_version }}"
-          echo "- Bumped extension version to ${{ steps.bump.outputs.new_version }}"
-          echo "- Created git tag v${{ steps.bump.outputs.new_version }}"
+          echo "- Updated rumdl to v${{ needs.prepare.outputs.rumdl_version }}"
+          echo "- Bumped extension version to ${{ needs.prepare.outputs.new_version }}"
+          echo "- Built 7 platform-specific VSIX packages:"
+          echo "  - win32-x64, darwin-x64, darwin-arm64"
+          echo "  - linux-x64, linux-arm64"
+          echo "  - alpine-x64, alpine-arm64"
+          echo "- Created git tag v${{ needs.prepare.outputs.new_version }}"
           echo "- Published to VS Code Marketplace"
           echo "- Published to Open VSX Registry"
           echo ""

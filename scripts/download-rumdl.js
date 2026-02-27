@@ -231,6 +231,44 @@ async function downloadRumdlBinaries() {
   }
 }
 
+// Map VS Code target platforms to rumdl platform keys.
+// Alpine targets reuse the musl (static) Linux binaries.
+const VSCODE_TARGET_TO_PLATFORM = {
+  'win32-x64': 'win32-x64',
+  'darwin-x64': 'darwin-x64',
+  'darwin-arm64': 'darwin-arm64',
+  'linux-x64': 'linux-x64',
+  'linux-arm64': 'linux-arm64',
+  'alpine-x64': 'linux-x64',
+  'alpine-arm64': 'linux-arm64',
+};
+
+// Parse --target <code-target> for platform-specific VSIX builds
+const targetIdx = process.argv.indexOf('--target');
+if (targetIdx !== -1) {
+  const codeTarget = process.argv[targetIdx + 1];
+  if (!codeTarget) {
+    console.error('Error: --target requires a VS Code target platform (e.g., darwin-arm64, linux-x64, alpine-x64)');
+    process.exit(1);
+  }
+
+  const rumdlPlatform = VSCODE_TARGET_TO_PLATFORM[codeTarget];
+  if (!rumdlPlatform) {
+    console.error(`Error: Unknown VS Code target platform: ${codeTarget}`);
+    console.error(`Valid targets: ${Object.keys(VSCODE_TARGET_TO_PLATFORM).join(', ')}`);
+    process.exit(1);
+  }
+
+  console.log(`📦 Target mode: Downloading for VS Code target ${codeTarget} (rumdl platform: ${rumdlPlatform})`);
+
+  // Keep only the mapped rumdl platform
+  Object.keys(PLATFORM_MAP).forEach(key => {
+    if (key !== rumdlPlatform) {
+      delete PLATFORM_MAP[key];
+    }
+  });
+}
+
 // Allow running specific platform only for development
 if (process.argv.includes('--current-platform-only')) {
   const platformKey = getPlatformKey();
@@ -256,4 +294,4 @@ if (require.main === module) {
   downloadRumdlBinaries();
 }
 
-module.exports = { downloadRumdlBinaries, PLATFORM_MAP, PLATFORM_FALLBACK_MAP, BUNDLED_TOOLS_DIR };
+module.exports = { downloadRumdlBinaries, PLATFORM_MAP, PLATFORM_FALLBACK_MAP, VSCODE_TARGET_TO_PLATFORM, BUNDLED_TOOLS_DIR };
