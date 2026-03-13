@@ -210,7 +210,7 @@ jobs:
         run: npm ci
 
       - name: Download all VSIX artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: vsix-*
           path: dist/
