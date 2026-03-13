@@ -184,7 +184,7 @@ jobs:
           ls -lh dist/
 
       - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vsix-${{ matrix.code-target }}
           path: dist/*.vsix
