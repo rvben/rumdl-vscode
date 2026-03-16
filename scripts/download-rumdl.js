@@ -157,23 +157,36 @@ async function downloadRumdlBinaries() {
       fs.mkdirSync(BUNDLED_TOOLS_DIR, { recursive: true });
     }
 
-    // Get release information
-    const releaseData = await new Promise((resolve, reject) => {
-      https.get(GITHUB_API_URL, { headers: { 'User-Agent': 'rumdl-vscode' } }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(e);
-          }
-        });
-      }).on('error', reject);
-    });
+    // Get release information with retry (assets may not be immediately
+    // available after the GitHub release is created)
+    let releaseData;
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      releaseData = await new Promise((resolve, reject) => {
+        https.get(GITHUB_API_URL, { headers: { 'User-Agent': 'rumdl-vscode' } }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }).on('error', reject);
+      });
 
-    if (!releaseData.assets) {
-      throw new Error('No assets found in release');
+      if (releaseData.assets && releaseData.assets.length > 0) {
+        break;
+      }
+
+      if (attempt < maxAttempts) {
+        const delay = attempt * 30;
+        console.warn(`⏳ No assets found in release (attempt ${attempt}/${maxAttempts}), retrying in ${delay}s...`);
+        await new Promise(r => setTimeout(r, delay * 1000));
+      } else {
+        throw new Error(`No assets found in release after ${maxAttempts} attempts`);
+      }
     }
 
     // Download and extract binaries for all platforms
