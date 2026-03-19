@@ -73,6 +73,8 @@ jobs:
           sed -i "s/const RUMDL_VERSION = '[0-9.]*'/const RUMDL_VERSION = '${{ steps.version.outputs.rumdl_version }}'/" scripts/download-rumdl.js
 
       - name: Download rumdl binary for schema sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run clean-rumdl
           npm run download-rumdl-current
@@ -171,6 +173,8 @@ jobs:
         run: npm ci
 
       - name: Download rumdl binary for ${{ matrix.code-target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run clean-rumdl
           npm run download-rumdl-target -- ${{ matrix.code-target }}
@@ -190,9 +194,10 @@ jobs:
           path: dist/*.vsix
 
   # Phase 3: Publish all platform-specific VSIXs
+  # Runs even if some build matrix entries failed (partial release is better than no release)
   publish:
     needs: [prepare, build]
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && !cancelled() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -210,14 +215,38 @@ jobs:
         run: npm ci
 
       - name: Download all VSIX artifacts
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: vsix-*
           path: dist/
           merge-multiple: true
 
-      - name: List VSIX files
-        run: ls -lh dist/
+      - name: Validate VSIX artifacts
+        run: |
+          echo "Available VSIX files:"
+          ls -lh dist/ 2>/dev/null || true
+
+          VSIX_COUNT=$(find dist/ -name '*.vsix' 2>/dev/null | wc -l | tr -d ' ')
+          EXPECTED=7
+
+          if [ "$VSIX_COUNT" -eq 0 ]; then
+            echo "::error::No VSIX artifacts found — all builds failed"
+            exit 1
+          fi
+
+          if [ "$VSIX_COUNT" -lt "$EXPECTED" ]; then
+            echo "::warning::Only ${VSIX_COUNT}/${EXPECTED} VSIX packages available (some builds failed). Publishing available packages."
+            # Check which platforms are missing
+            for target in win32-x64 darwin-x64 darwin-arm64 linux-x64 linux-arm64 alpine-x64 alpine-arm64; do
+              if ! ls dist/*-${target}.vsix 1>/dev/null 2>&1; then
+                echo "::warning::Missing VSIX for target: ${target}"
+              fi
+            done
+          else
+            echo "✅ All ${EXPECTED} VSIX packages present"
+          fi
 
       - name: Create and push tag
         run: |

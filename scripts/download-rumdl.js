@@ -157,35 +157,55 @@ async function downloadRumdlBinaries() {
       fs.mkdirSync(BUNDLED_TOOLS_DIR, { recursive: true });
     }
 
+    // Build request headers — use GITHUB_TOKEN when available for higher rate limits
+    const requestHeaders = { 'User-Agent': 'rumdl-vscode' };
+    const githubToken = process.env.GITHUB_TOKEN;
+    if (githubToken) {
+      requestHeaders['Authorization'] = `Bearer ${githubToken}`;
+      console.log('Using GITHUB_TOKEN for authenticated API requests');
+    }
+
     // Get release information with retry (assets may not be immediately
     // available after the GitHub release is created)
     let releaseData;
     const maxAttempts = 5;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      releaseData = await new Promise((resolve, reject) => {
-        https.get(GITHUB_API_URL, { headers: { 'User-Agent': 'rumdl-vscode' } }, (res) => {
+      const { statusCode, body } = await new Promise((resolve, reject) => {
+        https.get(GITHUB_API_URL, { headers: requestHeaders }, (res) => {
           let data = '';
           res.on('data', chunk => data += chunk);
-          res.on('end', () => {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              reject(e);
-            }
-          });
+          res.on('end', () => resolve({ statusCode: res.statusCode, body: data }));
         }).on('error', reject);
       });
 
+      if (statusCode !== 200) {
+        const detail = (() => { try { return JSON.parse(body).message; } catch { return body.slice(0, 200); } })();
+        if (attempt < maxAttempts) {
+          const delay = attempt * 30;
+          console.warn(`⏳ GitHub API returned HTTP ${statusCode}: ${detail} (attempt ${attempt}/${maxAttempts}), retrying in ${delay}s...`);
+          await new Promise(r => setTimeout(r, delay * 1000));
+          continue;
+        }
+        throw new Error(`GitHub API returned HTTP ${statusCode} after ${maxAttempts} attempts: ${detail}`);
+      }
+
+      try {
+        releaseData = JSON.parse(body);
+      } catch (e) {
+        throw new Error(`Failed to parse GitHub API response: ${e.message}`);
+      }
+
       if (releaseData.assets && releaseData.assets.length > 0) {
+        console.log(`Found ${releaseData.assets.length} release assets`);
         break;
       }
 
       if (attempt < maxAttempts) {
         const delay = attempt * 30;
-        console.warn(`⏳ No assets found in release (attempt ${attempt}/${maxAttempts}), retrying in ${delay}s...`);
+        console.warn(`⏳ Release exists but has 0 assets (attempt ${attempt}/${maxAttempts}), retrying in ${delay}s...`);
         await new Promise(r => setTimeout(r, delay * 1000));
       } else {
-        throw new Error(`No assets found in release after ${maxAttempts} attempts`);
+        throw new Error(`No assets found in release after ${maxAttempts} attempts (release exists but assets array is empty)`);
       }
     }
 
