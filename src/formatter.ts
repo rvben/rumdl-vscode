@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Logger } from './utils';
+import { Logger, isMarkdownLanguage, SUPPORTED_LANGUAGE_IDS } from './utils';
 
 /**
  * Rumdl Document Formatting Provider
@@ -20,7 +20,7 @@ export class RumdlFormattingProvider implements vscode.DocumentFormattingEditPro
   ): Promise<vscode.TextEdit[]> {
     Logger.info(`Format document requested: ${document.uri.fsPath}`);
 
-    if (document.languageId !== 'markdown') {
+    if (!isMarkdownLanguage(document.languageId)) {
       Logger.warn('Format provider called on non-markdown document');
       return [];
     }
@@ -81,18 +81,15 @@ export class RumdlFormattingProvider implements vscode.DocumentFormattingEditPro
 }
 
 /**
- * Register the formatting provider for Markdown documents
+ * Register the formatting provider for all supported document languages
  */
-export function registerFormattingProvider(context: vscode.ExtensionContext): vscode.Disposable {
+export function registerFormattingProvider(context: vscode.ExtensionContext): void {
   const provider = new RumdlFormattingProvider();
 
-  const disposable = vscode.languages.registerDocumentFormattingEditProvider(
-    { scheme: 'file', language: 'markdown' },
-    provider
+  const disposables = SUPPORTED_LANGUAGE_IDS.map(language =>
+    vscode.languages.registerDocumentFormattingEditProvider({ scheme: 'file', language }, provider)
   );
 
-  context.subscriptions.push(disposable);
-  Logger.info('Rumdl formatting provider registered');
-
-  return disposable;
+  context.subscriptions.push(...disposables);
+  Logger.info(`Rumdl formatting provider registered for: ${SUPPORTED_LANGUAGE_IDS.join(', ')}`);
 }

@@ -375,7 +375,12 @@ export function createMockTextDocument(filePath: string, content = ''): MockText
       toString: () => `file://${filePath}`,
     },
     fileName: filePath,
-    languageId: path.extname(filePath) === '.md' ? 'markdown' : 'plaintext',
+    languageId: (() => {
+      const ext = path.extname(filePath);
+      if (ext === '.md') return 'markdown';
+      if (ext === '.mdx') return 'mdx';
+      return 'plaintext';
+    })(),
     version: 1,
     getText: (range?: any) => {
       if (!range) {
