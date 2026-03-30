@@ -42,7 +42,8 @@
     "diagnostics"
   ],
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onLanguage:mdx"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -53,8 +54,7 @@
           ".md",
           ".markdown",
           ".mdown",
-          ".mkd",
-          ".mdx"
+          ".mkd"
         ]
       }
     ],
@@ -175,7 +175,7 @@
     "menus": {
       "editor/context": [
         {
-          "when": "resourceExtname == .md && rumdl.enabled",
+          "when": "(resourceExtname == .md || resourceExtname == .mdx) && rumdl.enabled",
           "command": "rumdl.fixAll",
           "group": "1_modification@1"
         }
@@ -183,7 +183,7 @@
       "commandPalette": [
         {
           "command": "rumdl.fixAll",
-          "when": "resourceExtname == .md"
+          "when": "resourceExtname == .md || resourceExtname == .mdx"
         },
         {
           "command": "rumdl.fixAllWorkspace"
@@ -195,7 +195,7 @@
         "command": "rumdl.fixAll",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "editorTextFocus && editorLangId == markdown"
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx)$/"
       },
       {
         "command": "rumdl.fixAllWorkspace",

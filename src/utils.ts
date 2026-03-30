@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
 
+export const SUPPORTED_LANGUAGE_IDS = ['markdown', 'mdx'];
+
+export function isMarkdownLanguage(languageId: string): boolean {
+  return SUPPORTED_LANGUAGE_IDS.includes(languageId);
+}
+
 export class Logger {
   private static outputChannel: vscode.OutputChannel;
 

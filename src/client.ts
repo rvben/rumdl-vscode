@@ -7,7 +7,13 @@ import {
   RevealOutputChannelOn,
 } from 'vscode-languageclient/node';
 import { ConfigurationManager } from './configuration';
-import { Logger, checkRumdlInstallation, getRumdlVersion, showErrorMessage } from './utils';
+import {
+  Logger,
+  checkRumdlInstallation,
+  getRumdlVersion,
+  showErrorMessage,
+  SUPPORTED_LANGUAGE_IDS,
+} from './utils';
 import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
 
@@ -94,10 +100,10 @@ export class RumdlLanguageClient implements vscode.Disposable {
       };
 
       const clientOptions: LanguageClientOptions = {
-        documentSelector: [
-          { scheme: 'file', language: 'markdown' },
-          { scheme: 'untitled', language: 'markdown' },
-        ],
+        documentSelector: SUPPORTED_LANGUAGE_IDS.flatMap(language => [
+          { scheme: 'file', language },
+          { scheme: 'untitled', language },
+        ]),
         synchronize: {
           fileEvents: [
             vscode.workspace.createFileSystemWatcher('**/.rumdl.toml'),
