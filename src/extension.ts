@@ -3,7 +3,7 @@ import { RumdlLanguageClient } from './client';
 import { StatusBarManager } from './statusBar';
 import { CommandManager } from './commands';
 import { ConfigurationManager } from './configuration';
-import { Logger, showErrorMessage } from './utils';
+import { Logger, showErrorMessage, isMarkdownLanguage } from './utils';
 import { BundledToolsManager } from './bundledTools';
 import { ConfigDiagnosticProvider } from './diagnostics/configDiagnostics';
 import { registerFormattingProvider } from './formatter';
@@ -83,7 +83,7 @@ export async function activate(
 
     // Initialize status bar with current document if any
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor && activeEditor.document.languageId === 'markdown') {
+    if (activeEditor && isMarkdownLanguage(activeEditor.document.languageId)) {
       updateStatusBarForDocument(activeEditor.document);
     }
 
@@ -127,11 +127,10 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
 
   // Handle active editor changes to update status
   const activeEditorWatcher = vscode.window.onDidChangeActiveTextEditor(editor => {
-    if (editor && editor.document.languageId === 'markdown') {
+    if (editor && isMarkdownLanguage(editor.document.languageId)) {
       Logger.debug(`Active editor changed to Markdown file: ${editor.document.uri.fsPath}`);
       updateStatusBarForDocument(editor.document);
     } else {
-      // Clear issue count when not in a markdown file
       statusBar.updateIssueCount(0, 0);
     }
   });
@@ -139,7 +138,7 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
   // Handle diagnostics changes to update status bar
   const diagnosticsWatcher = vscode.languages.onDidChangeDiagnostics(event => {
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor && activeEditor.document.languageId === 'markdown') {
+    if (activeEditor && isMarkdownLanguage(activeEditor.document.languageId)) {
       // Check if the active document's URI is in the changed URIs
       const docUri = activeEditor.document.uri;
       if (event.uris.some(uri => uri.toString() === docUri.toString())) {
