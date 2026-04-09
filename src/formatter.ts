@@ -19,6 +19,8 @@ export class RumdlFormattingProvider implements vscode.DocumentFormattingEditPro
     _token: vscode.CancellationToken
   ): Promise<vscode.TextEdit[]> {
     Logger.info(`Format document requested: ${document.uri.fsPath}`);
+    void _options;
+    void _token;
 
     if (!isMarkdownLanguage(document.languageId)) {
       Logger.warn('Format provider called on non-markdown document');

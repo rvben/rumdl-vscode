@@ -377,8 +377,12 @@ export function createMockTextDocument(filePath: string, content = ''): MockText
     fileName: filePath,
     languageId: (() => {
       const ext = path.extname(filePath);
-      if (ext === '.md') return 'markdown';
-      if (ext === '.mdx') return 'mdx';
+      if (ext === '.md') {
+        return 'markdown';
+      }
+      if (ext === '.mdx') {
+        return 'mdx';
+      }
       return 'plaintext';
     })(),
     version: 1,

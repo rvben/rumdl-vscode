@@ -46,7 +46,7 @@ Can also be disabled via --no-cache CLI flag */
   'extend-disable'?: string[];
 }
 
-export const RULE_SCHEMAS: Record<string, any> = {};
+export const RULE_SCHEMAS: Record<string, unknown> = {};
 
 export const GLOBAL_PROPERTIES = [
   'enable',
