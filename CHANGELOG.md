@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.218] - 2026-04-09
+
+### Changed
+- Extension-only fixes; bundled rumdl remains v0.1.68
+
+
 ## [0.0.217] - 2026-04-08
 
 ### Changed
