@@ -108,6 +108,8 @@ export class RumdlLanguageClient implements vscode.Disposable {
           fileEvents: [
             vscode.workspace.createFileSystemWatcher('**/.rumdl.toml'),
             vscode.workspace.createFileSystemWatcher('**/rumdl.toml'),
+            vscode.workspace.createFileSystemWatcher('**/.config/rumdl.toml'),
+            vscode.workspace.createFileSystemWatcher('**/pyproject.toml'),
             vscode.workspace.createFileSystemWatcher('**/.markdownlint.json'),
             vscode.workspace.createFileSystemWatcher('**/.markdownlint.jsonc'),
             vscode.workspace.createFileSystemWatcher('**/.markdownlint.yaml'),
