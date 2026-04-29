@@ -1,5 +1,17 @@
 # Changelog
 
+
+## [0.0.234](https://github.com/rvben/rumdl-vscode/compare/v0.0.233...v0.0.234) - 2026-04-29
+
+### Added
+
+- **links**: add toggles for link completions and link navigation ([c4f8473](https://github.com/rvben/rumdl-vscode/commit/c4f8473c542918fe2597ba27f65f2eee8c2391e0))
+- **server**: auto-detect rumdl from workspace node_modules ([86e5e48](https://github.com/rvben/rumdl-vscode/commit/86e5e48d7b2768ddbb461d5bcfd45c4d56d5bf50))
+
+### Fixed
+
+- **formatter**: remove redundant client-side document formatter ([f714e8a](https://github.com/rvben/rumdl-vscode/commit/f714e8af834c6219e2d7af2c5f0cec966d1421ea))
+
 ## [0.0.233] - 2026-04-28
 
 ### Changed
