@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.235] - 2026-04-29
+
+### Changed
+- Extension-only fixes; bundled rumdl remains v0.1.84
+
+
 
 ## [0.0.234](https://github.com/rvben/rumdl-vscode/compare/v0.0.233...v0.0.234) - 2026-04-29
 
