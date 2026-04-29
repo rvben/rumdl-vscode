@@ -141,7 +141,7 @@
         },
         "rumdl.server.path": {
           "type": "string",
-          "description": "Path to rumdl executable. Leave empty for auto-detection (checks workspace .venv, then system PATH, then bundled binary). Set to an absolute path for custom installations."
+          "description": "Path to rumdl executable. Leave empty for auto-detection (checks workspace .venv, then workspace node_modules, then system PATH, then bundled binary). Set to an absolute path for custom installations."
         },
         "rumdl.server.logLevel": {
           "type": "string",

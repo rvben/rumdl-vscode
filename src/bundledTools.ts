@@ -47,13 +47,30 @@ export class BundledToolsManager {
     'linux-arm64': 'rumdl-aarch64-unknown-linux-gnu', // Dynamic binary (fallback)
   };
 
-  /**
-   * Get the current platform key
-   */
-  private static getPlatformKey(): string {
-    const platform = process.platform;
-    const arch = process.arch;
+  // Primary npm scope-package mapping for node_modules detection.
+  // Linux prefers the musl (static) variant, matching the PLATFORM_MAP strategy.
+  private static readonly NPM_PLATFORM_MAP: Record<string, string> = {
+    'win32-x64': '@rumdl/cli-win32-x64',
+    'darwin-x64': '@rumdl/cli-darwin-x64',
+    'darwin-arm64': '@rumdl/cli-darwin-arm64',
+    'linux-x64': '@rumdl/cli-linux-x64-musl', // Static binary (preferred)
+    'linux-arm64': '@rumdl/cli-linux-arm64-musl', // Static binary (preferred)
+  };
 
+  // Fallback npm scope-package mapping for Linux platforms without musl packages.
+  private static readonly NPM_PLATFORM_FALLBACK_MAP: Record<string, string | undefined> = {
+    'linux-x64': '@rumdl/cli-linux-x64', // GNU variant (fallback)
+    'linux-arm64': '@rumdl/cli-linux-arm64', // GNU variant (fallback)
+  };
+
+  /**
+   * Compute the platform key for a given (platform, arch) pair.
+   *
+   * Returns null for unsupported combinations rather than throwing, so callers
+   * (notably the node_modules resolver) can degrade gracefully on platforms
+   * for which we ship no native binary.
+   */
+  private static computePlatformKey(platform: NodeJS.Platform, arch: string): string | null {
     if (platform === 'win32' && arch === 'x64') {
       return 'win32-x64';
     }
@@ -69,8 +86,18 @@ export class BundledToolsManager {
     if (platform === 'linux' && arch === 'arm64') {
       return 'linux-arm64';
     }
+    return null;
+  }
 
-    throw new Error(`Unsupported platform: ${platform}-${arch}`);
+  /**
+   * Get the platform key for the current process.
+   */
+  private static getPlatformKey(): string {
+    const key = this.computePlatformKey(process.platform, process.arch);
+    if (!key) {
+      throw new Error(`Unsupported platform: ${process.platform}-${process.arch}`);
+    }
+    return key;
   }
 
   /**
@@ -175,6 +202,86 @@ export class BundledToolsManager {
   }
 
   /**
+   * Build the ordered list of candidate paths to probe for a node_modules-installed rumdl.
+   *
+   * Pure function (no fs access, no process globals) so the per-platform priority
+   * can be unit-tested without mutating process.platform.
+   *
+   * Priority (per workspace folder):
+   *   1. node_modules/<npm-scope-pkg>/<binary>          — native platform binary
+   *   2. node_modules/<npm-scope-pkg-fallback>/<binary> — Linux GNU fallback
+   *   3. node_modules/.bin/rumdl                        — Unix only
+   *   4. node_modules/rumdl/bin/rumdl                   — Unix only (JS wrapper)
+   *
+   * On Windows, candidates 3 and 4 are omitted: the .bin/rumdl.cmd shim and the
+   * JS wrapper both require `shell: true` to spawn, which LanguageClient does
+   * not set. Returning such a path would fail to launch, so we fall through to
+   * system PATH / bundled binary instead.
+   *
+   * The native binary lives at the package root (not under bin/) — see
+   * @rumdl/cli-* package layout in the rumdl repo.
+   */
+  private static buildNodeModulesCandidates(
+    workspaceRoot: string,
+    platform: NodeJS.Platform,
+    arch: string
+  ): string[] {
+    const candidates: string[] = [];
+    const isWindows = platform === 'win32';
+    const nativeBinaryName = isWindows ? 'rumdl.exe' : 'rumdl';
+    const platformKey = this.computePlatformKey(platform, arch);
+
+    if (platformKey) {
+      const primary = this.NPM_PLATFORM_MAP[platformKey];
+      if (primary) {
+        candidates.push(path.join(workspaceRoot, 'node_modules', primary, nativeBinaryName));
+      }
+      const fallback = this.NPM_PLATFORM_FALLBACK_MAP[platformKey];
+      if (fallback) {
+        candidates.push(path.join(workspaceRoot, 'node_modules', fallback, nativeBinaryName));
+      }
+    }
+
+    // On Unix, the .bin symlink and the JS wrapper both have shebangs and can be
+    // spawned directly. On Windows, neither can be spawned without `shell: true`,
+    // so omit them entirely rather than returning an unlaunchable path.
+    if (!isWindows) {
+      candidates.push(path.join(workspaceRoot, 'node_modules', '.bin', 'rumdl'));
+      candidates.push(path.join(workspaceRoot, 'node_modules', 'rumdl', 'bin', 'rumdl'));
+    }
+
+    return candidates;
+  }
+
+  /**
+   * Find rumdl binary installed via npm, yarn, or pnpm in workspace node_modules.
+   *
+   * Walks workspace folders in order and returns the first existing candidate.
+   * See {@link buildNodeModulesCandidates} for the per-platform probe order.
+   */
+  private static getWorkspaceNodeModulesRumdlPath(): string | null {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return null;
+    }
+
+    for (const folder of workspaceFolders) {
+      const candidates = this.buildNodeModulesCandidates(
+        folder.uri.fsPath,
+        process.platform,
+        process.arch
+      );
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+          return candidate;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Find rumdl binary in system PATH.
    * This catches homebrew, cargo, mise (if activated), etc.
    */
@@ -189,8 +296,9 @@ export class BundledToolsManager {
    * Resolution order (trusted workspaces):
    * 1. Explicit path setting (user always wins)
    * 2. Workspace venv (.venv/bin/rumdl, venv/bin/rumdl)
-   * 3. System PATH (homebrew, cargo, mise if activated, etc.)
-   * 4. Bundled binary (guaranteed fallback)
+   * 3. Workspace node_modules (npm/yarn/pnpm install rumdl)
+   * 4. System PATH (homebrew, cargo, mise if activated, etc.)
+   * 5. Bundled binary (guaranteed fallback)
    *
    * For untrusted workspaces, only bundled binary is used (security).
    */
@@ -219,14 +327,21 @@ export class BundledToolsManager {
       return venvPath;
     }
 
-    // 3. System PATH (homebrew, cargo, mise if activated, etc.)
+    // 3. Workspace node_modules (npm/yarn/pnpm install rumdl)
+    const nodeModulesPath = this.getWorkspaceNodeModulesRumdlPath();
+    if (nodeModulesPath) {
+      Logger.info(`Using workspace node_modules rumdl: ${nodeModulesPath}`);
+      return nodeModulesPath;
+    }
+
+    // 4. System PATH (homebrew, cargo, mise if activated, etc.)
     const systemPath = await this.getSystemPathRumdlPath();
     if (systemPath) {
       Logger.info(`Using system PATH rumdl: ${systemPath}`);
       return systemPath;
     }
 
-    // 4. Bundled binary (guaranteed fallback)
+    // 5. Bundled binary (guaranteed fallback)
     const bundledPath = this.getBundledRumdlPath();
     if (bundledPath) {
       const version = this.getBundledVersion();
@@ -252,7 +367,7 @@ export class BundledToolsManager {
 
     // Log resolution order for debugging
     Logger.debug(
-      'Resolution order: configured path → workspace venv → system PATH → bundled binary'
+      'Resolution order: configured path → workspace venv → workspace node_modules → system PATH → bundled binary'
     );
   }
 
