@@ -150,6 +150,8 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 | `rumdl.rules.ignore` | Array of rule IDs to ignore/disable | `[]` |
 | `rumdl.server.path` | Path to rumdl binary. Leave empty (recommended) to use bundled binary with fallback to system PATH. Set to `"rumdl"` to explicitly use system PATH (useful with version managers like Nix, mise, or asdf). Set to absolute path for custom installations. | `undefined` |
 | `rumdl.server.logLevel` | Server log level (`error`, `warn`, `info`, `debug`, `trace`) | `"info"` |
+| `rumdl.linkCompletions.enable` | Provide file path and heading anchor completions inside markdown link targets | `true` |
+| `rumdl.linkNavigation.enable` | Provide hover preview, go-to-definition, find-references, and rename for markdown links. Disable to avoid conflicts with other markdown extensions. | `true` |
 
 ### Project Configuration
 

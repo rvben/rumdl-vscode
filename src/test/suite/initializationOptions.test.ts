@@ -1,168 +1,167 @@
 import { expect } from '../helper';
+import { buildInitializationOptions } from '../../client';
+import { RumdlConfig } from '../../configuration';
 
 /**
- * Tests for LSP initialization options format
- * Regression test for issue #70: Config can't be read
+ * Tests for LSP initialization options format.
+ * Regression test for issue #70 (config can't be read) and #116 (link toggles).
  *
- * These tests verify that the initialization options transformation logic
- * produces camelCase format as expected by rumdl v0.0.171+ per LSP specification.
- *
- * Note: These tests directly test the transformation logic without relying on
- * VS Code's configuration API, which doesn't persist reliably in test environments.
+ * These tests exercise the production transformation function exported from
+ * client.ts — not a duplicated copy. Defaults for unset settings are applied
+ * once, at the configuration boundary (ConfigurationManager.getConfiguration);
+ * `buildInitializationOptions` operates on a fully-populated RumdlConfig.
  */
 
 /**
- * Build initialization options the same way the client does in src/client.ts
+ * Build a fully-populated RumdlConfig with sensible defaults, allowing tests
+ * to override only the fields they care about.
+ *
+ * Mirrors the defaults declared in package.json contributes.configuration so
+ * tests reflect the same baseline as a fresh user install.
  */
-function buildInitializationOptions(config: {
-  configPath?: string;
-  fixOnSave?: boolean;
-  rules: { enable: string[]; disable: string[] };
-}) {
+function makeConfig(overrides: Partial<RumdlConfig> = {}): RumdlConfig {
   return {
-    configPath:
-      config.configPath && config.configPath.trim() !== '' ? config.configPath : undefined,
-    enableLinting: true,
-    enableAutoFix: config.fixOnSave ?? false,
-    enableRules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
-    disableRules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
+    enable: true,
+    fixOnSave: false,
+    configPath: undefined,
+    rules: { enable: [], disable: [] },
+    server: { path: undefined, logLevel: 'info' },
+    trace: { server: 'off' },
+    diagnostics: { deduplicate: true },
+    linkCompletions: { enable: true },
+    linkNavigation: { enable: true },
+    ...overrides,
   };
 }
 
 suite('Initialization Options Tests', () => {
-  test('initialization options should use camelCase field names', () => {
-    // Test configuration (what would come from VS Code settings)
-    const mockConfig = {
-      configPath: '/custom/config.toml',
-      fixOnSave: true,
-      rules: {
-        enable: ['MD001', 'MD003'],
-        disable: ['MD013', 'MD024'],
-      },
-    };
+  test('initialization options use camelCase field names per LSP spec', () => {
+    const options = buildInitializationOptions(
+      makeConfig({
+        configPath: '/custom/config.toml',
+        fixOnSave: true,
+        rules: {
+          enable: ['MD001', 'MD003'],
+          disable: ['MD013', 'MD024'],
+        },
+      })
+    );
 
-    // Build initialization options using the same logic as client.ts
-    const initializationOptions = buildInitializationOptions(mockConfig);
+    // Verify camelCase format (rumdl v0.0.171+ requirement).
+    expect(options).to.have.property('configPath');
+    expect(options).to.have.property('enableLinting');
+    expect(options).to.have.property('enableAutoFix');
+    expect(options).to.have.property('enableRules');
+    expect(options).to.have.property('disableRules');
 
-    // Verify camelCase format (these are the keys rumdl v0.0.171+ expects)
-    expect(initializationOptions).to.have.property('configPath');
-    expect(initializationOptions).to.have.property('enableLinting');
-    expect(initializationOptions).to.have.property('enableAutoFix');
-    expect(initializationOptions).to.have.property('enableRules');
-    expect(initializationOptions).to.have.property('disableRules');
+    // Snake_case must NOT leak through (regression guard for issue #70).
+    expect(options).to.not.have.property('config_path');
+    expect(options).to.not.have.property('enable_linting');
+    expect(options).to.not.have.property('enable_auto_fix');
+    expect(options).to.not.have.property('enable_rules');
+    expect(options).to.not.have.property('disable_rules');
 
-    // Verify snake_case format is NOT used (this was the bug in issue #70)
-    expect(initializationOptions).to.not.have.property('config_path');
-    expect(initializationOptions).to.not.have.property('enable_linting');
-    expect(initializationOptions).to.not.have.property('enable_auto_fix');
-    expect(initializationOptions).to.not.have.property('enable_rules');
-    expect(initializationOptions).to.not.have.property('disable_rules');
-
-    // Verify values are correct
-    expect(initializationOptions.configPath).to.equal('/custom/config.toml');
-    expect(initializationOptions.enableLinting).to.be.true;
-    expect(initializationOptions.enableAutoFix).to.be.true;
-    expect(initializationOptions.enableRules).to.deep.equal(['MD001', 'MD003']);
-    expect(initializationOptions.disableRules).to.deep.equal(['MD013', 'MD024']);
+    expect(options.configPath).to.equal('/custom/config.toml');
+    expect(options.enableLinting).to.be.true;
+    expect(options.enableAutoFix).to.be.true;
+    expect(options.enableRules).to.deep.equal(['MD001', 'MD003']);
+    expect(options.disableRules).to.deep.equal(['MD013', 'MD024']);
   });
 
-  test('enableAutoFix should default to false when fixOnSave is not set', () => {
-    const initializationOptions = buildInitializationOptions({
-      rules: { enable: [], disable: [] },
-    });
-    expect(initializationOptions.enableAutoFix).to.be.false;
+  test('enableAutoFix is false by default (fixOnSave defaults to false)', () => {
+    const options = buildInitializationOptions(makeConfig());
+    expect(options.enableAutoFix).to.be.false;
   });
 
-  test('enableAutoFix should be true when fixOnSave is true', () => {
-    const initializationOptions = buildInitializationOptions({
-      fixOnSave: true,
-      rules: { enable: [], disable: [] },
-    });
-    expect(initializationOptions.enableAutoFix).to.be.true;
+  test('enableAutoFix is true when fixOnSave is true', () => {
+    const options = buildInitializationOptions(makeConfig({ fixOnSave: true }));
+    expect(options.enableAutoFix).to.be.true;
   });
 
-  test('enableAutoFix should be false when fixOnSave is false', () => {
-    const initializationOptions = buildInitializationOptions({
-      fixOnSave: false,
-      rules: { enable: [], disable: [] },
-    });
-    expect(initializationOptions.enableAutoFix).to.be.false;
+  test('enableAutoFix is false when fixOnSave is false', () => {
+    const options = buildInitializationOptions(makeConfig({ fixOnSave: false }));
+    expect(options.enableAutoFix).to.be.false;
   });
 
-  test('disable rules configuration should be properly formatted', () => {
-    // Test with multiple disabled rules (the exact scenario from issue #70)
-    const mockConfig = {
-      rules: {
-        enable: [],
-        disable: ['MD013', 'MD024', 'MD033', 'MD036'],
-      },
-    };
+  test('disableRules carries the configured rule list verbatim', () => {
+    const options = buildInitializationOptions(
+      makeConfig({
+        rules: { enable: [], disable: ['MD013', 'MD024', 'MD033', 'MD036'] },
+      })
+    );
 
-    const initializationOptions = buildInitializationOptions(mockConfig);
-
-    // Verify the field is camelCase and has the correct values
-    expect(initializationOptions).to.have.property('disableRules');
-    expect(initializationOptions.disableRules).to.deep.equal(['MD013', 'MD024', 'MD033', 'MD036']);
+    expect(options.disableRules).to.deep.equal(['MD013', 'MD024', 'MD033', 'MD036']);
   });
 
-  test('enable rules configuration should be properly formatted', () => {
-    const mockConfig = {
-      rules: {
-        enable: ['MD001', 'MD003', 'MD018'],
-        disable: [],
-      },
-    };
+  test('enableRules carries the configured rule list verbatim', () => {
+    const options = buildInitializationOptions(
+      makeConfig({
+        rules: { enable: ['MD001', 'MD003', 'MD018'], disable: [] },
+      })
+    );
 
-    const initializationOptions = buildInitializationOptions(mockConfig);
-
-    // Verify the field is camelCase and has the correct values
-    expect(initializationOptions).to.have.property('enableRules');
-    expect(initializationOptions.enableRules).to.deep.equal(['MD001', 'MD003', 'MD018']);
+    expect(options.enableRules).to.deep.equal(['MD001', 'MD003', 'MD018']);
   });
 
-  test('empty rules arrays should result in undefined initialization options', () => {
-    const mockConfig = {
-      rules: {
-        enable: [],
-        disable: [],
-      },
-    };
+  test('empty rule arrays serialize as undefined (omitted from LSP message)', () => {
+    const options = buildInitializationOptions(makeConfig());
 
-    const initializationOptions = buildInitializationOptions(mockConfig);
-
-    // Empty arrays should result in undefined (don't send to LSP)
-    expect(initializationOptions.enableRules).to.be.undefined;
-    expect(initializationOptions.disableRules).to.be.undefined;
+    // undefined fields are stripped by the JSON-RPC layer, signaling "use server defaults".
+    // Sending [] would override server defaults with an empty list — wrong semantics.
+    expect(options.enableRules).to.be.undefined;
+    expect(options.disableRules).to.be.undefined;
   });
 
-  test('empty or whitespace configPath should result in undefined', () => {
-    // Test with empty string
-    let options = buildInitializationOptions({
-      configPath: '',
-      rules: { enable: [], disable: [] },
-    });
-    expect(options.configPath).to.be.undefined;
-
-    // Test with whitespace only
-    options = buildInitializationOptions({
-      configPath: '   ',
-      rules: { enable: [], disable: [] },
-    });
-    expect(options.configPath).to.be.undefined;
-
-    // Test with undefined
-    options = buildInitializationOptions({
-      configPath: undefined,
-      rules: { enable: [], disable: [] },
-    });
-    expect(options.configPath).to.be.undefined;
+  test('empty or whitespace configPath collapses to undefined', () => {
+    expect(buildInitializationOptions(makeConfig({ configPath: '' })).configPath).to.be.undefined;
+    expect(buildInitializationOptions(makeConfig({ configPath: '   ' })).configPath).to.be
+      .undefined;
+    expect(buildInitializationOptions(makeConfig({ configPath: undefined })).configPath).to.be
+      .undefined;
   });
 
-  test('valid configPath should be preserved', () => {
-    const options = buildInitializationOptions({
-      configPath: '/path/to/config.toml',
-      rules: { enable: [], disable: [] },
-    });
+  test('valid configPath is preserved verbatim', () => {
+    const options = buildInitializationOptions(makeConfig({ configPath: '/path/to/config.toml' }));
     expect(options.configPath).to.equal('/path/to/config.toml');
+  });
+
+  test('enableLinkCompletions defaults to true', () => {
+    const options = buildInitializationOptions(makeConfig());
+    expect(options.enableLinkCompletions).to.be.true;
+  });
+
+  test('enableLinkNavigation defaults to true', () => {
+    const options = buildInitializationOptions(makeConfig());
+    expect(options.enableLinkNavigation).to.be.true;
+  });
+
+  test('enableLinkCompletions reflects an explicit false override', () => {
+    const options = buildInitializationOptions(makeConfig({ linkCompletions: { enable: false } }));
+    expect(options.enableLinkCompletions).to.be.false;
+  });
+
+  test('enableLinkNavigation reflects an explicit false override', () => {
+    const options = buildInitializationOptions(makeConfig({ linkNavigation: { enable: false } }));
+    expect(options.enableLinkNavigation).to.be.false;
+  });
+
+  test('all fields are populated together correctly', () => {
+    const options = buildInitializationOptions(
+      makeConfig({
+        configPath: '/project/config.toml',
+        fixOnSave: true,
+        rules: { enable: ['MD001'], disable: ['MD013'] },
+        linkCompletions: { enable: true },
+        linkNavigation: { enable: false },
+      })
+    );
+
+    expect(options.configPath).to.equal('/project/config.toml');
+    expect(options.enableLinting).to.be.true;
+    expect(options.enableAutoFix).to.be.true;
+    expect(options.enableRules).to.deep.equal(['MD001']);
+    expect(options.disableRules).to.deep.equal(['MD013']);
+    expect(options.enableLinkCompletions).to.be.true;
+    expect(options.enableLinkNavigation).to.be.false;
   });
 });

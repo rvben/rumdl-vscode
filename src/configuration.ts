@@ -19,6 +19,12 @@ export interface RumdlConfig {
   diagnostics: {
     deduplicate: boolean;
   };
+  linkCompletions: {
+    enable: boolean;
+  };
+  linkNavigation: {
+    enable: boolean;
+  };
 }
 
 export class ConfigurationManager {
@@ -42,6 +48,12 @@ export class ConfigurationManager {
       },
       diagnostics: {
         deduplicate: config.get('diagnostics.deduplicate', true),
+      },
+      linkCompletions: {
+        enable: config.get('linkCompletions.enable', true),
+      },
+      linkNavigation: {
+        enable: config.get('linkNavigation.enable', true),
       },
     };
   }

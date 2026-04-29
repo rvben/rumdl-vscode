@@ -62,11 +62,43 @@ suite('Configuration Tests', () => {
     expect(config).to.have.property('server');
     expect(config).to.have.property('rules');
     expect(config).to.have.property('diagnostics');
+    expect(config).to.have.property('linkCompletions');
+    expect(config).to.have.property('linkNavigation');
     // path can be undefined (not configured) or a string
     if (config.server.path !== undefined) {
       expect(config.server.path).to.be.a('string');
     }
     expect(config.server.logLevel).to.be.a('string');
+  });
+
+  test('getConfiguration should return default true for linkCompletions.enable', () => {
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.linkCompletions.enable).to.be.true;
+  });
+
+  test('getConfiguration should return default true for linkNavigation.enable', () => {
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.linkNavigation.enable).to.be.true;
+  });
+
+  test('getConfiguration should return false for linkCompletions.enable when set to false', async () => {
+    const vsConfig = vscode.workspace.getConfiguration('rumdl');
+    await vsConfig.update('linkCompletions.enable', false, vscode.ConfigurationTarget.Global);
+
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.linkCompletions.enable).to.be.false;
+
+    await vsConfig.update('linkCompletions.enable', true, vscode.ConfigurationTarget.Global);
+  });
+
+  test('getConfiguration should return false for linkNavigation.enable when set to false', async () => {
+    const vsConfig = vscode.workspace.getConfiguration('rumdl');
+    await vsConfig.update('linkNavigation.enable', false, vscode.ConfigurationTarget.Global);
+
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.linkNavigation.enable).to.be.false;
+
+    await vsConfig.update('linkNavigation.enable', true, vscode.ConfigurationTarget.Global);
   });
 
   test('isEnabled should return boolean', () => {

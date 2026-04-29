@@ -169,6 +169,16 @@
           "type": "boolean",
           "default": true,
           "description": "Remove duplicate diagnostics (useful if multiple markdown linters are active)"
+        },
+        "rumdl.linkCompletions.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Provide file path and heading anchor completions inside markdown link targets. When enabled, typing `](` triggers file path suggestions and `#` triggers heading anchor suggestions."
+        },
+        "rumdl.linkNavigation.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Provide hover preview, go-to-definition, find-references, and rename for markdown links. Disable to avoid conflicts with other markdown extensions that provide the same features."
         }
       }
     },
