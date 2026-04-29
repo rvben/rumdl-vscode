@@ -6,7 +6,6 @@ import { ConfigurationManager } from './configuration';
 import { Logger, showErrorMessage, isMarkdownLanguage } from './utils';
 import { BundledToolsManager } from './bundledTools';
 import { ConfigDiagnosticProvider } from './diagnostics/configDiagnostics';
-import { registerFormattingProvider } from './formatter';
 
 let client: RumdlLanguageClient;
 let statusBar: StatusBarManager;
@@ -71,9 +70,6 @@ export async function activate(
 
     // Register commands
     commands.register(context);
-
-    // Register format provider for native VS Code formatting
-    registerFormattingProvider(context);
 
     // Show status bar
     statusBar.show();
