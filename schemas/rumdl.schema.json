@@ -189,7 +189,7 @@
       "minimum": 0
     },
     "MarkdownFlavor": {
-      "description": "Markdown flavor/dialect. Accepts: standard, gfm, mkdocs, mdx, quarto, obsidian, kramdown. Aliases: commonmark/github map to standard, qmd/rmd/rmarkdown map to quarto, jekyll maps to kramdown.",
+      "description": "Markdown flavor/dialect. Accepts: standard, gfm, mkdocs, mdx, pandoc, quarto, obsidian, kramdown. Aliases: commonmark/github map to standard, qmd/rmd/rmarkdown map to quarto, jekyll maps to kramdown.",
       "type": "string",
       "enum": [
         "standard",
@@ -198,6 +198,7 @@
         "commonmark",
         "mkdocs",
         "mdx",
+        "pandoc",
         "quarto",
         "qmd",
         "rmd",
