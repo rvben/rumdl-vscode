@@ -1,5 +1,12 @@
 # Changelog
 
+
+## [0.0.244](https://github.com/rvben/rumdl-vscode/compare/v0.0.243...v0.0.244) - 2026-05-15
+
+### Fixed
+
+- **config**: accept kebab-case [global] keys in .rumdl.toml ([bed49d0](https://github.com/rvben/rumdl-vscode/commit/bed49d08f356fc84222c9c18dc842b50649bf4fb))
+
 ## [0.0.243] - 2026-05-14
 
 ### Changed
