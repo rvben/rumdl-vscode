@@ -1,6 +1,31 @@
 // import * as vscode from 'vscode';
 import { expect } from '../helper';
 import { ConfigValidator } from '../../configValidator';
+import { GLOBAL_PROPERTIES } from '../../configSchema';
+
+// Minimal valid TOML literal for each schema-defined [global] property.
+// Keyed by the canonical kebab-case name; the snake_case alias gets the same value.
+const VALID_GLOBAL_VALUES: Record<string, string> = {
+  enable: '["MD001"]',
+  disable: '["MD001"]',
+  exclude: '["dist"]',
+  include: '["**/*.md"]',
+  'respect-gitignore': 'true',
+  'line-length': '100',
+  'output-format': '"text"',
+  fixable: '["MD001"]',
+  unfixable: '["MD001"]',
+  flavor: '"gfm"',
+  'force-exclude': 'false',
+  'cache-dir': '".rumdl_cache"',
+  cache: 'true',
+  'extend-enable': '["MD001"]',
+  'extend-disable': '["MD001"]',
+};
+
+function toSnake(key: string): string {
+  return key.replace(/-/g, '_');
+}
 
 suite('ConfigValidator Tests', () => {
   test('validateToml should validate valid configuration', () => {
@@ -240,6 +265,102 @@ respect_gitignore = true
 
     // The default config should validate without any errors
     expect(result.valid).to.be.true;
+    expect(result.errors).to.be.empty;
+  });
+
+  // -------------------------------------------------------------------------
+  // [global] section: kebab-case and snake_case parity with schema
+  // -------------------------------------------------------------------------
+  //
+  // Every property in $defs.GlobalConfig.properties of rumdl.schema.json must
+  // validate in both its canonical kebab form (the form the docs and CLI use)
+  // and its snake_case alias (the form historically accepted by serde).
+  // GLOBAL_PROPERTIES is auto-generated from the schema; if it falls out of
+  // sync with VALID_GLOBAL_VALUES this suite fails loudly.
+
+  test('VALID_GLOBAL_VALUES covers every schema-defined [global] property', () => {
+    const missing = GLOBAL_PROPERTIES.filter(key => !(key in VALID_GLOBAL_VALUES));
+    expect(
+      missing,
+      `Test fixture missing entries for: ${missing.join(', ')}. ` +
+        `Update VALID_GLOBAL_VALUES when adding a property to the schema.`
+    ).to.be.empty;
+  });
+
+  for (const key of GLOBAL_PROPERTIES) {
+    test(`validateToml accepts [global] ${key} (kebab form)`, () => {
+      const toml = `[global]\n${key} = ${VALID_GLOBAL_VALUES[key]}\n`;
+      const result = ConfigValidator.validateToml(toml);
+      const unknown = result.errors.filter(e => /Unknown property/i.test(e.message));
+      expect(
+        unknown,
+        `Kebab-case key '${key}' should validate. Got: ${unknown.map(e => e.message).join('; ')}`
+      ).to.be.empty;
+    });
+
+    const snake = toSnake(key);
+    if (snake !== key) {
+      test(`validateToml accepts [global] ${snake} (snake alias of ${key})`, () => {
+        const toml = `[global]\n${snake} = ${VALID_GLOBAL_VALUES[key]}\n`;
+        const result = ConfigValidator.validateToml(toml);
+        const unknown = result.errors.filter(e => /Unknown property/i.test(e.message));
+        expect(
+          unknown,
+          `Snake-case alias '${snake}' should validate. Got: ${unknown.map(e => e.message).join('; ')}`
+        ).to.be.empty;
+      });
+    }
+  }
+
+  test('validateToml flags a truly unknown [global] property', () => {
+    const toml = `[global]\ntotally-fake-key = "x"\n`;
+    const result = ConfigValidator.validateToml(toml);
+    const unknown = result.errors.filter(e =>
+      /Unknown property 'totally-fake-key'/.test(e.message)
+    );
+    expect(unknown).to.have.lengthOf(1);
+  });
+
+  test('validateToml emits deprecation warning for [global] force-exclude (kebab)', () => {
+    const toml = `[global]\nforce-exclude = false\n`;
+    const result = ConfigValidator.validateToml(toml);
+    const deprecation = result.errors.filter(e => /deprecated/i.test(e.message));
+    expect(deprecation, 'force-exclude must surface deprecation warning').to.have.lengthOf(1);
+  });
+
+  test('validateToml emits deprecation warning for [global] force_exclude (snake)', () => {
+    const toml = `[global]\nforce_exclude = false\n`;
+    const result = ConfigValidator.validateToml(toml);
+    const deprecation = result.errors.filter(e => /deprecated/i.test(e.message));
+    expect(deprecation, 'force_exclude must surface deprecation warning').to.have.lengthOf(1);
+  });
+
+  test('validateToml type-checks [global] line-length in kebab form', () => {
+    const toml = `[global]\nline-length = "not-a-number"\n`;
+    const result = ConfigValidator.validateToml(toml);
+    const typeErr = result.errors.filter(e => /must be a positive number/.test(e.message));
+    expect(typeErr, 'kebab line-length must still be type-checked').to.have.lengthOf(1);
+  });
+
+  test('validateToml type-checks [global] respect-gitignore in kebab form', () => {
+    const toml = `[global]\nrespect-gitignore = "yes"\n`;
+    const result = ConfigValidator.validateToml(toml);
+    const typeErr = result.errors.filter(e => /must be true or false/.test(e.message));
+    expect(typeErr, 'kebab respect-gitignore must still be type-checked').to.have.lengthOf(1);
+  });
+
+  test('validateToml accepts a realistic kebab-case [global] config end-to-end', () => {
+    const toml = `[global]
+exclude = [".git", "target"]
+flavor = "gfm"
+output-format = "grouped"
+line-length = 100
+respect-gitignore = true
+cache = true
+extend-disable = ["MD041"]
+`;
+    const result = ConfigValidator.validateToml(toml);
+    expect(result.valid, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.true;
     expect(result.errors).to.be.empty;
   });
 

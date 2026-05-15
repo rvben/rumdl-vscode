@@ -1,6 +1,21 @@
 import * as vscode from 'vscode';
 import * as TOML from '@iarna/toml';
-import { RULE_SCHEMAS, RULE_NAMES } from './configSchema';
+import { GLOBAL_PROPERTIES, RULE_SCHEMAS, RULE_NAMES } from './configSchema';
+
+// The rumdl schema declares [global] keys in kebab-case (the canonical form
+// surfaced in docs and accepted by the CLI). The CLI's serde layer also
+// accepts the snake_case alias of every key. Build a single lookup table that
+// accepts both forms so the validator stays in lockstep with the schema and
+// matches CLI behavior. Updates to schemas/rumdl.schema.json flow through
+// GLOBAL_PROPERTIES via scripts/sync-schema.js with no separate maintenance.
+const GLOBAL_KEY_TO_CANONICAL = new Map<string, string>();
+for (const canonical of GLOBAL_PROPERTIES) {
+  GLOBAL_KEY_TO_CANONICAL.set(canonical, canonical);
+  const snake = canonical.replace(/-/g, '_');
+  if (snake !== canonical) {
+    GLOBAL_KEY_TO_CANONICAL.set(snake, canonical);
+  }
+}
 
 export interface ValidationError {
   line: number;
@@ -366,7 +381,9 @@ export class ConfigValidator {
   }
 
   /**
-   * Validate global section properties from parsed value
+   * Validate a [global] section property. Accepts both the canonical kebab-case
+   * form declared by the schema and the snake_case alias accepted by the CLI;
+   * downstream type checks key on the canonical kebab form.
    */
   private static validateGlobalSectionFromValue(
     key: string,
@@ -374,76 +391,82 @@ export class ConfigValidator {
     line: number,
     errors: ValidationError[]
   ): void {
-    const validKeys = [
-      'enable',
-      'disable',
-      'exclude',
-      'include',
-      'respect_gitignore',
-      'flavor',
-      'line_length',
-      'output_format',
-      'fixable',
-      'unfixable',
-      'force_exclude', // deprecated but still accepted
-    ];
-
-    if (!validKeys.includes(key)) {
+    const canonical = GLOBAL_KEY_TO_CANONICAL.get(key);
+    if (canonical === undefined) {
       errors.push({
         line,
         column: 0,
-        message: `Unknown property '${key}' in [global] section. Valid properties: ${validKeys.join(', ')}`,
+        message:
+          `Unknown property '${key}' in [global] section. ` +
+          `Valid properties: ${GLOBAL_PROPERTIES.join(', ')}`,
         severity: vscode.DiagnosticSeverity.Warning,
       });
       return;
     }
 
-    // Validate types
-    if (key === 'respect_gitignore' || key === 'force_exclude') {
-      if (typeof value !== 'boolean') {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property '${key}' must be true or false`,
-          severity: vscode.DiagnosticSeverity.Error,
-        });
-      }
-      if (key === 'force_exclude') {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property 'force_exclude' is deprecated. Use 'exclude' instead.`,
-          severity: vscode.DiagnosticSeverity.Warning,
-        });
-      }
-    } else if (key === 'flavor' || key === 'output_format') {
-      if (typeof value !== 'string') {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property '${key}' must be a string`,
-          severity: vscode.DiagnosticSeverity.Error,
-        });
-      }
-    } else if (key === 'line_length') {
-      if (typeof value !== 'number' || value < 0) {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property '${key}' must be a positive number`,
-          severity: vscode.DiagnosticSeverity.Error,
-        });
-      }
-    } else {
-      // All others should be arrays (enable, disable, exclude, include, fixable, unfixable)
-      if (!Array.isArray(value)) {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property '${key}' must be an array`,
-          severity: vscode.DiagnosticSeverity.Error,
-        });
-      }
+    switch (canonical) {
+      case 'respect-gitignore':
+      case 'force-exclude':
+      case 'cache':
+        if (typeof value !== 'boolean') {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be true or false`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        if (canonical === 'force-exclude') {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' is deprecated. Use 'exclude' instead.`,
+            severity: vscode.DiagnosticSeverity.Warning,
+          });
+        }
+        break;
+
+      case 'flavor':
+      case 'output-format':
+      case 'cache-dir':
+        if (typeof value !== 'string') {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be a string`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
+
+      case 'line-length':
+        if (typeof value !== 'number' || value < 0) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be a positive number`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
+
+      case 'enable':
+      case 'disable':
+      case 'exclude':
+      case 'include':
+      case 'fixable':
+      case 'unfixable':
+      case 'extend-enable':
+      case 'extend-disable':
+        if (!Array.isArray(value)) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be an array`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        }
+        break;
     }
   }
 
@@ -567,232 +590,6 @@ export class ConfigValidator {
           });
         }
         break;
-    }
-  }
-
-  /**
-   * Validate rule-specific configuration (DEPRECATED: kept for backwards compatibility)
-   */
-  private static validateRuleConfig(
-    ruleName: string,
-    key: string,
-    value: string,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const schema = RULE_SCHEMAS[ruleName] as { properties?: Record<string, unknown> };
-    if (!schema || !schema.properties) {
-      return;
-    }
-
-    const propSchema = schema.properties[key];
-    if (!propSchema) {
-      // Unknown property for this rule
-      const validProps = Object.keys(schema.properties);
-      const message =
-        validProps.length > 0
-          ? `Unknown property '${key}' for rule ${ruleName}. Valid properties: ${validProps.join(', ')}`
-          : `Rule ${ruleName} does not support configuration properties`;
-
-      errors.push({
-        line,
-        column: 0,
-        message,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Validate value type
-    this.validateValue(key, value, propSchema, line, errors);
-  }
-
-  /**
-   * Validate a value against a schema
-   */
-  private static validateValue(
-    key: string,
-    value: string,
-    schema: { type?: string; minimum?: number; maximum?: number; enum?: string[] },
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const trimmedValue = value.trim();
-
-    switch (schema.type) {
-      case 'number': {
-        const num = parseInt(trimmedValue, 10);
-        if (isNaN(num)) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be a number`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-          return;
-        }
-        if (schema.minimum !== undefined && num < schema.minimum) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be at least ${schema.minimum}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        if (schema.maximum !== undefined && num > schema.maximum) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be at most ${schema.maximum}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-      }
-
-      case 'boolean':
-        if (trimmedValue !== 'true' && trimmedValue !== 'false') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be true or false`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-
-      case 'string':
-        if (schema.enum && trimmedValue.startsWith('"') && trimmedValue.endsWith('"')) {
-          const stringValue = trimmedValue.slice(1, -1);
-          if (!schema.enum.includes(stringValue)) {
-            errors.push({
-              line,
-              column: 0,
-              message: `Property '${key}' must be one of: ${schema.enum.map((v: string) => `"${v}"`).join(', ')}`,
-              severity: vscode.DiagnosticSeverity.Error,
-            });
-          }
-        }
-        break;
-
-      case 'array':
-        if (!trimmedValue.startsWith('[') || !trimmedValue.endsWith(']')) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be an array`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-    }
-  }
-
-  /**
-   * Validate rules section properties
-   */
-  private static validateRulesSection(
-    key: string,
-    value: string,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const validKeys = ['select', 'ignore'];
-
-    if (!validKeys.includes(key)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Unknown property '${key}' in [rules] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Both should be arrays
-    if (!value.trim().startsWith('[') || !value.trim().endsWith(']')) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Property '${key}' must be an array of rule names`,
-        severity: vscode.DiagnosticSeverity.Error,
-      });
-    }
-  }
-
-  /**
-   * Validate files section properties
-   */
-  private static validateFilesSection(
-    key: string,
-    value: string,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const validKeys = ['include', 'exclude'];
-
-    if (!validKeys.includes(key)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Unknown property '${key}' in [files] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Both should be arrays
-    if (!value.trim().startsWith('[') || !value.trim().endsWith(']')) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Property '${key}' must be an array of glob patterns`,
-        severity: vscode.DiagnosticSeverity.Error,
-      });
-    }
-  }
-
-  /**
-   * Validate global section properties
-   */
-  private static validateGlobalSection(
-    key: string,
-    value: string,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const validKeys = ['enable', 'disable', 'exclude', 'include', 'respect_gitignore'];
-
-    if (!validKeys.includes(key)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Unknown property '${key}' in [global] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Validate types
-    if (key === 'respect_gitignore') {
-      if (value.trim() !== 'true' && value.trim() !== 'false') {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property '${key}' must be true or false`,
-          severity: vscode.DiagnosticSeverity.Error,
-        });
-      }
-    } else {
-      // All others should be arrays
-      if (!value.trim().startsWith('[') || !value.trim().endsWith(']')) {
-        errors.push({
-          line,
-          column: 0,
-          message: `Property '${key}' must be an array`,
-          severity: vscode.DiagnosticSeverity.Error,
-        });
-      }
     }
   }
 
