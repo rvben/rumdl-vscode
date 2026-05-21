@@ -23,6 +23,7 @@ import { BundledToolsManager } from '../../bundledTools';
  * coupling visible rather than hidden behind `as any`.
  */
 type BundledToolsManagerInternal = {
+  resolveConfiguredRumdlPath(configuredPath: string): string;
   getWorkspaceNodeModulesRumdlPath(): string | null;
   buildNodeModulesCandidates(
     workspaceRoot: string,
@@ -131,6 +132,32 @@ suite('NodeModules Rumdl Detection Tests', () => {
     // Access the private method via type assertion
     const result = internal.getWorkspaceNodeModulesRumdlPath();
     expect(result).to.equal(nativePackagePath(tmpDir));
+  });
+
+  test('configured relative executable path resolves against first workspace folder', () => {
+    const workspaceRoot = path.join(tmpDir, 'workspace');
+    stubWorkspace([workspaceRoot]);
+
+    const result = internal.resolveConfiguredRumdlPath(path.join('.venv', 'bin', 'rumdl'));
+
+    expect(result).to.equal(path.resolve(workspaceRoot, '.venv', 'bin', 'rumdl'));
+  });
+
+  test('configured command name remains unresolved for PATH lookup', () => {
+    stubWorkspace([tmpDir]);
+
+    const result = internal.resolveConfiguredRumdlPath('rumdl');
+
+    expect(result).to.equal('rumdl');
+  });
+
+  test('configured absolute executable path is preserved', () => {
+    stubWorkspace([tmpDir]);
+    const absolutePath = path.resolve(tmpDir, 'bin', 'rumdl');
+
+    const result = internal.resolveConfiguredRumdlPath(absolutePath);
+
+    expect(result).to.equal(absolutePath);
   });
 
   // -------------------------------------------------------------------------
