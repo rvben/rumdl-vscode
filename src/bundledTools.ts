@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as vscode from 'vscode';
 import { Logger } from './utils';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -285,12 +286,22 @@ export class BundledToolsManager {
    * Resolve an explicitly configured rumdl path.
    *
    * Plain command names such as `rumdl` are left untouched so users can opt into
-   * PATH resolution. Path-like relative values such as `.venv/bin/rumdl` or
-   * `tools/rumdl` are resolved against the first workspace folder, matching the
-   * working directory used for the language server.
+   * PATH resolution. A leading `~` is expanded to the home directory. Path-like
+   * relative values such as `.venv/bin/rumdl` or `tools/rumdl` are resolved
+   * against the first workspace folder, matching the working directory used for
+   * the language server.
    */
   private static resolveConfiguredRumdlPath(configuredPath: string): string {
-    const trimmedPath = configuredPath.trim();
+    let trimmedPath = configuredPath.trim();
+
+    // Expand a leading ~ (home directory) before any path resolution.
+    if (
+      trimmedPath === '~' ||
+      trimmedPath.startsWith('~/') ||
+      trimmedPath.startsWith(`~${path.win32.sep}`)
+    ) {
+      trimmedPath = path.join(os.homedir(), trimmedPath.slice(1));
+    }
 
     if (path.isAbsolute(trimmedPath)) {
       return trimmedPath;
@@ -343,8 +354,9 @@ export class BundledToolsManager {
       return 'rumdl';
     }
 
-    // 1. Explicit path setting (user always wins)
-    if (configuredPath) {
+    // 1. Explicit path setting (user always wins). A blank or whitespace-only
+    // value is treated as unset so resolution falls through to auto-detection.
+    if (configuredPath && configuredPath.trim() !== '') {
       const resolvedPath = this.resolveConfiguredRumdlPath(configuredPath);
       Logger.info(`Using configured rumdl: ${resolvedPath}`);
       return resolvedPath;

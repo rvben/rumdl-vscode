@@ -141,7 +141,7 @@
         },
         "rumdl.server.path": {
           "type": "string",
-          "description": "Path to rumdl executable. Leave empty for auto-detection (checks workspace .venv, then workspace node_modules, then system PATH, then bundled binary). Set to \"rumdl\" to explicitly use system PATH. Relative paths are resolved against the first workspace folder; absolute paths are preserved."
+          "description": "Path to rumdl executable. Leave empty for auto-detection (checks workspace .venv, then workspace node_modules, then system PATH, then bundled binary). Set to \"rumdl\" to explicitly use system PATH. Relative paths are resolved against the first workspace folder, a leading ~ expands to the home directory, and absolute paths are preserved."
         },
         "rumdl.server.logLevel": {
           "type": "string",

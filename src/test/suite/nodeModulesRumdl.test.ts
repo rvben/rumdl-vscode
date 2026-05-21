@@ -160,6 +160,25 @@ suite('NodeModules Rumdl Detection Tests', () => {
     expect(result).to.equal(absolutePath);
   });
 
+  test('configured ~ path expands to the home directory', () => {
+    stubWorkspace([tmpDir]);
+
+    const result = internal.resolveConfiguredRumdlPath('~/bin/rumdl');
+
+    expect(result).to.equal(path.join(os.homedir(), 'bin', 'rumdl'));
+  });
+
+  test('whitespace-only configured path falls through to auto-detection', async () => {
+    // A blank value must not be treated as a configured path; with no workspace
+    // binaries it should resolve to the bundled fallback (or the "rumdl" command).
+    stubWorkspace([tmpDir]);
+
+    const result = await BundledToolsManager.getBestRumdlPath('   ');
+
+    expect(result).to.not.equal('   ');
+    expect(result.trim()).to.not.equal('');
+  });
+
   // -------------------------------------------------------------------------
   // b) .bin/rumdl wins when native package is absent (Unix only — Windows omits this)
   // -------------------------------------------------------------------------
