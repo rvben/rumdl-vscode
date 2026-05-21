@@ -282,6 +282,35 @@ export class BundledToolsManager {
   }
 
   /**
+   * Resolve an explicitly configured rumdl path.
+   *
+   * Plain command names such as `rumdl` are left untouched so users can opt into
+   * PATH resolution. Path-like relative values such as `.venv/bin/rumdl` or
+   * `tools/rumdl` are resolved against the first workspace folder, matching the
+   * working directory used for the language server.
+   */
+  private static resolveConfiguredRumdlPath(configuredPath: string): string {
+    const trimmedPath = configuredPath.trim();
+
+    if (path.isAbsolute(trimmedPath)) {
+      return trimmedPath;
+    }
+
+    const isPathLike =
+      trimmedPath.startsWith('.') ||
+      trimmedPath.includes('/') ||
+      trimmedPath.includes(path.win32.sep);
+
+    if (!isPathLike) {
+      return trimmedPath;
+    }
+
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const basePath = workspaceFolder?.uri.fsPath || process.cwd();
+    return path.resolve(basePath, trimmedPath);
+  }
+
+  /**
    * Find rumdl binary in system PATH.
    * This catches homebrew, cargo, mise (if activated), etc.
    */
@@ -316,8 +345,9 @@ export class BundledToolsManager {
 
     // 1. Explicit path setting (user always wins)
     if (configuredPath) {
-      Logger.info(`Using configured rumdl: ${configuredPath}`);
-      return configuredPath;
+      const resolvedPath = this.resolveConfiguredRumdlPath(configuredPath);
+      Logger.info(`Using configured rumdl: ${resolvedPath}`);
+      return resolvedPath;
     }
 
     // 2. Workspace virtual environment

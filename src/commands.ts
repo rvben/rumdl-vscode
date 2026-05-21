@@ -13,6 +13,7 @@ import {
 import { ConfigurationManager } from './configuration';
 import { WorkspaceUtils } from './utils/workspace';
 import { ProgressUtils } from './utils/progress';
+import { BundledToolsManager } from './bundledTools';
 
 export class CommandManager implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -267,8 +268,8 @@ export class CommandManager implements vscode.Disposable {
     const workspaceFolders = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
     const activeEditor = vscode.window.activeTextEditor;
 
-    // Get rumdl version
-    const rumdlVersion = await getRumdlVersion(config.server.path);
+    const rumdlPath = await BundledToolsManager.getBestRumdlPath(config.server.path);
+    const rumdlVersion = await getRumdlVersion(rumdlPath);
 
     const debugInfo = {
       timestamp: new Date().toISOString(),
@@ -277,7 +278,8 @@ export class CommandManager implements vscode.Disposable {
       },
       server: {
         running: isRunning,
-        path: config.server.path,
+        path: rumdlPath,
+        configuredPath: config.server.path,
         version: rumdlVersion || 'unknown',
         logLevel: config.server.logLevel,
       },
@@ -385,11 +387,10 @@ export class CommandManager implements vscode.Disposable {
     const config = ConfigurationManager.getConfiguration();
     const isRunning = this.client.isRunning();
 
-    // Get rumdl version
-    const rumdlVersion = await getRumdlVersion(config.server.path);
+    const rumdlPath = await BundledToolsManager.getBestRumdlPath(config.server.path);
+    const rumdlVersion = await getRumdlVersion(rumdlPath);
 
     // Check bundled tools
-    const { BundledToolsManager } = await import('./bundledTools');
     const hasBundled = BundledToolsManager.hasBundledTools();
     const bundledVersion = BundledToolsManager.getBundledVersion();
     const bundledPath = BundledToolsManager.getBundledRumdlPath();
@@ -402,7 +403,7 @@ export class CommandManager implements vscode.Disposable {
 
     // Server status
     statusMessage += `🖥️ Server Status: ${isRunning ? '✅ Running' : '❌ Not Running'}\n`;
-    statusMessage += `📍 rumdl Path: ${config.server.path}\n`;
+    statusMessage += `📍 rumdl Path: ${rumdlPath}\n`;
     statusMessage += `🏷️ rumdl Version: ${rumdlVersion || '❌ Not detected'}\n\n`;
 
     // Bundled tools status
