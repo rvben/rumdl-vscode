@@ -28,7 +28,7 @@ function makeConfig(overrides: Partial<RumdlConfig> = {}): RumdlConfig {
     server: { path: undefined, logLevel: 'info' },
     trace: { server: 'off' },
     diagnostics: { deduplicate: true },
-    linkCompletions: { enable: true },
+    linkCompletions: { enable: true, contentRoots: [] },
     linkNavigation: { enable: true },
     ...overrides,
   };
@@ -136,7 +136,9 @@ suite('Initialization Options Tests', () => {
   });
 
   test('enableLinkCompletions reflects an explicit false override', () => {
-    const options = buildInitializationOptions(makeConfig({ linkCompletions: { enable: false } }));
+    const options = buildInitializationOptions(
+      makeConfig({ linkCompletions: { enable: false, contentRoots: [] } })
+    );
     expect(options.enableLinkCompletions).to.be.false;
   });
 
@@ -145,13 +147,26 @@ suite('Initialization Options Tests', () => {
     expect(options.enableLinkNavigation).to.be.false;
   });
 
+  test('empty contentRoots serializes as undefined (omitted from LSP message)', () => {
+    const options = buildInitializationOptions(makeConfig());
+    // undefined signals "use workspace folders as content roots" on the server.
+    expect(options.linkCompletionContentRoots).to.be.undefined;
+  });
+
+  test('contentRoots carries the configured list verbatim', () => {
+    const options = buildInitializationOptions(
+      makeConfig({ linkCompletions: { enable: true, contentRoots: ['/site', 'docs'] } })
+    );
+    expect(options.linkCompletionContentRoots).to.deep.equal(['/site', 'docs']);
+  });
+
   test('all fields are populated together correctly', () => {
     const options = buildInitializationOptions(
       makeConfig({
         configPath: '/project/config.toml',
         fixOnSave: true,
         rules: { enable: ['MD001'], disable: ['MD013'] },
-        linkCompletions: { enable: true },
+        linkCompletions: { enable: true, contentRoots: [] },
         linkNavigation: { enable: false },
       })
     );

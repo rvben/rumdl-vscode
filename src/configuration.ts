@@ -21,6 +21,7 @@ export interface RumdlConfig {
   };
   linkCompletions: {
     enable: boolean;
+    contentRoots: string[];
   };
   linkNavigation: {
     enable: boolean;
@@ -51,6 +52,7 @@ export class ConfigurationManager {
       },
       linkCompletions: {
         enable: config.get('linkCompletions.enable', true),
+        contentRoots: config.get('linkCompletions.contentRoots', []),
       },
       linkNavigation: {
         enable: config.get('linkNavigation.enable', true),

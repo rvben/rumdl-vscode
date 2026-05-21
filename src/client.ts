@@ -30,6 +30,7 @@ export interface RumdlInitializationOptions {
   enableRules: string[] | undefined;
   disableRules: string[] | undefined;
   enableLinkCompletions: boolean;
+  linkCompletionContentRoots: string[] | undefined;
   enableLinkNavigation: boolean;
 }
 
@@ -50,6 +51,10 @@ export function buildInitializationOptions(config: RumdlConfig): RumdlInitializa
     enableRules: config.rules.enable.length > 0 ? config.rules.enable : undefined,
     disableRules: config.rules.disable.length > 0 ? config.rules.disable : undefined,
     enableLinkCompletions: config.linkCompletions.enable,
+    linkCompletionContentRoots:
+      config.linkCompletions.contentRoots.length > 0
+        ? config.linkCompletions.contentRoots
+        : undefined,
     enableLinkNavigation: config.linkNavigation.enable,
   };
 }

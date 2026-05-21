@@ -23,7 +23,8 @@
       "description": "rumdl only lints files when the workspace is trusted. In untrusted workspaces, diagnostics are disabled.",
       "restrictedConfigurations": [
         "rumdl.server.path",
-        "rumdl.configPath"
+        "rumdl.configPath",
+        "rumdl.linkCompletions.contentRoots"
       ]
     }
   },
@@ -174,6 +175,14 @@
           "type": "boolean",
           "default": true,
           "description": "Provide file path and heading anchor completions inside markdown link targets. When enabled, typing `](` triggers file path suggestions and `#` triggers heading anchor suggestions."
+        },
+        "rumdl.linkCompletions.contentRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Root directories used to resolve absolute link completions (paths starting with `/`). Relative entries are resolved against each workspace folder; absolute entries are used as-is. When empty, the workspace folders are used as the content roots."
         },
         "rumdl.linkNavigation.enable": {
           "type": "boolean",

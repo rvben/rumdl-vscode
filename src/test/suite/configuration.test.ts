@@ -76,6 +76,11 @@ suite('Configuration Tests', () => {
     expect(config.linkCompletions.enable).to.be.true;
   });
 
+  test('getConfiguration should return an empty array for linkCompletions.contentRoots by default', () => {
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.linkCompletions.contentRoots).to.deep.equal([]);
+  });
+
   test('getConfiguration should return default true for linkNavigation.enable', () => {
     const config = ConfigurationManager.getConfiguration();
     expect(config.linkNavigation.enable).to.be.true;
