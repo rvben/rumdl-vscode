@@ -312,7 +312,6 @@ jobs:
           cat > RELEASE_NOTES.md << EOF
           ## Changes
           - ${{ needs.prepare.outputs.change_summary }}
-          - Platform-specific VSIX packages (~5 MB each instead of ~25 MB universal)
 
           EOF
 
@@ -329,7 +328,7 @@ jobs:
 
           - **VS Code**: Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
           - **Cursor/VSCodium**: Install from [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)
-          - **Manual**: Download the `.vsix` file for your platform below
+          - **Manual**: Download the platform-specific `.vsix` file below (~5 MB each, vs ~25 MB for a universal package)
           EOF
 
       - name: Create GitHub Release
