@@ -1,0 +1,17 @@
+# vership.toml — release orchestration for rumdl-vscode
+# Run `vership schema` for the full set of options.
+
+[changelog]
+# Drop non-conventional commits from the generated changelog.
+unconventional = "exclude"
+
+[checks]
+# Lint is a release gate. The full extension test suite (vscode-test) needs a
+# display, so it runs via `make test` / the CI test job, not as a release check.
+lint = true
+tests = false
+
+[hooks]
+# Keep package-lock.json's version field in sync with the bumped package.json so
+# `npm ci` stays happy. Runs after the version is written, before the commit.
+post-bump = "npm install --package-lock-only --ignore-scripts"

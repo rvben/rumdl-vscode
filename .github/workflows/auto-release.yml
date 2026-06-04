@@ -1,5 +1,8 @@
 name: Release Extension
 
+# Every step runs a `make` target so the whole release is reproducible locally.
+# Versioning, changelog, tag, and push are handled by vership (`make release-*`).
+
 on:
   repository_dispatch:
     types: [rumdl_release]
@@ -18,13 +21,13 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Dry run mode (skip publishing)'
+        description: 'Dry run (preview the bump; skip build/publish)'
         required: false
         default: false
         type: boolean
 
 jobs:
-  # Phase 1: Determine release metadata, update files, bump version, commit changes
+  # Phase 1: update bundled rumdl (if needed), then bump + changelog + tag + push via vership.
   prepare:
     runs-on: ubuntu-latest
     permissions:
@@ -32,18 +35,23 @@ jobs:
     outputs:
       release_mode: ${{ steps.meta.outputs.release_mode }}
       rumdl_version: ${{ steps.meta.outputs.rumdl_version }}
-      change_summary: ${{ steps.meta.outputs.change_summary }}
       new_version: ${{ steps.bump.outputs.new_version }}
-
     steps:
       - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # vership needs full history + tags to build the changelog
 
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+
+      # vership drives version bump + changelog + tag + push.
+      # Swap for a prebuilt-binary install if one is available for faster CI.
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install vership
+        run: cargo install vership --locked
 
       - name: Install dependencies
         run: npm ci
@@ -51,142 +59,63 @@ jobs:
       - name: Determine release metadata
         id: meta
         run: |
-          CURRENT_RUMDL_VERSION=$(sed -n "s/^const RUMDL_VERSION = '\([0-9.]*\)'.*/\1/p" scripts/download-rumdl.js)
-
-          if [ -z "$CURRENT_RUMDL_VERSION" ]; then
-            echo "::error::Failed to determine current bundled rumdl version"
-            exit 1
-          fi
-
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             RELEASE_MODE="rumdl-update"
             VERSION="${{ github.event.client_payload.version }}"
           else
             RELEASE_MODE="${{ inputs.release_mode }}"
-            if [ "$RELEASE_MODE" = "rumdl-update" ]; then
-              VERSION="${{ inputs.rumdl_version }}"
-              if [ -z "$VERSION" ]; then
-                echo "::error::rumdl_version is required when release_mode is rumdl-update"
-                exit 1
-              fi
-            elif [ "$RELEASE_MODE" = "extension-only" ]; then
-              VERSION="$CURRENT_RUMDL_VERSION"
-            else
-              echo "::error::Unsupported release mode: $RELEASE_MODE"
-              exit 1
-            fi
+            VERSION="${{ inputs.rumdl_version }}"
           fi
-
-          echo "release_mode=$RELEASE_MODE" >> $GITHUB_OUTPUT
-          echo "rumdl_version=$VERSION" >> $GITHUB_OUTPUT
-
-          if [ "$RELEASE_MODE" = "rumdl-update" ]; then
-            echo "change_summary=Updated bundled rumdl to v$VERSION" >> $GITHUB_OUTPUT
-
-            # Verify the version exists with retries (to handle API propagation delays)
-            echo "Verifying rumdl v$VERSION exists..."
-            MAX_RETRIES=3
-            RETRY_DELAY=60
-
-            for i in $(seq 1 $MAX_RETRIES); do
-              RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/rvben/rumdl/releases/tags/v$VERSION")
-
-              if [ "$RESPONSE" = "200" ]; then
-                echo "✅ rumdl v$VERSION found"
-                break
-              elif [ "$i" -lt "$MAX_RETRIES" ]; then
-                echo "⏳ rumdl v$VERSION not found yet (attempt $i/$MAX_RETRIES), waiting ${RETRY_DELAY}s for API propagation..."
-                sleep $RETRY_DELAY
-              else
-                echo "Error: rumdl v$VERSION not found on GitHub releases after $MAX_RETRIES attempts"
-                exit 1
-              fi
-            done
-          else
-            echo "change_summary=Extension-only fixes; bundled rumdl remains v$VERSION" >> $GITHUB_OUTPUT
-            echo "Preparing extension-only release with bundled rumdl v$VERSION"
+          if [ "$RELEASE_MODE" = "rumdl-update" ] && [ -z "$VERSION" ]; then
+            echo "::error::rumdl_version is required for a rumdl-update release"
+            exit 1
           fi
+          echo "release_mode=$RELEASE_MODE" >> "$GITHUB_OUTPUT"
+          echo "rumdl_version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Update rumdl version in download script
+      - name: Verify rumdl release exists
         if: ${{ steps.meta.outputs.release_mode == 'rumdl-update' }}
         run: |
-          sed -i "s/const RUMDL_VERSION = '[0-9.]*'/const RUMDL_VERSION = '${{ steps.meta.outputs.rumdl_version }}'/" scripts/download-rumdl.js
+          for i in 1 2 3; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/rvben/rumdl/releases/tags/v${{ steps.meta.outputs.rumdl_version }}")
+            if [ "$CODE" = "200" ]; then exit 0; fi
+            echo "rumdl v${{ steps.meta.outputs.rumdl_version }} not found yet (attempt $i/3), waiting for API propagation..."
+            sleep 60
+          done
+          echo "::error::rumdl v${{ steps.meta.outputs.rumdl_version }} not found on GitHub releases"
+          exit 1
 
-      - name: Download rumdl binary for schema sync
-        if: ${{ steps.meta.outputs.release_mode == 'rumdl-update' }}
+      - name: Update bundled rumdl + schema
+        if: ${{ steps.meta.outputs.release_mode == 'rumdl-update' && !inputs.dry_run }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run clean-rumdl
-          npm run download-rumdl-current
+          make set-rumdl-version RUMDL_VERSION=${{ steps.meta.outputs.rumdl_version }}
+          make schema
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add scripts/download-rumdl.js
+          git add -f schemas/ 2>/dev/null || true
+          git commit -m "chore: update bundled rumdl to v${{ steps.meta.outputs.rumdl_version }}"
 
-      - name: Sync schema from new rumdl binary
-        if: ${{ steps.meta.outputs.release_mode == 'rumdl-update' }}
-        run: npm run sync-schema
+      - name: Release gate (lint + compile tests)
+        run: make check
 
-      - name: Run tests
-        run: |
-          npm run lint
-          npm run compile-tests
-
-      - name: Bump extension version
+      - name: Bump version, changelog, tag, push
         id: bump
-        run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current version: $CURRENT_VERSION"
-          npm version patch --no-git-tag-version
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "New version: $NEW_VERSION"
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Update CHANGELOG
-        run: |
-          # Create new changelog entry
-          cat > CHANGELOG.tmp.md << EOF
-          # Changelog
-
-          ## [${{ steps.bump.outputs.new_version }}] - $(date +%Y-%m-%d)
-
-          ### Changed
-          - ${{ steps.meta.outputs.change_summary }}
-
-          EOF
-
-          # Append existing changelog content (skip the first line if it's the title)
-          if [ -f CHANGELOG.md ]; then
-            tail -n +2 CHANGELOG.md >> CHANGELOG.tmp.md
-          fi
-
-          mv CHANGELOG.tmp.md CHANGELOG.md
-
-      - name: Clean bundled-tools before commit
-        run: rm -rf bundled-tools
-
-      - name: Commit and push changes
-        if: ${{ !inputs.dry_run }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add package.json package-lock.json CHANGELOG.md
-
-          if [ "${{ steps.meta.outputs.release_mode }}" = "rumdl-update" ]; then
-            git add scripts/download-rumdl.js
-            # Add schema if it was updated
-            git add -f schemas/ 2>/dev/null || true
-            git commit -m "chore: update rumdl to v${{ steps.meta.outputs.rumdl_version }}
-
-            - Updated bundled rumdl binaries to v${{ steps.meta.outputs.rumdl_version }}
-            - Bumped extension version to ${{ steps.bump.outputs.new_version }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            make release-patch VERSHIP_ARGS="--skip-checks --dry-run"
           else
-            git commit -m "chore: release v${{ steps.bump.outputs.new_version }}
-
-            - Extension-only fixes
-            - Bundled rumdl remains v${{ steps.meta.outputs.rumdl_version }}"
+            make release-patch VERSHIP_ARGS="--skip-checks"
           fi
+          echo "new_version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-          git push origin main
-
-  # Phase 2: Build platform-specific VSIX packages in parallel
+  # Phase 2: build platform-specific VSIX packages in parallel.
   build:
     needs: prepare
     if: ${{ !inputs.dry_run }}
@@ -196,186 +125,90 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - code-target: win32-x64
-            rumdl-platform: win32-x64
-          - code-target: darwin-x64
-            rumdl-platform: darwin-x64
-          - code-target: darwin-arm64
-            rumdl-platform: darwin-arm64
-          - code-target: linux-x64
-            rumdl-platform: linux-x64
-          - code-target: linux-arm64
-            rumdl-platform: linux-arm64
-          - code-target: alpine-x64
-            rumdl-platform: linux-x64
-          - code-target: alpine-arm64
-            rumdl-platform: linux-arm64
-
+        target:
+          - win32-x64
+          - darwin-x64
+          - darwin-arm64
+          - linux-x64
+          - linux-arm64
+          - alpine-x64
+          - alpine-arm64
     steps:
       - uses: actions/checkout@v6
         with:
           ref: main
-
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Download rumdl binary for ${{ matrix.code-target }}
+      - name: Build VSIX for ${{ matrix.target }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run clean-rumdl
-          npm run download-rumdl-target -- ${{ matrix.code-target }}
-          ls -lh bundled-tools/
-
-      - name: Build VSIX for ${{ matrix.code-target }}
-        run: |
-          mkdir -p dist
-          npx @vscode/vsce package --target ${{ matrix.code-target }} \
-            --out dist/rumdl-${{ needs.prepare.outputs.new_version }}-${{ matrix.code-target }}.vsix
-          ls -lh dist/
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+        run: make package-target TARGET=${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
         with:
-          name: vsix-${{ matrix.code-target }}
+          name: vsix-${{ matrix.target }}
           path: dist/*.vsix
 
-  # Phase 3: Publish all platform-specific VSIXs
-  # Runs even if some build matrix entries failed (partial release is better than no release)
+  # Phase 3: publish to both registries and create the GitHub release.
+  # ovsx + github-release use `always()` so an expired Marketplace token can't
+  # silently skip the other publish targets.
   publish:
     needs: [prepare, build]
     if: ${{ !inputs.dry_run && !cancelled() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v6
         with:
           ref: main
-
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
-
       - name: Install dependencies
         run: npm ci
-
       - name: Download all VSIX artifacts
-        id: download
-        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: vsix-*
           path: dist/
           merge-multiple: true
-
       - name: Validate VSIX artifacts
         run: |
-          echo "Available VSIX files:"
-          ls -lh dist/ 2>/dev/null || true
-
-          VSIX_COUNT=$(find dist/ -name '*.vsix' 2>/dev/null | wc -l | tr -d ' ')
-          EXPECTED=7
-
-          if [ "$VSIX_COUNT" -eq 0 ]; then
-            echo "::error::No VSIX artifacts found — all builds failed"
+          COUNT=$(find dist/ -name '*.vsix' | wc -l | tr -d ' ')
+          echo "Found $COUNT VSIX package(s):"
+          ls -lh dist/ || true
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No VSIX artifacts — all builds failed"
             exit 1
           fi
-
-          if [ "$VSIX_COUNT" -lt "$EXPECTED" ]; then
-            echo "::warning::Only ${VSIX_COUNT}/${EXPECTED} VSIX packages available (some builds failed). Publishing available packages."
-            # Check which platforms are missing
-            for target in win32-x64 darwin-x64 darwin-arm64 linux-x64 linux-arm64 alpine-x64 alpine-arm64; do
-              if ! ls dist/*-${target}.vsix 1>/dev/null 2>&1; then
-                echo "::warning::Missing VSIX for target: ${target}"
-              fi
-            done
-          else
-            echo "✅ All ${EXPECTED} VSIX packages present"
+          if [ "$COUNT" -lt 7 ]; then
+            echo "::warning::Only $COUNT/7 packages present (some builds failed); publishing the available ones"
           fi
-
-      - name: Create and push tag
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git tag "v${{ needs.prepare.outputs.new_version }}"
-          git push origin "v${{ needs.prepare.outputs.new_version }}"
-
-      - name: Generate release notes
-        run: |
-          cat > RELEASE_NOTES.md << EOF
-          ## Changes
-          - ${{ needs.prepare.outputs.change_summary }}
-
-          EOF
-
-          if [ "${{ needs.prepare.outputs.release_mode }}" = "rumdl-update" ]; then
-            cat >> RELEASE_NOTES.md << EOF
-          ### rumdl v${{ needs.prepare.outputs.rumdl_version }} highlights
-          See [rumdl release notes](https://github.com/rvben/rumdl/releases/tag/v${{ needs.prepare.outputs.rumdl_version }}) for details.
-
-          EOF
-          fi
-
-          cat >> RELEASE_NOTES.md << 'EOF'
-          ## Installation
-
-          - **VS Code**: Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
-          - **Cursor/VSCodium**: Install from [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)
-          - **Manual**: Download the platform-specific `.vsix` file below (~5 MB each, vs ~25 MB for a universal package)
-          EOF
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.prepare.outputs.new_version }}
-          name: v${{ needs.prepare.outputs.new_version }}
-          body_path: RELEASE_NOTES.md
-          files: dist/*.vsix
-
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          npx @vscode/vsce publish --packagePath dist/*.vsix --pat $VSCE_PAT
-
-      - name: Publish to Open VSX Registry
+        run: make publish-marketplace
+      - name: Publish to Open VSX
+        if: ${{ always() }}
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
-        run: |
-          npx ovsx publish --packagePath dist/*.vsix -p $OVSX_TOKEN
+        run: make publish-ovsx
+      - name: Create GitHub release
+        if: ${{ always() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make github-release
 
-  # Dry run summary (separate job so it runs even when build/publish are skipped)
   dry-run-summary:
     needs: prepare
     if: ${{ inputs.dry_run }}
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Dry Run Summary
+      - name: Summary
         run: |
-          echo "## 🧪 Dry Run Complete!"
-          echo ""
-          echo "Would have performed:"
-          echo "- ${{ needs.prepare.outputs.change_summary }}"
-          echo "- Bumped extension version to ${{ needs.prepare.outputs.new_version }}"
-          echo "- Built 7 platform-specific VSIX packages:"
-          echo "  - win32-x64, darwin-x64, darwin-arm64"
-          echo "  - linux-x64, linux-arm64"
-          echo "  - alpine-x64, alpine-arm64"
-          echo "- Created git tag v${{ needs.prepare.outputs.new_version }}"
-          echo "- Published to VS Code Marketplace"
-          echo "- Published to Open VSX Registry"
-          echo ""
-          echo "Files changed:"
-          git diff --name-only
-          echo ""
-          echo "To perform actual release, run without dry_run flag"
+          echo "Dry run complete for '${{ needs.prepare.outputs.release_mode }}' mode."
+          echo "Previewed the version bump and changelog via 'vership bump --dry-run'."
+          echo "No commit, tag, build, or publish was performed."

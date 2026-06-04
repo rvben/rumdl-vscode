@@ -2,38 +2,55 @@
 EXTENSION_NAME := rumdl
 VERSION := $(shell node -p "require('./package.json').version")
 PACKAGE_FILE := $(EXTENSION_NAME)-$(VERSION).vsix
+DIST_DIR := dist
+# Platform-specific VSIX targets published to the marketplaces.
+VSIX_TARGETS := win32-x64 darwin-x64 darwin-arm64 linux-x64 linux-arm64 alpine-x64 alpine-arm64
+# Extra args forwarded to vership (CI passes --skip-checks; check runs separately).
+VERSHIP_ARGS ?=
 
 .PHONY: help
 help:
-	@echo "Available targets:"
-	@echo "  build         - Compile TypeScript and bundle with webpack"
-	@echo "  fmt           - Format code with Prettier and auto-fix ESLint issues"
-	@echo "  test          - Run tests and linting"
-	@echo "  package       - Create .vsix package for distribution"
-	@echo "  install       - Install extension locally for testing"
-	@echo "  publish       - Publish to VS Code Marketplace"
-	@echo "  release       - Full release process (test + package + publish)"
-	@echo "  clean         - Clean build artifacts"
-	@echo "  verify        - Verify bundled rumdl binaries"
-	@echo "  bump-patch    - Bump patch version (0.0.1 -> 0.0.2)"
-	@echo "  bump-minor    - Bump minor version (0.0.1 -> 0.1.0)"
-	@echo "  bump-major    - Bump major version (0.0.1 -> 1.0.0)"
+	@echo "Build & test:"
+	@echo "  build               - Compile and bundle (webpack)"
+	@echo "  check               - Release gate: lint + compile tests (headless)"
+	@echo "  test                - Full suite: format check, lint, compile tests, vscode-test"
+	@echo "  fmt                 - Format and auto-fix"
+	@echo "Release (vership):"
+	@echo "  release-patch       - Bump patch, changelog, tag, push"
+	@echo "  release-minor       - Bump minor, changelog, tag, push"
+	@echo "  release-major       - Bump major, changelog, tag, push"
+	@echo "  changelog           - Preview the unreleased changelog"
+	@echo "Bundled rumdl:"
+	@echo "  set-rumdl-version RUMDL_VERSION=x.y.z - pin the bundled rumdl version"
+	@echo "  schema              - Download current rumdl + sync the settings schema"
+	@echo "Packaging & publishing (CI):"
+	@echo "  package-target TARGET=<t> - build one platform VSIX into $(DIST_DIR)/"
+	@echo "  package-all         - build every platform VSIX"
+	@echo "  publish-marketplace - publish $(DIST_DIR)/*.vsix to the VS Code Marketplace"
+	@echo "  publish-ovsx        - publish $(DIST_DIR)/*.vsix to Open VSX"
+	@echo "  github-release      - create the GitHub release with $(DIST_DIR)/*.vsix"
+	@echo "Local:"
+	@echo "  package / install / setup / dev / clean / verify / status"
 
-# Build targets
+# ---------------------------------------------------------------------------
+# Build & test
+# ---------------------------------------------------------------------------
 .PHONY: build
 build:
-	@echo "🔨 Building extension..."
 	npm run compile
 
 .PHONY: build-prod
 build-prod:
-	@echo "🔨 Building extension for production..."
 	npm run package
 
-# Testing and validation
+# Headless release gate (no display required).
+.PHONY: check
+check:
+	npm run lint
+	npm run compile-tests
+
 .PHONY: test
 test:
-	@echo "🧪 Running tests..."
 	npm run format:check
 	npm run lint
 	npm run compile-tests
@@ -41,132 +58,129 @@ test:
 
 .PHONY: lint
 lint:
-	@echo "🔍 Running linter..."
 	npm run lint
 
 .PHONY: fmt
 fmt:
-	@echo "🎨 Formatting code..."
 	npm run fmt
 
-# Package creation
+# ---------------------------------------------------------------------------
+# Release orchestration (vership: bump + changelog + tag + push)
+# ---------------------------------------------------------------------------
+.PHONY: release-patch
+release-patch:
+	vership bump patch $(VERSHIP_ARGS)
+
+.PHONY: release-minor
+release-minor:
+	vership bump minor $(VERSHIP_ARGS)
+
+.PHONY: release-major
+release-major:
+	vership bump major $(VERSHIP_ARGS)
+
+.PHONY: changelog
+changelog:
+	vership changelog
+
+# ---------------------------------------------------------------------------
+# Bundled rumdl binary
+# ---------------------------------------------------------------------------
+.PHONY: set-rumdl-version
+set-rumdl-version:
+	@test -n "$(RUMDL_VERSION)" || { echo "Usage: make set-rumdl-version RUMDL_VERSION=x.y.z"; exit 1; }
+	node -e "const f='scripts/download-rumdl.js';const fs=require('fs');fs.writeFileSync(f, fs.readFileSync(f,'utf8').replace(/const RUMDL_VERSION = '[0-9.]*'/, \"const RUMDL_VERSION = '$(RUMDL_VERSION)'\"));"
+	@echo "Bundled rumdl pinned to $(RUMDL_VERSION)"
+
+.PHONY: schema
+schema:
+	npm run clean-rumdl
+	npm run download-rumdl-current
+	npm run sync-schema
+
+# ---------------------------------------------------------------------------
+# Packaging (per-platform VSIX -> $(DIST_DIR)/)
+# ---------------------------------------------------------------------------
+.PHONY: package-target
+package-target:
+	@test -n "$(TARGET)" || { echo "Usage: make package-target TARGET=<code-target>"; exit 1; }
+	mkdir -p $(DIST_DIR)
+	npm run clean-rumdl
+	npm run download-rumdl-target -- $(TARGET)
+	npx @vscode/vsce package --target $(TARGET) --out $(DIST_DIR)/$(EXTENSION_NAME)-$(VERSION)-$(TARGET).vsix
+
+.PHONY: package-all
+package-all:
+	@for t in $(VSIX_TARGETS); do $(MAKE) --no-print-directory package-target TARGET=$$t; done
+
+# ---------------------------------------------------------------------------
+# Publishing
+# ---------------------------------------------------------------------------
+.PHONY: publish-marketplace
+publish-marketplace:
+	@test -n "$(VSCE_PAT)" || { echo "VSCE_PAT not set"; exit 1; }
+	npx @vscode/vsce publish --packagePath $(DIST_DIR)/*.vsix --pat $(VSCE_PAT)
+
+.PHONY: publish-ovsx
+publish-ovsx:
+	@test -n "$(OVSX_TOKEN)" || { echo "OVSX_TOKEN not set"; exit 1; }
+	npx ovsx publish --packagePath $(DIST_DIR)/*.vsix -p $(OVSX_TOKEN)
+
+# Builds release notes from the latest CHANGELOG.md section + a static install block.
+.PHONY: github-release
+github-release:
+	@mkdir -p $(DIST_DIR)
+	@awk '/^## \[/{n++; if (n==2) exit} n==1' CHANGELOG.md > $(DIST_DIR)/RELEASE_NOTES.md
+	@printf '\n## Installation\n\n- **VS Code**: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)\n- **Cursor/VSCodium**: [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)\n- **Manual**: download the platform-specific .vsix below (~5 MB each, vs ~25 MB for a universal package)\n' >> $(DIST_DIR)/RELEASE_NOTES.md
+	gh release create v$(VERSION) $(DIST_DIR)/*.vsix --title v$(VERSION) --notes-file $(DIST_DIR)/RELEASE_NOTES.md
+
+# ---------------------------------------------------------------------------
+# Local packaging / install
+# ---------------------------------------------------------------------------
 .PHONY: package
 package: clean build-prod
-	@echo "📦 Creating package $(PACKAGE_FILE)..."
 	npm run vsce:package
-	@echo "✅ Package created: $(PACKAGE_FILE)"
+	@echo "Package created: $(PACKAGE_FILE)"
 
-# Installation for local testing
 .PHONY: install
 install: package
-	@echo "💾 Installing extension locally..."
 	code --install-extension $(PACKAGE_FILE)
-	@echo "✅ Extension installed locally"
 
-# Publishing
-.PHONY: publish
-publish: package
-	@echo "🚀 Publishing to VS Code Marketplace..."
-	@if [ -z "$(VSCE_PAT)" ]; then \
-		echo "❌ Error: VSCE_PAT environment variable not set"; \
-		echo "   Please set your Visual Studio Marketplace Personal Access Token:"; \
-		echo "   export VSCE_PAT=your_token_here"; \
-		exit 1; \
-	fi
-	vsce publish --pat $(VSCE_PAT)
-	@echo "✅ Published to VS Code Marketplace"
-
-# Full release process
-.PHONY: release
-release: test package publish
-	@echo "🎉 Release $(VERSION) completed successfully!"
-
-# Version bumping
-.PHONY: bump-patch
-bump-patch:
-	@echo "⬆️  Bumping patch version..."
-	npm version patch --no-git-tag-version
-	@echo "✅ Version bumped to $(shell node -p "require('./package.json').version")"
-
-.PHONY: bump-minor
-bump-minor:
-	@echo "⬆️  Bumping minor version..."
-	npm version minor --no-git-tag-version
-	@echo "✅ Version bumped to $(shell node -p "require('./package.json').version")"
-
-.PHONY: bump-major
-bump-major:
-	@echo "⬆️  Bumping major version..."
-	npm version major --no-git-tag-version
-	@echo "✅ Version bumped to $(shell node -p "require('./package.json').version")"
-
-# Utility targets
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
 .PHONY: clean
 clean:
-	@echo "🧹 Cleaning build artifacts..."
-	rm -rf out/
-	rm -rf node_modules/.cache/
+	rm -rf out/ node_modules/.cache/ $(DIST_DIR)/
 	rm -f *.vsix
-	@echo "✅ Clean completed"
 
 .PHONY: verify
 verify:
-	@echo "🔍 Verifying bundled rumdl binaries..."
 	npm run verify-rumdl
 
 .PHONY: download-rumdl
 download-rumdl:
-	@echo "⬇️  Downloading latest rumdl binaries..."
 	npm run download-rumdl
 
 .PHONY: status
 status:
-	@echo "📊 Extension Status:"
-	@echo "   Name: $(EXTENSION_NAME)"
-	@echo "   Version: $(VERSION)"
-	@echo "   Package: $(PACKAGE_FILE)"
-	@echo "   rumdl binaries:"
+	@echo "Name:    $(EXTENSION_NAME)"
+	@echo "Version: $(VERSION)"
+	@echo "Package: $(PACKAGE_FILE)"
 	@if [ -d "bundled-tools" ]; then \
-		ls -la bundled-tools/ | grep rumdl- | wc -l | xargs echo "     Count:"; \
+		ls -la bundled-tools/ | grep -c rumdl- | xargs echo "rumdl binaries:"; \
 		if [ -f "bundled-tools/version.json" ]; then \
-			echo "     Version: $$(node -p "require('./bundled-tools/version.json').version")"; \
+			echo "rumdl version: $$(node -p "require('./bundled-tools/version.json').version")"; \
 		fi \
 	else \
-		echo "     Not downloaded"; \
+		echo "rumdl binaries: not downloaded"; \
 	fi
 
-# Development helpers
 .PHONY: dev
 dev:
-	@echo "🔄 Starting development mode..."
 	npm run watch
 
 .PHONY: setup
 setup:
-	@echo "⚙️  Setting up development environment..."
 	npm install
 	npm run download-rumdl
-	@echo "✅ Setup completed"
-
-# Git helpers (with safeguards)
-.PHONY: tag
-tag:
-	@echo "🏷️  Creating git tag for version $(VERSION)..."
-	@if git diff --quiet && git diff --cached --quiet; then \
-		git tag -a "v$(VERSION)" -m "Release version $(VERSION)"; \
-		echo "✅ Tag v$(VERSION) created"; \
-		echo "   Push with: git push origin v$(VERSION)"; \
-	else \
-		echo "❌ Error: Working directory not clean. Commit changes first."; \
-		exit 1; \
-	fi
-
-# Quick release with version bump
-.PHONY: release-patch
-release-patch: bump-patch tag release
-
-.PHONY: release-minor
-release-minor: bump-minor tag release
-
-.PHONY: release-major
-release-major: bump-major tag release
