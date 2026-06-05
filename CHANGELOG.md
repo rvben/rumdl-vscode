@@ -1,5 +1,12 @@
 # Changelog
 
+
+## [0.0.257](https://github.com/rvben/rumdl-vscode/compare/v0.0.256...v0.0.257) - 2026-06-05
+
+### Added
+
+- **completion**: add linkCompletions.contentRoots setting ([410f649](https://github.com/rvben/rumdl-vscode/commit/410f6496ccd9b77a3d72d10ad1e08ee3caddd13a))
+
 ## [0.0.256] - 2026-06-03
 
 ### Changed
