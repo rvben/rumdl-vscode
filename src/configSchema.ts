@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-02-26T16:45:42.605Z
+ * Generated: 2026-06-05T18:51:24.389Z
  */
 
 export interface GlobalConfig {
@@ -46,7 +46,7 @@ Can also be disabled via --no-cache CLI flag */
   'extend-disable'?: string[];
 }
 
-export const RULE_SCHEMAS: Record<string, unknown> = {};
+export const RULE_SCHEMAS: Record<string, any> = {};
 
 export const GLOBAL_PROPERTIES = [
   'enable',
@@ -138,4 +138,8 @@ export const RULE_NAMES = [
   'MD075',
   'MD076',
   'MD077',
+  'MD078',
+  'MD079',
+  'MD080',
+  'MD081',
 ];
