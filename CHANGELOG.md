@@ -9,6 +9,9 @@
 
 
 
+
+## [0.0.266](https://github.com/rvben/rumdl-vscode/compare/v0.0.265...v0.0.266) - 2026-06-13
+
 ## [0.0.265](https://github.com/rvben/rumdl-vscode/compare/v0.0.264...v0.0.265) - 2026-06-12
 
 ## [0.0.264](https://github.com/rvben/rumdl-vscode/compare/v0.0.263...v0.0.264) - 2026-06-11
