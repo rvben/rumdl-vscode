@@ -24,11 +24,10 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           
-      - name: Auto-approve Dependabot PRs
-        run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Auto-approve step intentionally omitted: main is unprotected (no required
+      # reviews), so approval isn't needed to merge, and the Actions token cannot
+      # approve PRs unless "Allow GitHub Actions to approve pull requests" is enabled
+      # (it isn't). Auto-merge below handles patch/minor once CI passes.
           
       - name: Enable auto-merge for Dependabot PRs
         # Only auto-merge patch and minor updates
