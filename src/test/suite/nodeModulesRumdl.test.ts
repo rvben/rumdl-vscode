@@ -448,4 +448,70 @@ suite('NodeModules Rumdl Detection Tests', () => {
     const result = internal.getWorkspaceNodeModulesRumdlPath();
     expect(result).to.be.null;
   });
+
+  // -------------------------------------------------------------------------
+  // Issue #135: discovered workspace binaries must be made executable.
+  // npm publishes @rumdl/cli-* binaries as 0644 (no +x); spawning them fails
+  // with EACCES. The resolver must chmod on discovery and only return a path
+  // the process can actually execute.
+  // -------------------------------------------------------------------------
+  (isWindows ? test.skip : test)(
+    'node_modules binary discovered as 0644 is made executable and returned',
+    () => {
+      stubWorkspace([tmpDir]);
+      const native = nativePackagePath(tmpDir);
+      mkfile(native);
+      fs.chmodSync(native, 0o644); // simulate npm-published mode
+
+      const result = internal.getWorkspaceNodeModulesRumdlPath();
+
+      expect(result).to.equal(native);
+      expect(() => fs.accessSync(native, fs.constants.X_OK)).to.not.throw();
+    }
+  );
+
+  (isWindows ? test.skip : test)(
+    'falls through to the next runnable candidate when an earlier one is unusable',
+    () => {
+      // A candidate that exists but cannot be reached/run (here: its package dir
+      // is made non-searchable, mirroring a read-only/permission-denied install)
+      // must be skipped in favor of the next runnable candidate, rather than
+      // returned and later failing to spawn.
+      stubWorkspace([tmpDir]);
+      const native = nativePackagePath(tmpDir);
+      const cliDir = path.dirname(native);
+      const dotBin = dotBinPath(tmpDir);
+      mkfile(native);
+      fs.chmodSync(native, 0o644);
+      mkfile(dotBin);
+      fs.chmodSync(dotBin, 0o644);
+      fs.chmodSync(cliDir, 0o000); // native is now unreachable
+
+      let result: string | null;
+      try {
+        result = internal.getWorkspaceNodeModulesRumdlPath();
+      } finally {
+        fs.chmodSync(cliDir, 0o755); // restore so teardown can clean up
+      }
+
+      expect(result).to.equal(dotBin);
+      expect(() => fs.accessSync(dotBin, fs.constants.X_OK)).to.not.throw();
+    }
+  );
+
+  (isWindows ? test.skip : test)(
+    'venv binary discovered as 0644 is made executable (via getBestRumdlPath)',
+    async () => {
+      stubWorkspace([tmpDir]);
+      const venvBin = path.join(tmpDir, '.venv', 'bin', 'rumdl');
+      mkfile(venvBin);
+      fs.chmodSync(venvBin, 0o644);
+
+      // venv is resolved before node_modules / PATH / bundled.
+      const result = await BundledToolsManager.getBestRumdlPath();
+
+      expect(result).to.equal(venvBin);
+      expect(() => fs.accessSync(venvBin, fs.constants.X_OK)).to.not.throw();
+    }
+  );
 });

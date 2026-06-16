@@ -30,6 +30,68 @@ function getVenvBinDir(): string {
   return process.platform === 'win32' ? 'Scripts' : 'bin';
 }
 
+/**
+ * Best-effort: ensure a Unix binary we are about to spawn carries the execute bit.
+ *
+ * npm publishes the `@rumdl/cli-*` platform binaries as mode 0644 (npm drops
+ * non-default file modes on publish), and pip can install `.venv/bin/rumdl` as
+ * 0644 too. Spawning such a binary fails with `EACCES`. The extension already
+ * self-heals its bundled binary the same way; this applies it to binaries
+ * discovered in the workspace.
+ *
+ * No-op on Windows (no execute bit). Only writes when the bit is missing, so
+ * repeated resolution is cheap and does not churn file watchers. Errors
+ * (read-only FS, pnpm content-addressable store, EPERM) are swallowed; callers
+ * gate on {@link isExecutable} and fall through to the next candidate.
+ */
+function ensureExecutable(binaryPath: string): void {
+  if (process.platform === 'win32') {
+    return;
+  }
+  try {
+    if (!(fs.statSync(binaryPath).mode & 0o111)) {
+      fs.chmodSync(binaryPath, 0o755);
+    }
+  } catch {
+    // Best-effort; the executability gate decides whether to use this path.
+  }
+}
+
+/**
+ * Whether the current process can actually execute `binaryPath`.
+ *
+ * Uses `access(X_OK)`, which respects effective UID/GID, ACLs, and mount flags
+ * (e.g. read-only filesystems) rather than only the inode permission bits. On
+ * Windows there is no execute bit, so existence implies runnability.
+ */
+function isExecutable(binaryPath: string): boolean {
+  if (process.platform === 'win32') {
+    return true;
+  }
+  try {
+    fs.accessSync(binaryPath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve a candidate binary path to one the process can run, or `null`.
+ *
+ * Returns `candidate` when it exists and is (or can be made) executable;
+ * otherwise `null` so callers fall through to the next candidate. This is the
+ * shared gate for every workspace-discovered binary: existence is not enough,
+ * the binary must be spawnable.
+ */
+function runnableCandidate(candidate: string): string | null {
+  if (!fs.existsSync(candidate)) {
+    return null;
+  }
+  ensureExecutable(candidate);
+  return isExecutable(candidate) ? candidate : null;
+}
+
 export class BundledToolsManager {
   private static readonly BUNDLED_TOOLS_DIR = path.join(__dirname, '..', 'bundled-tools');
 
@@ -160,16 +222,12 @@ export class BundledToolsManager {
         }
       }
 
-      // Verify the binary is executable (on Unix systems)
-      if (process.platform !== 'win32') {
-        try {
-          const stats = fs.statSync(binaryPath);
-          if (!(stats.mode & parseInt('111', 8))) {
-            fs.chmodSync(binaryPath, 0o755);
-          }
-        } catch {
-          return null;
-        }
+      // Ensure the bundled binary is executable. Unlike workspace candidates, a
+      // non-executable bundled binary is a hard failure (there is no further
+      // candidate at this tier), so return null rather than falling through.
+      ensureExecutable(binaryPath);
+      if (!isExecutable(binaryPath)) {
+        return null;
       }
 
       return binaryPath;
@@ -193,8 +251,9 @@ export class BundledToolsManager {
     for (const folder of workspaceFolders) {
       for (const venvDir of VENV_DIRS) {
         const rumdlPath = path.join(folder.uri.fsPath, venvDir, binDir, RUMDL_BINARY_NAME);
-        if (fs.existsSync(rumdlPath)) {
-          return rumdlPath;
+        const runnable = runnableCandidate(rumdlPath);
+        if (runnable) {
+          return runnable;
         }
       }
     }
@@ -257,8 +316,12 @@ export class BundledToolsManager {
   /**
    * Find rumdl binary installed via npm, yarn, or pnpm in workspace node_modules.
    *
-   * Walks workspace folders in order and returns the first existing candidate.
-   * See {@link buildNodeModulesCandidates} for the per-platform probe order.
+   * Walks workspace folders in order and returns the first candidate that is
+   * runnable (exists and is, or can be made, executable via {@link runnableCandidate}).
+   * Non-executable candidates that cannot be chmod-ed (e.g. read-only filesystems)
+   * are skipped so resolution falls through to the next candidate and ultimately
+   * the self-healing bundled binary. See {@link buildNodeModulesCandidates} for the
+   * per-platform probe order.
    */
   private static getWorkspaceNodeModulesRumdlPath(): string | null {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -273,8 +336,9 @@ export class BundledToolsManager {
         process.arch
       );
       for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
-          return candidate;
+        const runnable = runnableCandidate(candidate);
+        if (runnable) {
+          return runnable;
         }
       }
     }
