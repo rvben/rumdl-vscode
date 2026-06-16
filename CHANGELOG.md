@@ -11,6 +11,13 @@
 
 
 
+
+## [0.0.268](https://github.com/rvben/rumdl-vscode/compare/v0.0.267...v0.0.268) - 2026-06-16
+
+### Fixed
+
+- make workspace-resolved rumdl binaries executable on discovery ([1a5c2f8](https://github.com/rvben/rumdl-vscode/commit/1a5c2f8da2fbb14732057b043068ad399f4ffc4d))
+
 ## [0.0.267](https://github.com/rvben/rumdl-vscode/compare/v0.0.266...v0.0.267) - 2026-06-15
 
 ## [0.0.266](https://github.com/rvben/rumdl-vscode/compare/v0.0.265...v0.0.266) - 2026-06-13
