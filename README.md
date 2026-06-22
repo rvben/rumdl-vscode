@@ -9,17 +9,17 @@ A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.c
 
 ## Features
 
-✅ **Real-time linting** with 50+ rules and precise column highlighting
-✅ **One-click auto-fixes** for common issues
-✅ **5x faster** than markdownlint
-✅ **Markdownlint compatibility**
-✅ **Zero configuration** required
-✅ **Workspace-wide linting** support
-✅ **Custom rule configuration**
-✅ **Status bar integration**
-✅ **Precise error positioning** with improved column highlighting (rumdl 0.0.81+)
-✅ **Bundled rumdl binary** - no separate installation required
-✅ **Cross-platform support** with optimized binaries for all platforms
+✅ **Real-time linting** with 50+ rules and precise column highlighting  
+✅ **One-click auto-fixes** for common issues  
+✅ **5x faster** than markdownlint  
+✅ **Markdownlint compatibility**  
+✅ **Zero configuration** required  
+✅ **Workspace-wide linting** support  
+✅ **Custom rule configuration**  
+✅ **Status bar integration**  
+✅ **Precise error positioning** with improved column highlighting (rumdl 0.0.81+)  
+✅ **Bundled rumdl binary** - no separate installation required  
+✅ **Cross-platform support** with optimized binaries for all platforms  
 
 ## Installation
 
@@ -144,13 +144,16 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `rumdl.enable` | Enable/disable the extension | `true` |
-| `rumdl.fixOnSave` | Automatically fix all auto-fixable problems on save | `false` |
+| `rumdl.fixOnSave` | Automatically fix all auto-fixable problems on save. For more control, use `editor.codeActionsOnSave` with `source.fixAll.rumdl` instead. | `false` |
 | `rumdl.configPath` | Path to rumdl configuration file (relative to workspace root or absolute). If not specified, rumdl will auto-discover configuration files in the workspace. | `undefined` |
-| `rumdl.rules.select` | Array of rule IDs to enable. Empty array enables all rules. | `[]` |
-| `rumdl.rules.ignore` | Array of rule IDs to ignore/disable | `[]` |
-| `rumdl.server.path` | Path to rumdl binary. Leave empty (recommended) to use bundled binary with fallback to system PATH. Set to `"rumdl"` to explicitly use system PATH (useful with version managers like Nix, mise, or asdf). Relative paths such as `./bin/rumdl` are resolved against the first workspace folder, a leading `~` expands to the home directory, and absolute paths are preserved. | `undefined` |
+| `rumdl.rules.enable` | Array of rule IDs to enable. Empty array enables all rules. | `[]` |
+| `rumdl.rules.disable` | Array of rule IDs to disable | `[]` |
+| `rumdl.server.path` | Path to rumdl binary. Leave empty (recommended) to use auto-detection (checks workspace `.venv`, then `node_modules`, then system PATH, then bundled binary). Set to `"rumdl"` to explicitly use system PATH (useful with version managers like Nix, mise, or asdf). Relative paths are resolved against the first workspace folder, a leading `~` expands to the home directory, and absolute paths are preserved. | `undefined` |
 | `rumdl.server.logLevel` | Server log level (`error`, `warn`, `info`, `debug`, `trace`) | `"info"` |
+| `rumdl.trace.server` | Trace LSP messages (`off`, `messages`, `verbose`) | `"off"` |
+| `rumdl.diagnostics.deduplicate` | Remove duplicate diagnostics (useful if multiple markdown linters are active) | `true` |
 | `rumdl.linkCompletions.enable` | Provide file path and heading anchor completions inside markdown link targets | `true` |
+| `rumdl.linkCompletions.contentRoots` | Root directories used to resolve absolute link completions (paths starting with `/`). Relative entries resolve against each workspace folder. When empty, workspace folders are used. | `[]` |
 | `rumdl.linkNavigation.enable` | Provide hover preview, go-to-definition, find-references, and rename for markdown links. Disable to avoid conflicts with other markdown extensions. | `true` |
 
 ### Project Configuration
