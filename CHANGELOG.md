@@ -14,6 +14,13 @@
 
 
 
+
+## [0.0.271](https://github.com/rvben/rumdl-vscode/compare/v0.0.270...v0.0.271) - 2026-06-23
+
+### Fixed
+
+- **deps**: align @typescript-eslint packages to 8.61.1 to satisfy peer dep ([8fb7555](https://github.com/rvben/rumdl-vscode/commit/8fb755581c7b98f63ccb658b3ae37296e0c75280))
+
 ## [0.0.270](https://github.com/rvben/rumdl-vscode/compare/v0.0.269...v0.0.270) - 2026-06-19
 
 ## [0.0.269](https://github.com/rvben/rumdl-vscode/compare/v0.0.268...v0.0.269) - 2026-06-18
