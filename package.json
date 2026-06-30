@@ -294,7 +294,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "vscode-languageclient": "^9.0.1",
+    "vscode-languageclient": "^10.0.0",
     "which": "^6.0.1"
   },
   "nyc": {
