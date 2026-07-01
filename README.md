@@ -207,7 +207,7 @@ rumdl supports 97.2% of markdownlint rules:
 - ✅ **Custom configuration** support
 - ✅ **Same rule IDs** as markdownlint
 
-See the [full rule list](https://github.com/rumdl/rumdl#rules) for details.
+See the [full rule list](https://github.com/rvben/rumdl#rules) for details.
 
 ## Troubleshooting
 
@@ -215,7 +215,7 @@ See the [full rule list](https://github.com/rumdl/rumdl#rules) for details.
 
 If you see "rumdl executable not found":
 
-1. **Install rumdl**: Follow the [installation guide](https://github.com/rumdl/rumdl#installation)
+1. **Install rumdl**: Follow the [installation guide](https://github.com/rvben/rumdl#installation)
 2. **Check PATH**: Ensure rumdl is in your system PATH
 3. **Set custom path**: Configure `rumdl.server.path` in settings
 
@@ -242,7 +242,7 @@ If linting feels slow:
 
 ```bash
 # Clone the repository
-git clone https://github.com/rumdl/rumdl-vscode.git
+git clone https://github.com/rvben/rumdl-vscode.git
 cd rumdl-vscode
 
 # Install dependencies
@@ -282,7 +282,7 @@ This extension is licensed under the [MIT License](LICENSE).
 
 ## Related Projects
 
-- [rumdl](https://github.com/rumdl/rumdl) - The core Rust-based linter
+- [rumdl](https://github.com/rvben/rumdl) - The core Rust-based linter
 - [markdownlint](https://github.com/DavidAnson/markdownlint) - The original JavaScript linter
 - [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) - Command-line interface
 

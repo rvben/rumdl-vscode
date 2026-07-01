@@ -13,7 +13,7 @@ This guide explains how to develop and test the rumdl VS Code extension.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/rumdl/rumdl-vscode.git
+   git clone https://github.com/rvben/rumdl-vscode.git
    cd rumdl-vscode
    ```
 
@@ -141,4 +141,4 @@ This creates a `rumdl-X.X.X.vsix` file that can be installed in VS Code.
 
 - [VS Code Extension API](https://code.visualstudio.com/api)
 - [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
-- [rumdl Documentation](https://github.com/rumdl/rumdl)
+- [rumdl Documentation](https://github.com/rvben/rumdl)
