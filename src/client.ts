@@ -88,8 +88,16 @@ export class RumdlLanguageClient implements vscode.Disposable {
       // Get the best available rumdl path (bundled first, then configured/system)
       const rumdlPath = await BundledToolsManager.getBestRumdlPath(config.server.path);
 
+      // Determine working directory (workspace root or current directory).
+      // Computed before the install check so it can be used as the spawn cwd:
+      // the server is launched with this cwd, so the check must use it too or a
+      // version-manager shim (mise, asdf, …) can't resolve the project-pinned
+      // tool and the check fails even though the server would work.
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      const workingDirectory = workspaceFolder?.uri.fsPath || process.cwd();
+
       // Check if rumdl is available
-      const isInstalled = await checkRumdlInstallation(rumdlPath);
+      const isInstalled = await checkRumdlInstallation(rumdlPath, workingDirectory);
       if (!isInstalled) {
         const bundledAvailable = BundledToolsManager.hasBundledTools();
         const errorMessage = bundledAvailable
@@ -103,16 +111,13 @@ export class RumdlLanguageClient implements vscode.Disposable {
       }
 
       // Get and log rumdl version
-      const version = await getRumdlVersion(rumdlPath);
+      const version = await getRumdlVersion(rumdlPath, workingDirectory);
       if (version) {
         Logger.info(`Using rumdl version: ${version}`);
       }
 
       this.statusBar.setStarting();
 
-      // Determine working directory (workspace root or current directory)
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      const workingDirectory = workspaceFolder?.uri.fsPath || process.cwd();
       Logger.info(`Using working directory: ${workingDirectory}`);
 
       // Build server arguments (no config arguments, they go through initialization options)
