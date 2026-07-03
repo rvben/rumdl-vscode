@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 
 export const SUPPORTED_LANGUAGE_IDS = ['markdown', 'mdx'];
 
@@ -91,7 +92,19 @@ export function showWarningMessage(
   return vscode.window.showWarningMessage(message, ...actions);
 }
 
-export async function checkRumdlInstallation(rumdlPath: string): Promise<boolean> {
+/**
+ * Resolve the working directory for a `rumdl --version` probe. Defaults to the
+ * first workspace folder so version-manager shims (mise, asdf, aqua, proto, …)
+ * resolve the project-pinned tool instead of failing outside the workspace.
+ * Returns undefined when the directory is missing so spawn inherits the parent
+ * cwd rather than throwing ENOENT.
+ */
+export function resolveCheckCwd(cwd?: string): string | undefined {
+  const candidate = cwd ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  return candidate && fs.existsSync(candidate) ? candidate : undefined;
+}
+
+export async function checkRumdlInstallation(rumdlPath: string, cwd?: string): Promise<boolean> {
   // Validate the path parameter
   if (!rumdlPath || rumdlPath.trim() === '') {
     Logger.error('checkRumdlInstallation called with empty or invalid path');
@@ -102,8 +115,9 @@ export async function checkRumdlInstallation(rumdlPath: string): Promise<boolean
 
   try {
     const { spawn } = await import('child_process');
+    const spawnCwd = resolveCheckCwd(cwd);
     return new Promise(resolve => {
-      const process = spawn(rumdlPath, ['--version'], { stdio: 'pipe' });
+      const process = spawn(rumdlPath, ['--version'], { stdio: 'pipe', cwd: spawnCwd });
       let stdout = '';
       let stderr = '';
 
@@ -152,15 +166,16 @@ export async function checkRumdlInstallation(rumdlPath: string): Promise<boolean
   }
 }
 
-export async function getRumdlVersion(rumdlPath?: string): Promise<string | null> {
+export async function getRumdlVersion(rumdlPath?: string, cwd?: string): Promise<string | null> {
   if (!rumdlPath || rumdlPath.trim() === '') {
     return null;
   }
 
   try {
     const { spawn } = await import('child_process');
+    const spawnCwd = resolveCheckCwd(cwd);
     return new Promise(resolve => {
-      const process = spawn(rumdlPath, ['--version'], { stdio: 'pipe' });
+      const process = spawn(rumdlPath, ['--version'], { stdio: 'pipe', cwd: spawnCwd });
       let stdout = '';
 
       process.stdout?.on('data', data => {
