@@ -24,6 +24,12 @@ updates:
       # Only update manually when new VS Code APIs are actually needed.
       # See: https://github.com/rvben/rumdl/issues/326
       - dependency-name: "@types/vscode"
+      # vscode-languageclient 10+ requires engines.vscode >= 1.91, which would
+      # force the minimum VS Code version up and break Cursor/VSCodium users.
+      # Stay on 9.x until a newer engine is actually required. Same rationale
+      # as @types/vscode above.
+      - dependency-name: "vscode-languageclient"
+        update-types: ["version-update:semver-major"]
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
