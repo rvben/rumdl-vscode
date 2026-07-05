@@ -36,4 +36,19 @@ suite('Utils Tests', () => {
       done();
     }, 100);
   });
+
+  suite('isSupportedDocument', () => {
+    const makeDoc = (languageId: string) =>
+      ({ languageId }) as unknown as Parameters<typeof utils.isSupportedDocument>[0];
+
+    ['markdown', 'mdx', 'prompt', 'instructions', 'chatagent', 'skill'].forEach(languageId => {
+      test(`recognizes ${languageId}`, () => {
+        expect(utils.isSupportedDocument(makeDoc(languageId))).to.be.true;
+      });
+    });
+
+    test('rejects unsupported languages', () => {
+      expect(utils.isSupportedDocument(makeDoc('plaintext'))).to.be.false;
+    });
+  });
 });

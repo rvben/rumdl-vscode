@@ -3,8 +3,44 @@ import * as fs from 'fs';
 
 export const SUPPORTED_LANGUAGE_IDS = ['markdown', 'mdx'];
 
-export function isMarkdownLanguage(languageId: string): boolean {
-  return SUPPORTED_LANGUAGE_IDS.includes(languageId);
+/**
+ * Language IDs VS Code assigns to its built-in prompt-file types, mapped to the
+ * file patterns that trigger them. These files are Markdown-based but open under
+ * a non-Markdown language, so rumdl treats them as Markdown by attaching to
+ * these language IDs directly.
+ *
+ * The extension's `activationEvents` in `package.json` list these IDs as
+ * `onLanguage:<id>` so the extension activates lazily when such a file opens.
+ *
+ * Source: microsoft/vscode `promptTypes.ts` and `promptFileLocations.ts`.
+ * Keep this in sync with the `onLanguage:*` entries in `package.json`.
+ */
+export const PROMPT_FILE_LANGUAGE_IDS: Readonly<Record<string, string>> = {
+  prompt: '*.prompt.md',
+  instructions: '*.instructions.md',
+  chatagent: '*.agent.md',
+  skill: 'SKILL.md',
+};
+
+/**
+ * All language IDs rumdl attaches to: the core Markdown languages plus VS Code's
+ * Markdown-based prompt-file languages.
+ */
+export const ALL_SUPPORTED_LANGUAGE_IDS: readonly string[] = [
+  ...SUPPORTED_LANGUAGE_IDS,
+  ...Object.keys(PROMPT_FILE_LANGUAGE_IDS),
+];
+
+/**
+ * Whether rumdl should act on a document.
+ *
+ * True when the document uses one of the supported languages (the core Markdown
+ * languages plus VS Code's Markdown-based prompt-file languages). This keeps
+ * command gates and status-bar updates in sync with the LSP document selector,
+ * which is built from the same language list.
+ */
+export function isSupportedDocument(document: vscode.TextDocument): boolean {
+  return ALL_SUPPORTED_LANGUAGE_IDS.includes(document.languageId);
 }
 
 export class Logger {

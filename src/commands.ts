@@ -8,7 +8,7 @@ import {
   showInformationMessage,
   showErrorMessage,
   getRumdlVersion,
-  isMarkdownLanguage,
+  isSupportedDocument,
 } from './utils';
 import { ConfigurationManager } from './configuration';
 import { WorkspaceUtils } from './utils/workspace';
@@ -50,7 +50,7 @@ export class CommandManager implements vscode.Disposable {
       return;
     }
 
-    if (!isMarkdownLanguage(editor.document.languageId)) {
+    if (!isSupportedDocument(editor.document)) {
       showErrorMessage('Current file is not a Markdown file');
       return;
     }
@@ -314,7 +314,7 @@ export class CommandManager implements vscode.Disposable {
       return;
     }
 
-    if (!isMarkdownLanguage(editor.document.languageId)) {
+    if (!isSupportedDocument(editor.document)) {
       showErrorMessage('Current file is not a Markdown file');
       return;
     }
@@ -426,7 +426,7 @@ export class CommandManager implements vscode.Disposable {
     statusMessage += `📁 Workspace: ${workspaceFolders.length > 0 ? workspaceFolders.join(', ') : 'No workspace'}\n`;
 
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor && isMarkdownLanguage(activeEditor.document.languageId)) {
+    if (activeEditor && isSupportedDocument(activeEditor.document)) {
       statusMessage += `📄 Active File: ${activeEditor.document.fileName} (Markdown)\n`;
       const diagnostics = vscode.languages.getDiagnostics(activeEditor.document.uri);
       statusMessage += `🔍 Diagnostics: ${diagnostics.length} issues found\n`;

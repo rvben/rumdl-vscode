@@ -12,7 +12,7 @@ import {
   checkRumdlInstallation,
   getRumdlVersion,
   showErrorMessage,
-  SUPPORTED_LANGUAGE_IDS,
+  ALL_SUPPORTED_LANGUAGE_IDS,
 } from './utils';
 import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
@@ -138,7 +138,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
       const initializationOptions = buildInitializationOptions(config);
 
       const clientOptions: LanguageClientOptions = {
-        documentSelector: SUPPORTED_LANGUAGE_IDS.flatMap(language => [
+        documentSelector: ALL_SUPPORTED_LANGUAGE_IDS.flatMap(language => [
           { scheme: 'file', language },
           { scheme: 'untitled', language },
         ]),
