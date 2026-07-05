@@ -44,7 +44,11 @@
   ],
   "activationEvents": [
     "onLanguage:markdown",
-    "onLanguage:mdx"
+    "onLanguage:mdx",
+    "onLanguage:prompt",
+    "onLanguage:instructions",
+    "onLanguage:chatagent",
+    "onLanguage:skill"
   ],
   "main": "./out/extension.js",
   "contributes": {

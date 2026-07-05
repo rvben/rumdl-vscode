@@ -182,12 +182,24 @@ exclude = ["node_modules/**", "target/**"]
 
 ## Supported File Types
 
-The extension automatically activates for these file extensions:
-- `.md`
-- `.markdown`
-- `.mdown`
-- `.mkd`
-- `.mdx`
+rumdl activates by a document's **language**, not its file extension. It
+attaches to any document whose language is one of the following (VS Code assigns
+these based on the file's name or extension):
+
+| Language ID | Files |
+|-------------|-------|
+| `markdown` | `.md`, `.markdown`, `.mdown`, `.mkd` |
+| `mdx` | `.mdx` |
+| `prompt` | `*.prompt.md` |
+| `instructions` | `*.instructions.md` |
+| `chatagent` | `*.agent.md` |
+| `skill` | `SKILL.md` |
+
+The `prompt`, `instructions`, `chatagent`, and `skill` languages are VS Code's
+chat customization files and require a recent VS Code version; where they aren't
+available, those files open as `markdown` or plain text. rumdl processes all
+supported types as Markdown. See [Fix on Save](#fix-on-save) to apply fixes
+automatically.
 
 ## Performance
 
