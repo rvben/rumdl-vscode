@@ -20,6 +20,17 @@
 
 
 
+
+## [0.0.277](https://github.com/rvben/rumdl-vscode/compare/v0.0.276...v0.0.277) - 2026-07-09
+
+### Added
+
+- lint prompt-file language types by language ID ([d35e79d](https://github.com/rvben/rumdl-vscode/commit/d35e79d1eaf030c0da1d8a950d52f9014965296f))
+
+### Fixed
+
+- run install/version checks from the workspace cwd (#149) ([2d76db7](https://github.com/rvben/rumdl-vscode/commit/2d76db761e9c84626520972fb6acd21887d32b9e))
+
 ## [0.0.276](https://github.com/rvben/rumdl-vscode/compare/v0.0.275...v0.0.276) - 2026-06-30
 
 ## [0.0.275](https://github.com/rvben/rumdl-vscode/compare/v0.0.274...v0.0.275) - 2026-06-29
