@@ -88,6 +88,53 @@ code_blocks = false
     expect(rumdlDiagnostics).to.be.empty;
   });
 
+  test('should validate pyproject.toml [tool.rumdl.per-file-ignores] without errors (issue #157)', async () => {
+    const configPath = path.join(testDir, 'pyproject.toml');
+    const pyprojectContent = `[tool.rumdl]
+line-length = 100
+
+[tool.rumdl.per-file-ignores]
+"README.md" = ["MD033"]
+"docs/api/**/*.md" = ["MD013", "MD041"]
+`;
+
+    fs.writeFileSync(configPath, pyprojectContent);
+
+    const doc = await vscode.workspace.openTextDocument(configPath);
+
+    // Wait a bit for diagnostics to be computed
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const diagnostics = vscode.languages.getDiagnostics(doc.uri);
+    const rumdlDiagnostics = diagnostics.filter(d => d.source === 'rumdl');
+    expect(
+      rumdlDiagnostics,
+      `unexpected diagnostics: ${rumdlDiagnostics.map(d => d.message).join('; ')}`
+    ).to.be.empty;
+  });
+
+  test('should validate pyproject.toml [tool.rumdl.per-file-flavor] without errors', async () => {
+    const configPath = path.join(testDir, 'pyproject.toml');
+    const pyprojectContent = `[tool.rumdl.per-file-flavor]
+"docs/mkdocs/**/*.md" = "mkdocs"
+"README.md" = "gfm"
+`;
+
+    fs.writeFileSync(configPath, pyprojectContent);
+
+    const doc = await vscode.workspace.openTextDocument(configPath);
+
+    // Wait a bit for diagnostics to be computed
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const diagnostics = vscode.languages.getDiagnostics(doc.uri);
+    const rumdlDiagnostics = diagnostics.filter(d => d.source === 'rumdl');
+    expect(
+      rumdlDiagnostics,
+      `unexpected diagnostics: ${rumdlDiagnostics.map(d => d.message).join('; ')}`
+    ).to.be.empty;
+  });
+
   test('should handle pyproject.toml without [tool.rumdl] section', async () => {
     const configPath = path.join(testDir, 'pyproject.toml');
     const pyprojectContent = `[build-system]

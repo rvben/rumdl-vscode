@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as TOML from '@iarna/toml';
-import { GLOBAL_PROPERTIES, RULE_SCHEMAS, RULE_NAMES } from './configSchema';
+import { GLOBAL_PROPERTIES, RULE_SCHEMAS, RULE_NAMES, RULE_ALIASES } from './configSchema';
 
 // The rumdl schema declares [global] keys in kebab-case (the canonical form
 // surfaced in docs and accepted by the CLI). The CLI's serde layer also
@@ -36,9 +36,13 @@ export class ConfigValidator {
   /**
    * Validate a TOML configuration string
    * @param content The TOML content to validate
+   * @param isPyproject Whether `content` is a pyproject.toml document. When
+   * true, rumdl config only lives under `[tool.rumdl]` / `[tool.rumdl.*]`;
+   * every other top-level section belongs to some other tool (e.g.
+   * `[build-system]`, `[tool.black]`) and is left unvalidated.
    * @returns Validation result with any errors
    */
-  static validateToml(content: string): ConfigValidationResult {
+  static validateToml(content: string, isPyproject = false): ConfigValidationResult {
     const errors: ValidationError[] = [];
 
     // First, validate TOML syntax using proper parser
@@ -77,6 +81,12 @@ export class ConfigValidator {
     const lines = content.split('\n');
     let currentSection = '';
     let currentRule = '';
+    // The parsed-TOML object holding the keys of the section we're
+    // currently inside, resolved up front when the section header is seen.
+    // This lets the key/value loop below stay agnostic to whether we're
+    // looking at .rumdl.toml (`parsed.rules.MD013`) or pyproject.toml
+    // (`parsed.tool.rumdl.MD013`) shapes.
+    let currentContainer: Record<string, unknown> | undefined;
 
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
@@ -92,29 +102,54 @@ export class ConfigValidator {
       if (sectionMatch) {
         const section = sectionMatch[1];
 
+        // In pyproject.toml, rumdl config only ever lives under [tool.rumdl]
+        // or [tool.rumdl.*]. Every other top-level section belongs to some
+        // other tool (e.g. [build-system], [project], [tool.black]); leave
+        // it alone rather than flagging it as an unknown rumdl section.
+        if (isPyproject && section !== 'tool.rumdl' && !section.startsWith('tool.rumdl.')) {
+          currentSection = '';
+          currentRule = '';
+          currentContainer = undefined;
+          continue;
+        }
+
+        const pyprojectRumdl = isPyproject ? this.getPyprojectRumdl(parsed) : undefined;
+
         // Handle tool.rumdl.* sections for pyproject.toml
         if (section.startsWith('tool.rumdl.')) {
           const subSection = section.substring(11); // Remove 'tool.rumdl.' prefix
+          const ruleCode = this.resolveRuleName(subSection);
 
-          // Handle [tool.rumdl.MD###] - rule-specific sections
-          if (RULE_NAMES.includes(subSection.toUpperCase())) {
-            const ruleName = subSection.toUpperCase();
+          if (ruleCode) {
+            // [tool.rumdl.MD###] or [tool.rumdl.<rule-name-or-alias>]
             currentSection = section;
-            currentRule = ruleName;
+            currentRule = ruleCode;
+            currentContainer = this.asObject(pyprojectRumdl?.[subSection]);
           } else if (subSection === 'per-file-ignores') {
-            // [tool.rumdl.per-file-ignores] section
             currentSection = 'per-file-ignores';
             currentRule = '';
+            currentContainer = this.asObject(pyprojectRumdl?.['per-file-ignores']);
+          } else if (subSection === 'per-file-flavor') {
+            currentSection = 'per-file-flavor';
+            currentRule = '';
+            currentContainer = this.asObject(pyprojectRumdl?.['per-file-flavor']);
           } else if (subSection === 'global') {
-            // [tool.rumdl.global] is not used, just [tool.rumdl] for global config
+            // [tool.rumdl.global] mirrors [global] in a .rumdl.toml file
             currentSection = 'global';
             currentRule = '';
+            currentContainer = this.asObject(pyprojectRumdl?.['global']);
           } else {
             // Unknown tool.rumdl subsection
+            currentSection = '';
+            currentRule = '';
+            currentContainer = undefined;
             errors.push({
               line: lineNum,
               column: 0,
-              message: `Unknown section '[${section}]'. Valid sections are: [tool.rumdl], [tool.rumdl.per-file-ignores], or [tool.rumdl.MD###]`,
+              message:
+                `Unknown section '[${section}]'. Valid sections are: [tool.rumdl], ` +
+                `[tool.rumdl.per-file-ignores], [tool.rumdl.per-file-flavor], or ` +
+                `[tool.rumdl.MD###] (rule name or alias, e.g. [tool.rumdl.line-length])`,
               severity: vscode.DiagnosticSeverity.Warning,
             });
           }
@@ -122,27 +157,35 @@ export class ConfigValidator {
           // [tool.rumdl] section for pyproject.toml global config
           currentSection = 'global';
           currentRule = '';
+          currentContainer = pyprojectRumdl;
         } else if (section === 'rules') {
           // Check for rules section
           currentSection = 'rules';
           currentRule = '';
+          currentContainer = this.asObject(parsed['rules']);
         } else if (section.startsWith('rules.')) {
           // Rule-specific section for .rumdl.toml
-          const ruleName = section.substring(6).toUpperCase();
+          const subName = section.substring(6);
+          const ruleCode = this.resolveRuleName(subName);
           currentSection = section;
-          currentRule = ruleName;
 
-          // Validate rule name
-          if (!RULE_NAMES.includes(ruleName)) {
+          if (ruleCode) {
+            currentRule = ruleCode;
+            const rulesObj = this.asObject(parsed['rules']);
+            currentContainer = rulesObj ? this.asObject(rulesObj[subName]) : undefined;
+          } else {
+            currentRule = '';
+            currentContainer = undefined;
+
             // Check for common mistakes
-            const suggestion = this.findSimilarRule(ruleName);
+            const suggestion = this.findSimilarRule(subName);
             const message = suggestion
-              ? `Unknown rule '${ruleName}'. Did you mean '${suggestion}'?`
-              : `Unknown rule '${ruleName}'. Valid rules are: ${RULE_NAMES.join(', ')}`;
+              ? `Unknown rule '${subName}'. Did you mean '${suggestion}'?`
+              : `Unknown rule '${subName}'. Valid rules are: ${RULE_NAMES.join(', ')}`;
 
             errors.push({
               line: lineNum,
-              column: section.indexOf(ruleName) + 1,
+              column: section.indexOf(subName) + 1,
               message,
               severity: vscode.DiagnosticSeverity.Error,
             });
@@ -150,53 +193,60 @@ export class ConfigValidator {
         } else if (section === 'files' || section === 'global') {
           currentSection = section;
           currentRule = '';
+          currentContainer = this.asObject(parsed[section]);
         } else if (section === 'per-file-ignores') {
           // [per-file-ignores] section for .rumdl.toml
           currentSection = 'per-file-ignores';
           currentRule = '';
-        } else if (section.startsWith('MD') && RULE_NAMES.includes(section.toUpperCase())) {
-          // Root-level [MD###] sections (shorthand for [rules.MD###])
-          const ruleName = section.toUpperCase();
-          currentSection = section;
-          currentRule = ruleName;
+          currentContainer = this.asObject(parsed['per-file-ignores']);
+        } else if (section === 'per-file-flavor') {
+          // [per-file-flavor] section for .rumdl.toml
+          currentSection = 'per-file-flavor';
+          currentRule = '';
+          currentContainer = this.asObject(parsed['per-file-flavor']);
         } else {
-          // Unknown section
-          errors.push({
-            line: lineNum,
-            column: 0,
-            message: `Unknown section '[${section}]'. Valid sections are: [rules], [files], [global], [per-file-ignores], [MD###], or [rules.MD###]`,
-            severity: vscode.DiagnosticSeverity.Warning,
-          });
+          const ruleCode = this.resolveRuleName(section);
+          if (ruleCode) {
+            // Root-level [MD###] or [<rule-name-or-alias>] section
+            // (shorthand for [rules.MD###])
+            currentSection = section;
+            currentRule = ruleCode;
+            currentContainer = this.asObject(parsed[section]);
+          } else {
+            // Unknown section
+            currentSection = '';
+            currentRule = '';
+            currentContainer = undefined;
+            errors.push({
+              line: lineNum,
+              column: 0,
+              message:
+                `Unknown section '[${section}]'. Valid sections are: [rules], [files], ` +
+                `[global], [per-file-ignores], [per-file-flavor], [MD###] (rule name or ` +
+                `alias), or [rules.MD###] (or [rules.<alias>])`,
+              severity: vscode.DiagnosticSeverity.Warning,
+            });
+          }
         }
         continue;
       }
 
-      // Parse key-value pairs - but we can be more lenient now since TOML parser validated it
-      const kvMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*=/);
+      // Parse key-value pairs - but we can be more lenient now since TOML parser validated it.
+      // Keys are either bare (letters/digits/underscore/hyphen) or quoted; quoted keys are
+      // required for patterns like per-file-ignores/per-file-flavor globs ("docs/**/*.md"),
+      // which contain characters ('/', '*', '.') that aren't valid in a bare TOML key.
+      const kvMatch = trimmed.match(
+        /^(?:"((?:[^"\\]|\\.)*)"|'([^']*)'|([a-zA-Z_][a-zA-Z0-9_-]*))\s*=/
+      );
       if (!kvMatch) {
         // Not a key-value line, might be part of multiline value - skip
         continue;
       }
 
-      const key = kvMatch[1];
+      const key = kvMatch[1] ?? kvMatch[2] ?? kvMatch[3];
 
-      // Get value from parsed structure instead of trying to parse the line
-      let value: unknown = undefined;
-      if (currentRule) {
-        // For rule-specific sections like [rules.MD013], the structure is rules -> MD013 -> key
-        if (parsed.rules && typeof parsed.rules === 'object') {
-          const rulesObj = parsed.rules as Record<string, unknown>;
-          if (rulesObj[currentRule] && typeof rulesObj[currentRule] === 'object') {
-            value = (rulesObj[currentRule] as Record<string, unknown>)[key];
-          }
-        }
-      } else if (
-        currentSection &&
-        parsed[currentSection] &&
-        typeof parsed[currentSection] === 'object'
-      ) {
-        value = (parsed[currentSection] as Record<string, unknown>)[key];
-      }
+      // Get value from the container resolved when we entered this section
+      const value: unknown = currentContainer ? currentContainer[key] : undefined;
 
       // Validate based on current section
       if (currentRule) {
@@ -214,6 +264,9 @@ export class ConfigValidator {
       } else if (currentSection === 'per-file-ignores') {
         // Validate per-file-ignores section keys
         this.validatePerFileIgnoresSectionFromValue(key, value, lineNum, errors);
+      } else if (currentSection === 'per-file-flavor') {
+        // Validate per-file-flavor section keys
+        this.validatePerFileFlavorSectionFromValue(key, value, lineNum, errors);
       }
     }
 
@@ -224,28 +277,66 @@ export class ConfigValidator {
   }
 
   /**
-   * Find a similar rule name for suggestions
+   * Extract the `[tool.rumdl]` table from a parsed pyproject.toml document.
+   */
+  private static getPyprojectRumdl(
+    parsed: Record<string, unknown>
+  ): Record<string, unknown> | undefined {
+    const tool = this.asObject(parsed.tool);
+    return tool ? this.asObject(tool.rumdl) : undefined;
+  }
+
+  /**
+   * Narrow a parsed TOML value to a plain table, excluding arrays and
+   * scalars.
+   */
+  private static asObject(value: unknown): Record<string, unknown> | undefined {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : undefined;
+  }
+
+  /**
+   * Resolve a TOML section name to a canonical MD### rule code. Accepts the
+   * code itself, the rule's canonical kebab-case name (e.g. 'line-length'
+   * for MD013), or one of its extra aliases (e.g. 'single-title' for
+   * MD025), all case-insensitively, matching what the rumdl CLI accepts.
+   */
+  private static resolveRuleName(name: string): string | null {
+    const upper = name.toUpperCase();
+    if (RULE_NAMES.includes(upper)) {
+      return upper;
+    }
+    return RULE_ALIASES[name.toLowerCase()] ?? null;
+  }
+
+  /**
+   * Find a similar rule name or alias for suggestions. Searches both MD###
+   * codes and rule name/alias strings (e.g. 'line-length', 'single-title'),
+   * preferring an MD### match when both are close.
    */
   private static findSimilarRule(input: string): string | null {
     const upperInput = input.toUpperCase();
+    const lowerInput = input.toLowerCase();
 
-    // Check for exact match first
-    if (RULE_NAMES.includes(upperInput)) {
-      return upperInput;
-    }
-
-    // Check for close matches
-    const candidates = RULE_NAMES.filter(rule => {
-      // Check if input is substring
+    const codeMatch = RULE_NAMES.find(rule => {
       if (rule.includes(upperInput) || upperInput.includes(rule)) {
         return true;
       }
-
-      // Check Levenshtein distance
       return this.levenshteinDistance(rule, upperInput) <= 2;
     });
+    if (codeMatch) {
+      return codeMatch;
+    }
 
-    return candidates.length > 0 ? candidates[0] : null;
+    const aliasMatch = Object.keys(RULE_ALIASES).find(alias => {
+      if (alias.includes(lowerInput) || lowerInput.includes(alias)) {
+        return true;
+      }
+      return this.levenshteinDistance(alias, lowerInput) <= 2;
+    });
+
+    return aliasMatch ?? null;
   }
 
   /**
@@ -491,7 +582,7 @@ export class ConfigValidator {
       return;
     }
 
-    // Validate that each item in the array is a valid rule name
+    // Validate that each item in the array is a valid rule name or alias
     for (const ruleName of value) {
       if (typeof ruleName !== 'string') {
         errors.push({
@@ -500,7 +591,7 @@ export class ConfigValidator {
           message: `Rule names in per-file-ignores must be strings`,
           severity: vscode.DiagnosticSeverity.Error,
         });
-      } else if (!RULE_NAMES.includes(ruleName.toUpperCase())) {
+      } else if (!this.resolveRuleName(ruleName)) {
         errors.push({
           line,
           column: 0,
@@ -508,6 +599,28 @@ export class ConfigValidator {
           severity: vscode.DiagnosticSeverity.Warning,
         });
       }
+    }
+  }
+
+  /**
+   * Validate per-file-flavor section properties from parsed value. Maps a
+   * file pattern to a Markdown flavor string (e.g. "mkdocs"); mirrors the
+   * [global] `flavor` property, which is likewise only type-checked and not
+   * validated against a fixed enum so newly added flavors aren't rejected.
+   */
+  private static validatePerFileFlavorSectionFromValue(
+    key: string,
+    value: unknown,
+    line: number,
+    errors: ValidationError[]
+  ): void {
+    if (typeof value !== 'string') {
+      errors.push({
+        line,
+        column: 0,
+        message: `Value for pattern '${key}' must be a flavor string`,
+        severity: vscode.DiagnosticSeverity.Error,
+      });
     }
   }
 

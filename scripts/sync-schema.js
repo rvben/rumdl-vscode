@@ -149,19 +149,31 @@ for (const [key, value] of Object.entries(schema.properties || {})) {
 }
 tsRuleSchemas += '};\n';
 
-// Step 3b: Get rule names from rumdl
-console.log('\n📋 Step 3b: Extracting rule names from rumdl...');
+// Step 3b: Get rule names and aliases from rumdl
+// Each rule has a canonical kebab-case name (e.g. "line-length" for MD013)
+// plus zero or more extra aliases (e.g. "single-title" for MD025). The CLI
+// accepts any of these in place of the MD### code as a TOML section name
+// ([line-length], [rules.line-length], [tool.rumdl.line-length], ...).
+console.log('\n📋 Step 3b: Extracting rule names and aliases from rumdl...');
 let ruleNames = [];
+let ruleAliases = {};
 try {
-  const rulesOutput = execSync(`${rumdlPath} rule`, { encoding: 'utf-8' });
-  // Extract rule names (MD###) from the output
-  const ruleMatches = rulesOutput.matchAll(/^\s+(MD\d+)/gm);
-  ruleNames = Array.from(ruleMatches, m => m[1]);
-  console.log(`   ✅ Found ${ruleNames.length} rules`);
+  const rulesJson = execSync(`${rumdlPath} rule -o json`, { encoding: 'utf-8' });
+  const rules = JSON.parse(rulesJson);
+  ruleNames = rules.map(rule => rule.code);
+  for (const rule of rules) {
+    if (rule.name) {
+      ruleAliases[rule.name.toLowerCase()] = rule.code;
+    }
+    for (const alias of rule.aliases || []) {
+      ruleAliases[alias.toLowerCase()] = rule.code;
+    }
+  }
+  console.log(`   ✅ Found ${ruleNames.length} rules, ${Object.keys(ruleAliases).length} alias entries`);
 } catch (error) {
   console.error('   ⚠️  Failed to extract rule names:');
   console.error(`   ${error.message}`);
-  console.error('   Continuing with empty RULE_NAMES array');
+  console.error('   Continuing with empty RULE_NAMES/RULE_ALIASES');
 }
 
 // Build the full TypeScript file
@@ -179,6 +191,12 @@ ${tsRuleSchemas}
 export const GLOBAL_PROPERTIES = ${JSON.stringify(Object.keys(globalConfigProps), null, 2)};
 
 export const RULE_NAMES = ${JSON.stringify(ruleNames, null, 2)};
+
+// Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
+// MD### code. The CLI accepts any of these as a TOML section name in place
+// of the code, e.g. [line-length] / [rules.line-length] / [tool.rumdl.line-length]
+// are all equivalent to [MD013] / [rules.MD013] / [tool.rumdl.MD013].
+export const RULE_ALIASES: Record<string, string> = ${JSON.stringify(ruleAliases, null, 2)};
 `;
 
 // Step 4: Write TypeScript file
