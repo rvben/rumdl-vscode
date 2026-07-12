@@ -22,6 +22,9 @@
 
 
 
+
+## [0.0.279](https://github.com/rvben/rumdl-vscode/compare/v0.0.278...v0.0.279) - 2026-07-12
+
 ## [0.0.278](https://github.com/rvben/rumdl-vscode/compare/v0.0.277...v0.0.278) - 2026-07-09
 
 ## [0.0.277](https://github.com/rvben/rumdl-vscode/compare/v0.0.276...v0.0.277) - 2026-07-09
