@@ -9,3 +9,4 @@ test.md
 .env
 .nyc_output
 coverage
+.claude/investigations/
