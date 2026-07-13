@@ -23,6 +23,13 @@
 
 
 
+
+## [0.0.280](https://github.com/rvben/rumdl-vscode/compare/v0.0.279...v0.0.280) - 2026-07-13
+
+### Fixed
+
+- **config**: validate pyproject.toml [tool.rumdl] natively instead of lossy conversion ([84ea737](https://github.com/rvben/rumdl-vscode/commit/84ea737f5d53a0822e995f632cca5db2d9c1601f))
+
 ## [0.0.279](https://github.com/rvben/rumdl-vscode/compare/v0.0.278...v0.0.279) - 2026-07-12
 
 ## [0.0.278](https://github.com/rvben/rumdl-vscode/compare/v0.0.277...v0.0.278) - 2026-07-09
