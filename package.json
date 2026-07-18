@@ -299,7 +299,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "vscode-languageclient": "^9.0.1",
-    "which": "^6.0.1"
+    "which": "^7.0.0"
   },
   "nyc": {
     "extends": "@istanbuljs/nyc-config-typescript",
