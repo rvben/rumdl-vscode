@@ -292,7 +292,7 @@
     "sinon": "^22.0.0",
     "ts-loader": "^9.6.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.62.1",
+    "typescript-eslint": "^8.64.0",
     "webpack": "^5.107.2",
     "webpack-cli": "^7.2.1"
   },
