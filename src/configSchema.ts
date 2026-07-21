@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-07-20T22:35:06.941Z
+ * Generated: 2026-07-21T14:06:35.979Z
  */
 
 export interface GlobalConfig {
@@ -10,9 +10,13 @@ export interface GlobalConfig {
   enable?: string[];
   /** Disabled rules */
   disable?: string[];
-  /** Files to exclude */
+  /** Files to exclude. Glob patterns, relative to the project root; a
+leading `~/` expands to the home directory and absolute paths are
+matched as written. */
   exclude?: string[];
-  /** Files to include */
+  /** Files to include. Glob patterns, relative to the project root; a
+leading `~/` expands to the home directory and absolute paths are
+matched as written. */
   include?: string[];
   /** Respect .gitignore files when scanning directories */
   'respect-gitignore'?: boolean;
@@ -34,7 +38,9 @@ This option is deprecated as of v0.0.156 and has no effect.
 Exclude patterns are now always respected, even for explicitly provided files.
 This prevents duplication between rumdl config and tool configs like pre-commit. */
   'force-exclude'?: boolean;
-  /** Directory to store cache files (default: .rumdl_cache)
+  /** Directory to store cache files (default: .rumdl_cache).
+A leading `~/` expands to the home directory; a relative path resolves
+against the project root.
 Can also be set via --cache-dir CLI flag or RUMDL_CACHE_DIR environment variable */
   'cache-dir'?: string | null;
   /** Whether caching is enabled (default: true)
