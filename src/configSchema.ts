@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-07-24T10:57:18.122Z
+ * Generated: 2026-07-24T19:31:01.669Z
  */
 
 export interface GlobalConfig {
@@ -150,6 +150,7 @@ export const RULE_NAMES = [
   'MD081',
   'MD082',
   'MD083',
+  'MD084',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -237,4 +238,5 @@ export const RULE_ALIASES: Record<string, string> = {
   'no-excessive-emphasis': 'MD081',
   'no-empty-sections': 'MD082',
   mojibake: 'MD083',
+  'invisible-characters': 'MD084',
 };
