@@ -289,7 +289,7 @@
     "mocha": "^11.7.6",
     "nyc": "^18.0.0",
     "prettier": "^3.9.5",
-    "sinon": "^22.0.0",
+    "sinon": "^22.1.0",
     "ts-loader": "^9.6.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.64.0",
