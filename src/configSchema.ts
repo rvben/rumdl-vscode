@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-07-24T19:31:01.669Z
+ * Generated: 2026-07-28T09:35:07.551Z
  */
 
 export interface GlobalConfig {
@@ -50,6 +50,11 @@ Can also be disabled via --no-cache CLI flag */
   'extend-enable'?: string[];
   /** Additional rules to disable on top of the base set (additive) */
   'extend-disable'?: string[];
+  /** Whether to read settings from `.editorconfig` files (default: false).
+When enabled, the `.editorconfig` properties that map onto rumdl
+settings fill in anything no rumdl config sets, resolved per file so
+section globs and nested `.editorconfig` files apply as written. */
+  editorconfig?: boolean;
 }
 
 export const RULE_SCHEMAS: Record<string, any> = {};
@@ -70,6 +75,7 @@ export const GLOBAL_PROPERTIES = [
   'cache',
   'extend-enable',
   'extend-disable',
+  'editorconfig',
 ];
 
 export const RULE_NAMES = [
@@ -151,6 +157,7 @@ export const RULE_NAMES = [
   'MD082',
   'MD083',
   'MD084',
+  'MD085',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -239,4 +246,5 @@ export const RULE_ALIASES: Record<string, string> = {
   'no-empty-sections': 'MD082',
   mojibake: 'MD083',
   'invisible-characters': 'MD084',
+  'paragraph-continuation-indent': 'MD085',
 };
