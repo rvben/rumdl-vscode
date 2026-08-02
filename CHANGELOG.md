@@ -1,44 +1,6 @@
 # Changelog
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## [0.0.297](https://github.com/rvben/rumdl-vscode/compare/v0.0.296...v0.0.297) - 2026-08-02
 
 ## [0.0.296](https://github.com/rvben/rumdl-vscode/compare/v0.0.295...v0.0.296) - 2026-08-01
 
@@ -1677,4 +1639,3 @@
 
 ### Changed
 - Updated bundled rumdl to v0.0.84
-
