@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.0.300](https://github.com/rvben/rumdl-vscode/compare/v0.0.299...v0.0.300) - 2026-08-05
+
 ## [0.0.299](https://github.com/rvben/rumdl-vscode/compare/v0.0.298...v0.0.299) - 2026-08-05
 
 ## [0.0.298](https://github.com/rvben/rumdl-vscode/compare/v0.0.297...v0.0.298) - 2026-08-04
