@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.302](https://github.com/rvben/rumdl-vscode/compare/v0.0.301...v0.0.302) - 2026-08-11
+
+### Fixed
+
+- **release**: publish each VSIX independently so one failure cannot strand the rest ([2147ef4](https://github.com/rvben/rumdl-vscode/commit/2147ef4f072ca6dae7bad56a48b46c76fb150cca))
+
 ## [0.0.301](https://github.com/rvben/rumdl-vscode/compare/v0.0.300...v0.0.301) - 2026-08-10
 
 ## [0.0.300](https://github.com/rvben/rumdl-vscode/compare/v0.0.299...v0.0.300) - 2026-08-05
