@@ -134,20 +134,11 @@ for (const [key, prop] of Object.entries(globalConfigProps)) {
 }
 tsGlobalConfig += `}\n`;
 
-// Extract rule schemas
-let tsRuleSchemas = 'export const RULE_SCHEMAS: Record<string, any> = {\n';
-
-// Scan schema properties for rule configurations (MD###)
-for (const [key, value] of Object.entries(schema.properties || {})) {
-  if (key.match(/^MD\d+$/)) {
-    const ruleDef = defs[value.allOf?.[0]?.$ref?.split('/').pop()];
-    if (ruleDef && ruleDef.properties) {
-      const props = Object.keys(ruleDef.properties);
-      tsRuleSchemas += `  '${key}': ${JSON.stringify(props)},\n`;
-    }
-  }
-}
-tsRuleSchemas += '};\n';
+// Per-rule property schemas are deliberately not generated. rumdl models rule
+// sections as `additionalProperties: { $ref: RuleConfig }` with RuleConfig
+// itself `additionalProperties: true`, so the schema carries no list of the
+// properties a given MD### rule accepts. The CLI knows them and reports
+// unknown options directly; the editor has no source for that data.
 
 // Step 3b: Get rule names and aliases from rumdl
 // Each rule has a canonical kebab-case name (e.g. "line-length" for MD013)
@@ -186,8 +177,6 @@ const tsContent = `/**
 
 ${tsGlobalConfig}
 
-${tsRuleSchemas}
-
 export const GLOBAL_PROPERTIES = ${JSON.stringify(Object.keys(globalConfigProps), null, 2)};
 
 export const RULE_NAMES = ${JSON.stringify(ruleNames, null, 2)};
@@ -225,7 +214,8 @@ console.log('\n✨ Schema sync complete!\n');
 console.log('Summary:');
 console.log(`   - Schema version: ${schema.title || 'Config'}`);
 console.log(`   - Global properties: ${Object.keys(globalConfigProps).length}`);
-console.log(`   - Rule schemas: ${Object.keys(schema.properties || {}).filter(k => k.match(/^MD\d+$/)).length}`);
+console.log(`   - Rule names: ${ruleNames.length}`);
+console.log(`   - Rule aliases: ${Object.keys(ruleAliases).length}`);
 console.log('\nNext steps:');
 console.log('   1. Review the changes to src/configSchema.ts');
 console.log('   2. Run tests: npm test');

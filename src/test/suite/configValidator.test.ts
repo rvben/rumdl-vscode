@@ -787,4 +787,22 @@ module = "foo.*"
     });
   });
 
+  suite('Rule sections follow the CLI', () => {
+    test('an unrecognised option inside a rule section is not flagged', () => {
+      // rumdl's schema models rule sections as additionalProperties: true, so
+      // the editor has no property list to validate against. The CLI reports
+      // unknown rule options itself.
+      const result = ConfigValidator.validateToml('[MD013]\nwhatever = 1\n');
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('a severity value the CLI accepts is not flagged', () => {
+      // The schema declares an enum for `severity`, but the CLI accepts any
+      // string; enforcing the enum here would be a false positive.
+      const result = ConfigValidator.validateToml('[MD013]\nseverity = "critical"\n');
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+  });
 });

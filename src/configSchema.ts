@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-08-19T19:26:37.130Z
+ * Generated: 2026-08-20T20:29:49.504Z
  */
 
 export interface GlobalConfig {
@@ -56,8 +56,6 @@ settings fill in anything no rumdl config sets, resolved per file so
 section globs and nested `.editorconfig` files apply as written. */
   editorconfig?: boolean;
 }
-
-export const RULE_SCHEMAS: Record<string, any> = {};
 
 export const GLOBAL_PROPERTIES = [
   'enable',

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { parse as parseToml, TomlError } from 'smol-toml';
-import { GLOBAL_PROPERTIES, RULE_SCHEMAS, RULE_NAMES, RULE_ALIASES } from './configSchema';
+import { GLOBAL_PROPERTIES, RULE_NAMES, RULE_ALIASES } from './configSchema';
 
 // The rumdl schema declares [global] keys in kebab-case (the canonical form
 // surfaced in docs and accepted by the CLI). The CLI's serde layer also
@@ -276,8 +276,17 @@ export class ConfigValidator {
 
       // Validate based on current section
       if (currentRule) {
-        // Validate rule-specific configuration
-        this.validateRuleConfigFromValue(currentRule, key, value, lineNum, errors);
+        // Inside a rule section ([MD013], [rules.MD013], [tool.rumdl.MD013]).
+        // rumdl's published schema models these as `additionalProperties: true`
+        // and declares no per-rule property list, so there is nothing here to
+        // validate against. The CLI does know the properties and reports
+        // unknown ones itself ("Unknown option for rule MD013: ..."), so leave
+        // these keys alone rather than guessing at them.
+        //
+        // `severity` is deliberately not checked either: the schema declares an
+        // enum for it, but the CLI accepts any string, and flagging a value the
+        // CLI accepts would be a false positive.
+        continue;
       } else if (currentSection === 'rules') {
         // Validate rules section keys
         this.validateRulesSectionFromValue(key, value, lineNum, errors);
@@ -394,43 +403,6 @@ export class ConfigValidator {
     }
 
     return matrix[b.length][a.length];
-  }
-
-  /**
-   * Validate rule-specific configuration from parsed value
-   */
-  private static validateRuleConfigFromValue(
-    ruleName: string,
-    key: string,
-    value: unknown,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const schema = RULE_SCHEMAS[ruleName] as { properties?: Record<string, unknown> };
-    if (!schema || !schema.properties) {
-      return;
-    }
-
-    const propSchema = schema.properties[key];
-    if (!propSchema) {
-      // Unknown property for this rule
-      const validProps = Object.keys(schema.properties);
-      const message =
-        validProps.length > 0
-          ? `Unknown property '${key}' for rule ${ruleName}. Valid properties: ${validProps.join(', ')}`
-          : `Rule ${ruleName} does not support configuration properties`;
-
-      errors.push({
-        line,
-        column: 0,
-        message,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Validate value type from parsed structure
-    this.validateParsedValue(key, value, propSchema, line, errors);
   }
 
   /**
@@ -647,88 +619,6 @@ export class ConfigValidator {
         message: `Value for pattern '${key}' must be a flavor string`,
         severity: vscode.DiagnosticSeverity.Error,
       });
-    }
-  }
-
-  /**
-   * Validate a parsed value against a schema
-   */
-  private static validateParsedValue(
-    key: string,
-    value: unknown,
-    schema: { type?: string; minimum?: number; maximum?: number; enum?: string[] },
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    switch (schema.type) {
-      case 'number': {
-        if (typeof value !== 'number') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be a number`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-          return;
-        }
-        if (schema.minimum !== undefined && value < schema.minimum) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be at least ${schema.minimum}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        if (schema.maximum !== undefined && value > schema.maximum) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be at most ${schema.maximum}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-      }
-
-      case 'boolean':
-        if (typeof value !== 'boolean') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be true or false`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-
-      case 'string':
-        if (typeof value !== 'string') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be a string`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        } else if (schema.enum && !schema.enum.includes(value)) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be one of: ${schema.enum.map((v: string) => `"${v}"`).join(', ')}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-
-      case 'array':
-        if (!Array.isArray(value)) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be an array`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
     }
   }
 
