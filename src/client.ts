@@ -16,6 +16,7 @@ import {
 } from './utils';
 import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
+import { DiagnosticLike, deduplicate } from './diagnosticDedup';
 
 /**
  * LSP initialization options sent to the rumdl server.
@@ -161,6 +162,25 @@ export class RumdlLanguageClient implements vscode.Disposable {
             ? vscode.window.createOutputChannel('rumdl Language Server Trace')
             : undefined,
         diagnosticCollectionName: 'rumdl',
+        middleware: {
+          // Diagnostics reach the editor two ways - pushed by the server, and
+          // pulled by the client - and each has its own collection, so both are
+          // deduplicated here. These hooks wrap the client's own handlers and
+          // pass the result on through `next`, leaving delivery to the library.
+          handleDiagnostics: (uri, diagnostics, next) => {
+            Logger.debug(`Received pushed diagnostics for ${uri}: ${diagnostics.length} issues`);
+            next(uri, this.dedupeDiagnostics(diagnostics, `push ${uri}`));
+          },
+          provideDiagnostics: async (document, previousResultId, token, next) => {
+            const report = await next(document, previousResultId, token);
+            if (report && 'items' in report) {
+              const uri = document instanceof vscode.Uri ? document : document.uri;
+              Logger.debug(`Pulled diagnostics for ${uri}: ${report.items.length} issues`);
+              return { ...report, items: this.dedupeDiagnostics(report.items, `pull ${uri}`) };
+            }
+            return report;
+          },
+        },
         initializationOptions,
       };
 
@@ -189,27 +209,6 @@ export class RumdlLanguageClient implements vscode.Disposable {
               this.handleServerStop();
             }
             break;
-        }
-      });
-
-      // Add diagnostic debugging and deduplication
-      this.client.onNotification('textDocument/publishDiagnostics', params => {
-        Logger.debug(`Received diagnostics for ${params.uri}: ${params.diagnostics.length} issues`);
-
-        if (params.diagnostics.length > 0) {
-          const duplicates = this.findDuplicateDiagnostics(params.diagnostics);
-          if (duplicates.length > 0) {
-            Logger.warn(`Found ${duplicates.length} duplicate diagnostics in server response`);
-
-            // If deduplication is enabled, remove duplicates
-            if (ConfigurationManager.shouldDeduplicate()) {
-              const originalCount = params.diagnostics.length;
-              params.diagnostics = this.deduplicateDiagnostics(params.diagnostics);
-              Logger.info(
-                `Deduplicated diagnostics: ${originalCount} -> ${params.diagnostics.length}`
-              );
-            }
-          }
         }
       });
 
@@ -325,52 +324,29 @@ export class RumdlLanguageClient implements vscode.Disposable {
     });
   }
 
-  private findDuplicateDiagnostics(diagnostics: unknown[]): unknown[] {
-    const seen = new Set<string>();
-    const duplicates: unknown[] = [];
-
-    for (const diagnostic of diagnostics) {
-      const d = diagnostic as {
-        range: {
-          start: { line: number; character: number };
-          end: { line: number; character: number };
-        };
-        message: string;
-        code?: string;
-      };
-      const key = `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character}:${d.message}:${d.code}`;
-
-      if (seen.has(key)) {
-        duplicates.push(diagnostic);
-      } else {
-        seen.add(key);
-      }
+  /**
+   * Drop diagnostics that repeat an earlier one, logging what was found.
+   *
+   * Duplicates are always reported to the log so they remain diagnosable; they
+   * are only removed when `rumdl.diagnostics.deduplicate` is on. The array is
+   * returned unchanged when there is nothing to remove.
+   */
+  private dedupeDiagnostics<T extends DiagnosticLike>(diagnostics: T[], label: string): T[] {
+    if (diagnostics.length < 2) {
+      return diagnostics;
     }
 
-    return duplicates;
-  }
-
-  private deduplicateDiagnostics(diagnostics: unknown[]): unknown[] {
-    const seen = new Set<string>();
-    const unique: unknown[] = [];
-
-    for (const diagnostic of diagnostics) {
-      const d = diagnostic as {
-        range: {
-          start: { line: number; character: number };
-          end: { line: number; character: number };
-        };
-        message: string;
-        code?: string;
-      };
-      const key = `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character}:${d.message}:${d.code}`;
-
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(diagnostic);
-      }
+    const unique = deduplicate(diagnostics);
+    if (unique.length === diagnostics.length) {
+      return diagnostics;
     }
 
+    Logger.warn(`Found ${diagnostics.length - unique.length} duplicate diagnostics (${label})`);
+    if (!ConfigurationManager.shouldDeduplicate()) {
+      return diagnostics;
+    }
+
+    Logger.info(`Deduplicated diagnostics: ${diagnostics.length} -> ${unique.length} (${label})`);
     return unique;
   }
 

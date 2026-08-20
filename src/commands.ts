@@ -14,6 +14,7 @@ import { ConfigurationManager } from './configuration';
 import { WorkspaceUtils } from './utils/workspace';
 import { ProgressUtils } from './utils/progress';
 import { BundledToolsManager } from './bundledTools';
+import { findDuplicates } from './diagnosticDedup';
 
 export class CommandManager implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -329,8 +330,6 @@ export class CommandManager implements vscode.Disposable {
 
     // Group diagnostics by source
     const diagnosticsBySource = new Map<string, vscode.Diagnostic[]>();
-    const duplicates: vscode.Diagnostic[] = [];
-    const seen = new Set<string>();
 
     for (const diagnostic of diagnostics) {
       const source = diagnostic.source || 'unknown';
@@ -339,16 +338,9 @@ export class CommandManager implements vscode.Disposable {
         diagnosticsBySource.set(source, []);
       }
       diagnosticsBySource.get(source)!.push(diagnostic);
-
-      // Check for duplicates
-      const key = `${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.line}:${diagnostic.range.end.character}:${diagnostic.message}:${diagnostic.code}`;
-
-      if (seen.has(key)) {
-        duplicates.push(diagnostic);
-      } else {
-        seen.add(key);
-      }
     }
+
+    const duplicates = findDuplicates(diagnostics);
 
     // Log results
     Logger.info('=== DUPLICATE DIAGNOSTICS CHECK ===');
