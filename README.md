@@ -145,6 +145,7 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 |---------|-------------|---------|
 | `rumdl.enable` | Enable/disable the extension | `true` |
 | `rumdl.fixOnSave` | Automatically fix all auto-fixable problems on save. For more control, use `editor.codeActionsOnSave` with `source.fixAll.rumdl` instead. | `false` |
+| `rumdl.lint.run` | When to re-run linting (`onType`, `onSave`). Set to `onSave` to stop diagnostics from updating on every keystroke. | `"onType"` |
 | `rumdl.configPath` | Path to rumdl configuration file (relative to workspace root or absolute). If not specified, rumdl will auto-discover configuration files in the workspace. | `undefined` |
 | `rumdl.rules.enable` | Array of rule IDs to enable. Empty array enables all rules. | `[]` |
 | `rumdl.rules.disable` | Array of rule IDs to disable | `[]` |

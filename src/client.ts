@@ -60,6 +60,27 @@ export function buildInitializationOptions(config: RumdlConfig): RumdlInitializa
   };
 }
 
+/** When the client asks the server for diagnostics. */
+export interface DiagnosticPullOptions {
+  onChange: boolean;
+  onSave: boolean;
+}
+
+/**
+ * Translate `rumdl.lint.run` into the language client's pull schedule.
+ *
+ * rumdl serves diagnostics over the pull model (textDocument/diagnostic), so
+ * this schedule decides when findings refresh. `onType` is the language
+ * client's own default schedule; `onSave` holds the last saved results steady
+ * while editing, for people who find a re-lint on every keystroke distracting.
+ *
+ * Exported so tests can verify the mapping without launching a server.
+ */
+export function buildDiagnosticPullOptions(config: RumdlConfig): DiagnosticPullOptions {
+  const onSave = config.lint.run === 'onSave';
+  return { onChange: !onSave, onSave };
+}
+
 export class RumdlLanguageClient implements vscode.Disposable {
   private client: LanguageClient | undefined;
   private statusBar: StatusBarManager;
@@ -162,6 +183,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
             ? vscode.window.createOutputChannel('rumdl Language Server Trace')
             : undefined,
         diagnosticCollectionName: 'rumdl',
+        diagnosticPullOptions: buildDiagnosticPullOptions(config),
         middleware: {
           // Diagnostics reach the editor two ways - pushed by the server, and
           // pulled by the client - and each has its own collection, so both are

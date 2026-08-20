@@ -1,9 +1,15 @@
 import * as vscode from 'vscode';
 import { Logger } from './utils';
 
+/** When diagnostics are refreshed: on every edit, or only on save. */
+export type LintRun = 'onType' | 'onSave';
+
 export interface RumdlConfig {
   enable: boolean;
   fixOnSave: boolean;
+  lint: {
+    run: LintRun;
+  };
   configPath?: string;
   rules: {
     enable: string[];
@@ -35,6 +41,11 @@ export class ConfigurationManager {
     return {
       enable: config.get('enable', true),
       fixOnSave: config.get('fixOnSave', false),
+      lint: {
+        // Guard against a hand-edited settings.json holding an unknown value:
+        // anything but 'onSave' keeps the responsive default.
+        run: config.get<string>('lint.run', 'onType') === 'onSave' ? 'onSave' : 'onType',
+      },
       configPath: config.get('configPath'),
       rules: {
         enable: config.get('rules.enable', []),

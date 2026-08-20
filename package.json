@@ -126,6 +126,19 @@
           "default": false,
           "description": "Automatically fix all auto-fixable problems when saving a file. For more control, use editor.codeActionsOnSave with source.fixAll.rumdl instead."
         },
+        "rumdl.lint.run": {
+          "type": "string",
+          "enum": [
+            "onType",
+            "onSave"
+          ],
+          "enumDescriptions": [
+            "Re-lint as you type.",
+            "Re-lint only when the file is saved."
+          ],
+          "default": "onType",
+          "description": "When to re-run linting. Set to \"onSave\" to stop diagnostics from updating on every keystroke."
+        },
         "rumdl.configPath": {
           "type": "string",
           "description": "Path to rumdl configuration file"
