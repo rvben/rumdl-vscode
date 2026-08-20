@@ -109,8 +109,9 @@ export class ConfigValidator {
         continue;
       }
 
-      // Check for section headers
-      const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
+      // Check for section headers. A trailing comment after the closing
+      // bracket is legal TOML and must not stop the header being recognised.
+      const sectionMatch = trimmed.match(/^\[([^\]]+)\]\s*(?:#.*)?$/);
       if (sectionMatch) {
         const section = sectionMatch[1];
 
@@ -251,6 +252,19 @@ export class ConfigValidator {
         /^(?:"((?:[^"\\]|\\.)*)"|'([^']*)'|([a-zA-Z_][a-zA-Z0-9_-]*))\s*=/
       );
       if (!kvMatch) {
+        // A bracketed line that matched no header pattern above opens a section
+        // that isn't rumdl config: an array of tables ([[tool.mypy.overrides]],
+        // which rumdl never declares), or a header shape this scanner doesn't
+        // recognise. Either way it ends the previous section, so clear the state
+        // and let the keys that follow degrade to unvalidated rather than be
+        // attributed to whatever came before. Continuation lines of a multi-line
+        // value are excluded by requiring the line to both open and close its
+        // brackets.
+        if (/^\[.*\]\s*(?:#.*)?$/.test(trimmed)) {
+          currentSection = '';
+          currentRule = '';
+          currentContainer = undefined;
+        }
         // Not a key-value line, might be part of multiline value - skip
         continue;
       }

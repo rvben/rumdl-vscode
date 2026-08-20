@@ -719,4 +719,72 @@ line-length = 100
     });
   });
 
+  suite('Section header edge cases', () => {
+    // A commented header must still be recognised as ending the previous
+    // section, so these all carry a preceding [global]: an unrecognised header
+    // leaves `reflow` attributed to [global] and reported as unknown.
+    const AFTER_GLOBAL = '[global]\nline-length = 100\n\n';
+
+    test('accepts a trailing comment after a section header', () => {
+      const result = ConfigValidator.validateToml(
+        `${AFTER_GLOBAL}[MD013]  # Line length\nreflow = true\n`
+      );
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('accepts a trailing comment containing brackets', () => {
+      const result = ConfigValidator.validateToml(
+        `${AFTER_GLOBAL}[MD013] # see [docs] for more\nreflow = true\n`
+      );
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('accepts a trailing comment with no separating space', () => {
+      const result = ConfigValidator.validateToml(
+        `${AFTER_GLOBAL}[MD013]# Line length\nreflow = true\n`
+      );
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('a commented header is still recognised, so real errors are still reported', () => {
+      // The false-negative direction: suppressing every key after a commented
+      // header would also make this pass, so the fix must keep it failing.
+      const result = ConfigValidator.validateToml('[global] # settings\nnot_a_real_prop = 1\n');
+
+      expect(result.errors.map(e => e.message).join('; ')).to.match(/not_a_real_prop/);
+    });
+
+    test('accepts an array-of-tables section in pyproject.toml', () => {
+      const config = `[tool.rumdl]
+line-length = 100
+
+[[tool.mypy.overrides]]
+module = "foo.*"
+ignore_missing_imports = true
+`;
+
+      const result = ConfigValidator.validateToml(config, true);
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('an array-of-tables header ends the preceding rumdl section', () => {
+      // Without clearing the section state, `module` would be validated as a
+      // [tool.rumdl] global property and reported as unknown.
+      const config = `[tool.rumdl]
+line-length = 100
+
+[[tool.mypy.overrides]]
+module = "foo.*"
+`;
+
+      const result = ConfigValidator.validateToml(config, true);
+
+      expect(result.errors.map(e => e.message).join('; ')).to.not.match(/module/);
+    });
+  });
+
 });
