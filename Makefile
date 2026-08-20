@@ -212,6 +212,12 @@ verify:
 download-rumdl:
 	npm run download-rumdl
 
+# Only the binary for the machine running this. Enough for the test suite,
+# which drives rumdl locally; packaging still needs every platform.
+.PHONY: download-rumdl-current
+download-rumdl-current:
+	npm run download-rumdl-current
+
 .PHONY: status
 status:
 	@echo "Name:    $(EXTENSION_NAME)"

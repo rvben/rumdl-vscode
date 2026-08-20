@@ -21,6 +21,7 @@ const VALID_GLOBAL_VALUES: Record<string, string> = {
   cache: 'true',
   'extend-enable': '["MD001"]',
   'extend-disable': '["MD001"]',
+  editorconfig: 'true',
 };
 
 function toSnake(key: string): string {
