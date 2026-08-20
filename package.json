@@ -267,7 +267,6 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/chai": "^5.2.3",
     "@types/glob": "^9.0.0",
-    "@types/iarna__toml": "^2.0.5",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/sinon": "^22.0.0",
@@ -295,7 +294,7 @@
     "webpack-cli": "^7.2.2"
   },
   "dependencies": {
-    "@iarna/toml": "^2.2.5",
+    "smol-toml": "1.8.0",
     "vscode-languageclient": "^9.0.1",
     "which": "^7.0.0"
   },

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as TOML from '@iarna/toml';
+import { parse as parseToml, TomlError } from 'smol-toml';
 import { GLOBAL_PROPERTIES, RULE_SCHEMAS, RULE_NAMES, RULE_ALIASES } from './configSchema';
 
 // The rumdl schema declares [global] keys in kebab-case (the canonical form
@@ -48,24 +48,36 @@ export class ConfigValidator {
     // First, validate TOML syntax using proper parser
     let parsed: Record<string, unknown>;
     try {
-      parsed = TOML.parse(content) as Record<string, unknown>;
+      parsed = parseToml(content) as Record<string, unknown>;
     } catch (error) {
-      // TOML parsing failed - report syntax error
+      // TOML parsing failed - anchor the diagnostic at the position the parser
+      // reports so it lands on the offending line rather than the top of the file.
       let line = 0;
+      let column = 0;
       let message = 'Invalid TOML syntax';
 
-      if (error instanceof Error) {
+      if (error instanceof TomlError) {
+        // TomlError line/column are 1-based; ValidationError is 0-based.
+        line = Math.max(0, error.line - 1);
+        column = Math.max(0, error.column - 1);
+        // error.message appends a rendered code block after the first line;
+        // only the leading reason belongs in a diagnostic.
+        message = error.message.split('\n')[0];
+      } else if (error instanceof Error) {
         message = error.message;
-        // Try to extract line number from error message if available
-        const lineMatch = error.message.match(/line (\d+)/i);
-        if (lineMatch) {
-          line = parseInt(lineMatch[1], 10) - 1; // Convert to 0-indexed
-        }
+      }
+
+      // A position past the end of the document (e.g. unexpected EOF) would
+      // produce an out-of-range diagnostic; clamp it to the last line.
+      const lastLine = Math.max(0, content.split('\n').length - 1);
+      if (line > lastLine) {
+        line = lastLine;
+        column = 0;
       }
 
       errors.push({
         line,
-        column: 0,
+        column,
         message,
         severity: vscode.DiagnosticSeverity.Error,
       });

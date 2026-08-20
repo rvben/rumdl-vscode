@@ -640,4 +640,83 @@ foo = true
     const unknownRule = result.errors.filter(e => /Unknown rule/.test(e.message));
     expect(unknownRule).to.have.lengthOf(1);
   });
+
+  suite('TOML 1.0 syntax', () => {
+    test('accepts a PEP 735 dependency group with a heterogeneous inline array', () => {
+      // ["pytest", { include-group = "..." }] mixes types in one array, which
+      // is legal in TOML 1.0.0 and rejected by a TOML 0.5 parser.
+      const config = `[project]
+name = "example"
+
+[dependency-groups]
+test = ["pytest", { include-group = "runtime" }]
+runtime = ["requests"]
+
+[tool.rumdl]
+line-length = 100
+`;
+
+      const result = ConfigValidator.validateToml(config, true);
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+      expect(result.valid).to.be.true;
+    });
+
+    test('still rejects an unclosed section header', () => {
+      const result = ConfigValidator.validateToml('[global\ncache = true\n');
+
+      expect(result.valid).to.be.false;
+      expect(result.errors).to.have.length.greaterThan(0);
+    });
+
+    test('still rejects a duplicate key', () => {
+      const result = ConfigValidator.validateToml('[global]\ncache = true\ncache = false\n');
+
+      expect(result.valid).to.be.false;
+      expect(result.errors).to.have.length.greaterThan(0);
+    });
+
+    test('anchors a syntax error on the offending line, not the top of the file', () => {
+      // Every case puts the fault on the third line (0-based line 2) so a
+      // regression to the old always-report-line-0 behaviour fails here.
+      const cases: Array<[string, string]> = [
+        ['duplicate key', '[global]\nline-length = 80\nline-length = 90\n'],
+        ['bare word value', '[global]\ncache = true\nrespect-gitignore = tru\n'],
+        ['unterminated string', '# comment\n[global]\ncache = "yes\n'],
+      ];
+
+      for (const [name, config] of cases) {
+        const result = ConfigValidator.validateToml(config);
+
+        expect(result.errors, `${name}: expected an error`).to.have.length.greaterThan(0);
+        expect(result.errors[0].line, `${name}: wrong line`).to.equal(2);
+      }
+    });
+
+    test('a syntax error always reports a position inside the document', () => {
+      // An end-of-input error points at where the parser ran out, which is at
+      // or past the end of the content. A diagnostic outside the document does
+      // not render, so the reported line must stay in range for every input.
+      const truncated = [
+        '[global]\ncache = [1, 2',
+        '[global]\ncache = { a = 1',
+        '[global]\ncache =',
+        '[global]\ncache = """abc',
+        '[global]\ncache = [\n  1,\n  2,\n',
+      ];
+
+      for (const config of truncated) {
+        const result = ConfigValidator.validateToml(config);
+        const lastLine = config.split('\n').length - 1;
+
+        expect(result.errors, `no error for ${JSON.stringify(config)}`).to.have.length.greaterThan(
+          0
+        );
+        expect(result.errors[0].line, `line out of range for ${JSON.stringify(config)}`)
+          .to.be.at.least(0)
+          .and.at.most(lastLine);
+      }
+    });
+  });
+
 });
