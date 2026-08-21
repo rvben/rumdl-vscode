@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.307](https://github.com/rvben/rumdl-vscode/compare/v0.0.306...v0.0.307) - 2026-08-21
+
+### Added
+
+- **lint**: add rumdl.lint.run to control when linting re-runs ([bf89446](https://github.com/rvben/rumdl-vscode/commit/bf8944643a83ab539b1bcca25baa1566357093c8))
+
+### Fixed
+
+- **diagnostics**: deduplicate the diagnostics the editor receives ([02b1a0f](https://github.com/rvben/rumdl-vscode/commit/02b1a0f6af6a2f32361bb99b0a1bc6624587ed32))
+- **config**: recognise section headers followed by a comment ([2c9bebe](https://github.com/rvben/rumdl-vscode/commit/2c9bebe7a7f37f5b042b2fe11caf5cc4ab4b936a))
+- **config**: parse configuration files as TOML 1.0 ([ccdd445](https://github.com/rvben/rumdl-vscode/commit/ccdd445251affcf1b2d96ce24a86b2b06798850b))
+
 ## [0.0.306](https://github.com/rvben/rumdl-vscode/compare/v0.0.305...v0.0.306) - 2026-08-19
 
 ## [0.0.305](https://github.com/rvben/rumdl-vscode/compare/v0.0.304...v0.0.305) - 2026-08-18
