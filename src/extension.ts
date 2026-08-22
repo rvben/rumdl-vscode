@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { RumdlLanguageClient } from './client';
 import { StatusBarManager } from './statusBar';
 import { CommandManager } from './commands';
-import { ConfigurationManager } from './configuration';
+import { ConfigurationManager, RumdlConfig, shouldRunLanguageServer } from './configuration';
 import { Logger, showErrorMessage, isSupportedDocument } from './utils';
 import { BundledToolsManager } from './bundledTools';
 import { ConfigDiagnosticProvider } from './diagnostics/configDiagnostics';
@@ -12,6 +12,7 @@ let statusBar: StatusBarManager;
 let commands: CommandManager;
 let configWatcher: vscode.Disposable;
 let configDiagnostics: ConfigDiagnosticProvider;
+let reconciliationQueue: Promise<void> = Promise.resolve();
 
 export async function activate(
   context: vscode.ExtensionContext
@@ -42,28 +43,16 @@ export async function activate(
     context.subscriptions.push(configDiagnostics);
 
     // Start the client if enabled
-    if (ConfigurationManager.isEnabled()) {
+    if (shouldRunLanguageServer(ConfigurationManager.isEnabled(), vscode.workspace.isTrusted)) {
       await client.start();
     } else {
-      Logger.info('rumdl is disabled in configuration');
-      statusBar.setDisconnected('Disabled in settings');
+      setInactiveStatus(ConfigurationManager.getConfiguration());
     }
 
     // Watch for configuration changes
-    configWatcher = ConfigurationManager.onConfigurationChanged(async config => {
-      Logger.info('Configuration changed, restarting server if needed');
-
-      if (config.enable && client.isRunning()) {
-        // Restart server with new configuration
-        await client.restart();
-      } else if (config.enable && !client.isRunning()) {
-        // Start server if it was disabled and now enabled
-        await client.start();
-      } else if (!config.enable && client.isRunning()) {
-        // Stop server if disabled
-        await client.stop();
-        statusBar.setDisconnected('Disabled in settings');
-      }
+    configWatcher = ConfigurationManager.onConfigurationChanged(config => {
+      Logger.info('Configuration changed, reconciling language server state');
+      void enqueueReconciliation(config);
     });
 
     context.subscriptions.push(configWatcher);
@@ -86,10 +75,10 @@ export async function activate(
     Logger.info('rumdl extension activated successfully');
 
     // Update status bar to show extension is ready
-    if (ConfigurationManager.isEnabled()) {
+    if (shouldRunLanguageServer(ConfigurationManager.isEnabled(), vscode.workspace.isTrusted)) {
       // Status will be updated by the client when it connects
     } else {
-      statusBar.setDisconnected('Ready (disabled in settings)');
+      setInactiveStatus(ConfigurationManager.getConfiguration());
     }
 
     // Return the client for testing purposes
@@ -110,15 +99,58 @@ export async function activate(
   }
 }
 
+function setInactiveStatus(config: RumdlConfig): void {
+  if (!vscode.workspace.isTrusted) {
+    Logger.info('rumdl diagnostics are disabled because the workspace is not trusted');
+    statusBar.setDisconnected('Workspace is not trusted');
+    return;
+  }
+
+  Logger.info('rumdl is disabled in configuration');
+  statusBar.setDisconnected(config.enable ? 'Not running' : 'Disabled in settings');
+}
+
+async function reconcileClientState(config: RumdlConfig): Promise<void> {
+  if (!shouldRunLanguageServer(config.enable, vscode.workspace.isTrusted)) {
+    // Stop even when the client is between crash-recovery attempts: stop()
+    // also invalidates any pending restart timer.
+    await client.stop();
+    setInactiveStatus(config);
+    return;
+  }
+
+  // restart() handles both a running client and a previous failed/stopped
+  // instance, so configuration changes always get a genuine retry.
+  await client.restart();
+}
+
+function enqueueReconciliation(config: RumdlConfig): Promise<void> {
+  reconciliationQueue = reconciliationQueue
+    .then(() => reconcileClientState(config))
+    .catch(error => {
+      Logger.error('Failed to reconcile rumdl language server state', error as Error);
+      statusBar.setError('Failed to apply settings');
+    });
+  return reconciliationQueue;
+}
+
 function registerEventHandlers(context: vscode.ExtensionContext): void {
   // Handle workspace folder changes
   const workspaceFoldersWatcher = vscode.workspace.onDidChangeWorkspaceFolders(async event => {
     Logger.info(`Workspace folders changed: +${event.added.length}, -${event.removed.length}`);
 
     // Restart server to pick up new workspace configuration
-    if (client.isRunning()) {
+    if (
+      client.isRunning() &&
+      shouldRunLanguageServer(ConfigurationManager.isEnabled(), vscode.workspace.isTrusted)
+    ) {
       await client.restart();
     }
+  });
+
+  const workspaceTrustWatcher = vscode.workspace.onDidGrantWorkspaceTrust(() => {
+    Logger.info('Workspace trust granted, enabling rumdl diagnostics');
+    void enqueueReconciliation(ConfigurationManager.getConfiguration());
   });
 
   // Handle active editor changes to update status
@@ -143,7 +175,12 @@ function registerEventHandlers(context: vscode.ExtensionContext): void {
     }
   });
 
-  context.subscriptions.push(workspaceFoldersWatcher, activeEditorWatcher, diagnosticsWatcher);
+  context.subscriptions.push(
+    workspaceFoldersWatcher,
+    workspaceTrustWatcher,
+    activeEditorWatcher,
+    diagnosticsWatcher
+  );
 }
 
 function updateStatusBarForDocument(document: vscode.TextDocument): void {

@@ -34,6 +34,10 @@ export interface RumdlConfig {
   };
 }
 
+export function shouldRunLanguageServer(enabled: boolean, workspaceTrusted: boolean): boolean {
+  return enabled && workspaceTrusted;
+}
+
 export class ConfigurationManager {
   public static getConfiguration(): RumdlConfig {
     const config = vscode.workspace.getConfiguration('rumdl');

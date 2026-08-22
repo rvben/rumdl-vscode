@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { expect } from '../helper';
-import { ConfigurationManager } from '../../configuration';
+import { ConfigurationManager, shouldRunLanguageServer } from '../../configuration';
 
 suite('Configuration Tests', () => {
   let originalConfig: any = {};
@@ -138,6 +138,13 @@ suite('Configuration Tests', () => {
   test('isEnabled should return boolean', () => {
     const enabled = ConfigurationManager.isEnabled();
     expect(enabled).to.be.a('boolean');
+  });
+
+  test('language server runs only when enabled and the workspace is trusted', () => {
+    expect(shouldRunLanguageServer(true, true)).to.be.true;
+    expect(shouldRunLanguageServer(false, true)).to.be.false;
+    expect(shouldRunLanguageServer(true, false)).to.be.false;
+    expect(shouldRunLanguageServer(false, false)).to.be.false;
   });
 
   test('getRumdlPath should return undefined when not configured', () => {

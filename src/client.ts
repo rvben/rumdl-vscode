@@ -5,8 +5,10 @@ import {
   ServerOptions,
   State,
   RevealOutputChannelOn,
+  ErrorAction,
+  CloseAction,
 } from 'vscode-languageclient/node';
-import { ConfigurationManager, RumdlConfig } from './configuration';
+import { ConfigurationManager, RumdlConfig, shouldRunLanguageServer } from './configuration';
 import {
   Logger,
   checkRumdlInstallation,
@@ -18,6 +20,7 @@ import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
 import { DiagnosticLike, deduplicate } from './diagnosticDedup';
 import { DiagnosticPullGate } from './diagnosticPullGate';
+import { ServerRestartPolicy } from './restartPolicy';
 
 /**
  * LSP initialization options sent to the rumdl server.
@@ -85,10 +88,10 @@ export function buildDiagnosticPullOptions(config: RumdlConfig): DiagnosticPullO
 export class RumdlLanguageClient implements vscode.Disposable {
   private client: LanguageClient | undefined;
   private statusBar: StatusBarManager;
-  private restartCount = 0;
-  private maxRestarts = 5;
   private isDisposed = false;
-  private isManualRestart = false; // Flag to prevent automatic restart during manual restart
+  private stopRequested = false;
+  private lifecycleGeneration = 0;
+  private readonly restartPolicy = new ServerRestartPolicy();
   private diagnosticPullGate: DiagnosticPullGate | undefined;
   private diagnosticCacheCloseWatcher: vscode.Disposable | undefined;
 
@@ -97,6 +100,11 @@ export class RumdlLanguageClient implements vscode.Disposable {
   }
 
   public async start(): Promise<void> {
+    if (this.isDisposed) {
+      Logger.warn('Cannot start a disposed rumdl language client');
+      return;
+    }
+
     if (this.client) {
       Logger.warn('Client is already running');
       return;
@@ -109,6 +117,14 @@ export class RumdlLanguageClient implements vscode.Disposable {
       BundledToolsManager.logBundledToolsInfo();
 
       const config = ConfigurationManager.getConfiguration();
+      if (!shouldRunLanguageServer(config.enable, vscode.workspace.isTrusted)) {
+        const reason = config.enable ? 'Workspace is not trusted' : 'Disabled in settings';
+        Logger.info(`Not starting rumdl language server: ${reason}`);
+        this.statusBar.setDisconnected(reason);
+        return;
+      }
+
+      this.stopRequested = false;
 
       // Get the best available rumdl path (bundled first, then configured/system)
       const rumdlPath = await BundledToolsManager.getBestRumdlPath(config.server.path);
@@ -182,6 +198,15 @@ export class RumdlLanguageClient implements vscode.Disposable {
         },
         outputChannelName: 'rumdl Language Server',
         revealOutputChannelOn: RevealOutputChannelOn.Never,
+        errorHandler: {
+          error: (_error, _message, count) => ({
+            action: count !== undefined && count <= 3 ? ErrorAction.Continue : ErrorAction.Shutdown,
+          }),
+          // Automatic recovery is owned by RumdlLanguageClient so it can
+          // distinguish crashes from settings changes and apply one bounded,
+          // observable backoff policy.
+          closed: () => ({ action: CloseAction.DoNotRestart }),
+        },
         traceOutputChannel:
           ConfigurationManager.getTraceLevel() !== 'off'
             ? vscode.window.createOutputChannel('rumdl Language Server Trace')
@@ -241,12 +266,13 @@ export class RumdlLanguageClient implements vscode.Disposable {
             break;
           case State.Running:
             this.statusBar.setConnected();
-            this.restartCount = 0; // Reset restart count on successful connection
             break;
           case State.Stopped:
             if (!this.isDisposed) {
               this.statusBar.setDisconnected();
-              this.handleServerStop();
+              if (!this.stopRequested) {
+                void this.handleServerStop();
+              }
             }
             break;
         }
@@ -256,6 +282,19 @@ export class RumdlLanguageClient implements vscode.Disposable {
       await this.client.start();
       Logger.info('rumdl language server started successfully');
     } catch (error) {
+      // Invalidate any recovery scheduled by a failed LanguageClient start and
+      // release the reference so a settings change or manual restart can retry.
+      this.stopRequested = true;
+      this.lifecycleGeneration++;
+      const failedClient = this.client;
+      this.client = undefined;
+      if (failedClient) {
+        try {
+          await failedClient.stop();
+        } catch {
+          // The language client may already be in StartFailed/Stopped state.
+        }
+      }
       this.clearDiagnosticPullGate();
       Logger.error('Failed to start rumdl language server', error as Error);
       this.statusBar.setError('Failed to start');
@@ -264,34 +303,45 @@ export class RumdlLanguageClient implements vscode.Disposable {
   }
 
   private async handleServerStop(): Promise<void> {
-    // Don't auto-restart during manual restart or if disposed
-    if (this.isDisposed || this.isManualRestart || this.restartCount >= this.maxRestarts) {
-      if (this.restartCount >= this.maxRestarts && !this.isManualRestart) {
-        Logger.error(`Server stopped after ${this.maxRestarts} restart attempts`);
-        this.statusBar.setError('Too many restarts');
-        showErrorMessage(
-          'rumdl server has crashed multiple times. Please check the server logs for details.',
-          'Show Logs'
-        ).then(action => {
-          if (action === 'Show Logs') {
-            vscode.commands.executeCommand('rumdl.showServerLogs');
-          }
-        });
-      }
+    if (this.isDisposed || this.stopRequested) {
       return;
     }
 
-    this.restartCount++;
+    const decision = this.restartPolicy.next();
+    if (!decision) {
+      Logger.error('Server stopped after 5 restart attempts in 3 minutes');
+      this.statusBar.setError('Too many restarts');
+      void showErrorMessage(
+        'rumdl has stopped after repeated crashes. Review the server logs, then use “rumdl: Restart Server” to try again.',
+        'Show Logs'
+      ).then(action => {
+        if (action === 'Show Logs') {
+          void vscode.commands.executeCommand('rumdl.showServerLogs');
+        }
+      });
+      return;
+    }
+
+    const generation = this.lifecycleGeneration;
     Logger.warn(
-      `Server stopped unexpectedly. Attempting restart ${this.restartCount}/${this.maxRestarts}`
+      `Server stopped unexpectedly. Attempting restart ${decision.attempt}/5 in ${decision.delayMs}ms`
     );
 
-    // Wait before restarting (exponential backoff)
-    const delay = Math.min(1000 * Math.pow(2, this.restartCount - 1), 10000);
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise(resolve => setTimeout(resolve, decision.delayMs));
+
+    const config = ConfigurationManager.getConfiguration();
+    if (
+      this.isDisposed ||
+      this.stopRequested ||
+      generation !== this.lifecycleGeneration ||
+      !shouldRunLanguageServer(config.enable, vscode.workspace.isTrusted)
+    ) {
+      Logger.info('Cancelled automatic restart because the desired server state changed');
+      return;
+    }
 
     try {
-      await this.restart();
+      await this.restartClient();
     } catch (error) {
       Logger.error('Failed to restart server', error as Error);
     }
@@ -299,10 +349,13 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
   public async restart(): Promise<void> {
     Logger.info('Restarting rumdl language server');
+    this.restartPolicy.reset();
 
+    await this.restartClient();
+  }
+
+  private async restartClient(): Promise<void> {
     try {
-      this.isManualRestart = true; // Set flag to prevent auto-restart during manual restart
-
       if (this.client) {
         await this.stop();
       }
@@ -313,12 +366,13 @@ export class RumdlLanguageClient implements vscode.Disposable {
       Logger.error('Failed to restart rumdl language server', error as Error);
       this.statusBar.setError('Restart failed');
       throw error;
-    } finally {
-      this.isManualRestart = false; // Clear flag after restart attempt
     }
   }
 
   public async stop(): Promise<void> {
+    this.stopRequested = true;
+    this.lifecycleGeneration++;
+
     if (!this.client) {
       this.clearDiagnosticPullGate();
       return;
@@ -430,9 +484,13 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.stopRequested = true;
+    this.lifecycleGeneration++;
     this.clearDiagnosticPullGate();
     if (this.client) {
-      this.client.stop();
+      void this.client.stop().catch(error => {
+        Logger.error('Error disposing language client', error as Error);
+      });
       this.client = undefined;
     }
   }

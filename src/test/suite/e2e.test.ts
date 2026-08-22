@@ -6,6 +6,8 @@ import {
   waitForDiagnostics,
   closeAllEditors,
   sleep,
+  getLanguageClient,
+  waitForLanguageServer,
 } from '../helper';
 
 suite('Rumdl Extension E2E Tests', () => {
@@ -107,6 +109,21 @@ suite('Rumdl Extension E2E Tests', () => {
     // Just verify the command exists
     const commands = await vscode.commands.getCommands();
     expect(commands).to.include('rumdl.restartServer');
+  });
+
+  test('disabling rumdl keeps the server stopped past the restart backoff', async function () {
+    this.timeout(20000);
+    const config = vscode.workspace.getConfiguration('rumdl');
+
+    try {
+      await config.update('enable', false, vscode.ConfigurationTarget.Global);
+      await sleep(1500);
+
+      expect(getLanguageClient()?.isRunning()).to.be.false;
+    } finally {
+      await config.update('enable', true, vscode.ConfigurationTarget.Global);
+      await waitForLanguageServer();
+    }
   });
 
   test('Should register all expected commands', async () => {
