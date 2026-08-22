@@ -2,7 +2,7 @@
   "name": "rumdl",
   "displayName": "rumdl - Markdown Linter",
   "description": "Fast Rust-based Markdown linter with real-time diagnostics and auto-fixes",
-  "version": "0.0.285",
+  "version": "0.1.0",
   "publisher": "rvben",
   "license": "MIT",
   "repository": {
@@ -126,6 +126,19 @@
           "default": false,
           "description": "Automatically fix all auto-fixable problems when saving a file. For more control, use editor.codeActionsOnSave with source.fixAll.rumdl instead."
         },
+        "rumdl.lint.run": {
+          "type": "string",
+          "enum": [
+            "onType",
+            "onSave"
+          ],
+          "enumDescriptions": [
+            "Re-lint as you type.",
+            "Re-lint only when the file is saved."
+          ],
+          "default": "onType",
+          "description": "When to re-run linting. Set to \"onSave\" to stop diagnostics from updating on every keystroke."
+        },
         "rumdl.configPath": {
           "type": "string",
           "description": "Path to rumdl configuration file"
@@ -198,7 +211,7 @@
     "menus": {
       "editor/context": [
         {
-          "when": "(resourceExtname == .md || resourceExtname == .mdx) && rumdl.enabled",
+          "when": "editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted",
           "command": "rumdl.fixAll",
           "group": "1_modification@1"
         }
@@ -206,10 +219,11 @@
       "commandPalette": [
         {
           "command": "rumdl.fixAll",
-          "when": "resourceExtname == .md || resourceExtname == .mdx"
+          "when": "editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted"
         },
         {
-          "command": "rumdl.fixAllWorkspace"
+          "command": "rumdl.fixAllWorkspace",
+          "when": "config.rumdl.enable && isWorkspaceTrusted"
         }
       ]
     },
@@ -218,12 +232,13 @@
         "command": "rumdl.fixAll",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx)$/"
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted"
       },
       {
         "command": "rumdl.fixAllWorkspace",
         "key": "ctrl+shift+alt+r",
-        "mac": "cmd+shift+alt+r"
+        "mac": "cmd+shift+alt+r",
+        "when": "config.rumdl.enable && isWorkspaceTrusted"
       },
       {
         "command": "rumdl.openConfigFile",
@@ -248,10 +263,8 @@
     "fmt": "npm run format && npm run lint:fix",
     "test": "vscode-test",
     "test:nolint": "npm run compile-tests && npm run compile && vscode-test",
-    "test:unit": "npm run compile-tests && mocha ./out/test/suite/*.test.js",
-    "test:watch": "npm run compile-tests && mocha ./out/test/suite/*.test.js --watch",
+    "test:watch": "vscode-test --watch --watch-files \"out/**/*.js\"",
     "test:coverage": "nyc npm test",
-    "test:unit:coverage": "nyc npm run test:unit",
     "coverage:report": "nyc report --reporter=html && open coverage/index.html",
     "download-rumdl": "node scripts/download-rumdl.js",
     "download-rumdl-target": "node scripts/download-rumdl.js --target",
@@ -269,35 +282,34 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/chai": "^5.2.3",
     "@types/glob": "^9.0.0",
-    "@types/iarna__toml": "^2.0.5",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/sinon": "^22.0.0",
     "@types/vscode": "^1.82.0",
     "@types/which": "^3.0.4",
-    "@typescript-eslint/eslint-plugin": "^8.62.1",
-    "@typescript-eslint/parser": "^8.62.1",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "@vscode/test-cli": "^0.0.15",
-    "@vscode/test-electron": "^3.0.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
     "c8": "^11.0.0",
     "chai": "^6.2.2",
-    "eslint": "^10.6.0",
+    "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
     "glob": "^13.0.6",
-    "mocha": "^11.7.6",
+    "mocha": "^11.8.0",
     "nyc": "^18.0.0",
-    "prettier": "^3.8.4",
-    "sinon": "^22.0.0",
-    "ts-loader": "^9.6.1",
+    "prettier": "^3.9.6",
+    "sinon": "^22.1.0",
+    "ts-loader": "^9.6.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.62.1",
-    "webpack": "^5.107.2",
-    "webpack-cli": "^7.1.0"
+    "typescript-eslint": "^8.67.0",
+    "webpack": "^5.109.2",
+    "webpack-cli": "^7.2.2"
   },
   "dependencies": {
-    "@iarna/toml": "^2.2.5",
+    "smol-toml": "1.8.0",
     "vscode-languageclient": "^9.0.1",
     "which": "^7.0.0"
   },

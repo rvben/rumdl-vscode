@@ -14,6 +14,48 @@ import { ConfigurationManager } from './configuration';
 import { WorkspaceUtils } from './utils/workspace';
 import { ProgressUtils } from './utils/progress';
 import { BundledToolsManager } from './bundledTools';
+import { findDuplicates } from './diagnosticDedup';
+
+export const RUMDL_FIX_ALL_KIND = vscode.CodeActionKind.SourceFixAll.append('rumdl');
+
+export function findRumdlFixAllAction(
+  actions: readonly vscode.CodeAction[] | undefined
+): vscode.CodeAction | undefined {
+  return actions?.find(action => action.kind?.value === RUMDL_FIX_ALL_KIND.value);
+}
+
+export const DEFAULT_CONFIG_CONTENT = `# rumdl configuration file
+# See: https://github.com/rvben/rumdl#configuration
+
+[global]
+# Empty means the default rule set. Add rule IDs to enable only those rules.
+enable = []
+
+# Rules to disable.
+disable = []
+
+# Files and directories to exclude from linting.
+exclude = [
+  "node_modules",
+  "target",
+  "build",
+  "dist",
+]
+
+respect-gitignore = true
+
+# Rule-specific configuration.
+[MD013]
+line-length = 200
+code-blocks = false
+tables = false
+
+[MD003]
+style = "atx"
+
+[MD007]
+indent = 4
+`;
 
 export class CommandManager implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -71,7 +113,7 @@ export class CommandManager implements vscode.Disposable {
         'vscode.executeCodeActionProvider',
         editor.document.uri,
         range,
-        vscode.CodeActionKind.SourceFixAll.value
+        RUMDL_FIX_ALL_KIND.value
       );
 
       if (!codeActions || codeActions.length === 0) {
@@ -80,9 +122,7 @@ export class CommandManager implements vscode.Disposable {
       }
 
       // Find the source.fixAll action
-      const fixAllAction = codeActions.find(
-        action => action.kind?.value === vscode.CodeActionKind.SourceFixAll.value
-      );
+      const fixAllAction = findRumdlFixAllAction(codeActions);
 
       if (!fixAllAction) {
         showInformationMessage('No rumdl auto-fixes available');
@@ -157,7 +197,7 @@ export class CommandManager implements vscode.Disposable {
             'vscode.executeCodeActionProvider',
             document.uri,
             range,
-            vscode.CodeActionKind.SourceFixAll.value
+            RUMDL_FIX_ALL_KIND.value
           );
 
           if (!codeActions || codeActions.length === 0) {
@@ -165,9 +205,7 @@ export class CommandManager implements vscode.Disposable {
           }
 
           // Find the source.fixAll action
-          const fixAllAction = codeActions.find(
-            action => action.kind?.value === vscode.CodeActionKind.SourceFixAll.value
-          );
+          const fixAllAction = findRumdlFixAllAction(codeActions);
 
           if (!fixAllAction) {
             return { file: fileUri, fixedCount: 0 };
@@ -329,8 +367,6 @@ export class CommandManager implements vscode.Disposable {
 
     // Group diagnostics by source
     const diagnosticsBySource = new Map<string, vscode.Diagnostic[]>();
-    const duplicates: vscode.Diagnostic[] = [];
-    const seen = new Set<string>();
 
     for (const diagnostic of diagnostics) {
       const source = diagnostic.source || 'unknown';
@@ -339,16 +375,9 @@ export class CommandManager implements vscode.Disposable {
         diagnosticsBySource.set(source, []);
       }
       diagnosticsBySource.get(source)!.push(diagnostic);
-
-      // Check for duplicates
-      const key = `${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.line}:${diagnostic.range.end.character}:${diagnostic.message}:${diagnostic.code}`;
-
-      if (seen.has(key)) {
-        duplicates.push(diagnostic);
-      } else {
-        seen.add(key);
-      }
     }
+
+    const duplicates = findDuplicates(diagnostics);
 
     // Log results
     Logger.info('=== DUPLICATE DIAGNOSTICS CHECK ===');
@@ -646,41 +675,9 @@ export class CommandManager implements vscode.Disposable {
 
   private async createSampleConfig(workingDirectory: string): Promise<void> {
     const configPath = path.join(workingDirectory, '.rumdl.toml');
-    const sampleConfig = `# rumdl configuration file
-# See: https://github.com/rvben/rumdl#configuration
-
-[rules]
-# Select specific rules (empty = all rules)
-select = []
-
-# Ignore specific rules
-ignore = []
-
-# Rule-specific configuration
-[rules.MD013]
-line_length = 200
-code_blocks = false
-tables = false
-
-[rules.MD003]
-style = "atx"  # Use ATX style headings (##)
-
-[rules.MD007]
-indent = 4  # 4 spaces for unordered list indentation
-
-# File patterns to include/exclude
-[files]
-include = ["**/*.md", "**/*.markdown"]
-exclude = [
-  "node_modules/**",
-  "target/**",
-  "build/**",
-  "dist/**"
-]
-`;
 
     try {
-      fs.writeFileSync(configPath, sampleConfig);
+      fs.writeFileSync(configPath, DEFAULT_CONFIG_CONTENT);
       vscode.window
         .showInformationMessage(
           `Created .rumdl.toml configuration file at ${configPath}. Restart the rumdl server to apply changes.`,

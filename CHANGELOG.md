@@ -1,33 +1,68 @@
 # Changelog
 
+## [0.1.0](https://github.com/rvben/rumdl-vscode/compare/v0.0.307...v0.1.0) - 2026-08-22
 
+### Fixed
 
+- **lint**: keep on-save diagnostics stable for linked documents ([7606d0e](https://github.com/rvben/rumdl-vscode/commit/7606d0e6dbc034aa7cfb5d36b2e09581b2152be7))
 
+## [0.0.307](https://github.com/rvben/rumdl-vscode/compare/v0.0.306...v0.0.307) - 2026-08-21
 
+### Added
 
+- **lint**: add rumdl.lint.run to control when linting re-runs ([bf89446](https://github.com/rvben/rumdl-vscode/commit/bf8944643a83ab539b1bcca25baa1566357093c8))
 
+### Fixed
 
+- **diagnostics**: deduplicate the diagnostics the editor receives ([02b1a0f](https://github.com/rvben/rumdl-vscode/commit/02b1a0f6af6a2f32361bb99b0a1bc6624587ed32))
+- **config**: recognise section headers followed by a comment ([2c9bebe](https://github.com/rvben/rumdl-vscode/commit/2c9bebe7a7f37f5b042b2fe11caf5cc4ab4b936a))
+- **config**: parse configuration files as TOML 1.0 ([ccdd445](https://github.com/rvben/rumdl-vscode/commit/ccdd445251affcf1b2d96ce24a86b2b06798850b))
 
+## [0.0.306](https://github.com/rvben/rumdl-vscode/compare/v0.0.305...v0.0.306) - 2026-08-19
 
+## [0.0.305](https://github.com/rvben/rumdl-vscode/compare/v0.0.304...v0.0.305) - 2026-08-18
 
+## [0.0.304](https://github.com/rvben/rumdl-vscode/compare/v0.0.303...v0.0.304) - 2026-08-18
 
+## [0.0.303](https://github.com/rvben/rumdl-vscode/compare/v0.0.302...v0.0.303) - 2026-08-12
 
+## [0.0.302](https://github.com/rvben/rumdl-vscode/compare/v0.0.301...v0.0.302) - 2026-08-11
 
+### Fixed
 
+- **release**: publish each VSIX independently so one failure cannot strand the rest ([2147ef4](https://github.com/rvben/rumdl-vscode/commit/2147ef4f072ca6dae7bad56a48b46c76fb150cca))
 
+## [0.0.301](https://github.com/rvben/rumdl-vscode/compare/v0.0.300...v0.0.301) - 2026-08-10
 
+## [0.0.300](https://github.com/rvben/rumdl-vscode/compare/v0.0.299...v0.0.300) - 2026-08-05
 
+## [0.0.299](https://github.com/rvben/rumdl-vscode/compare/v0.0.298...v0.0.299) - 2026-08-05
 
+## [0.0.298](https://github.com/rvben/rumdl-vscode/compare/v0.0.297...v0.0.298) - 2026-08-04
 
+## [0.0.297](https://github.com/rvben/rumdl-vscode/compare/v0.0.296...v0.0.297) - 2026-08-02
 
+## [0.0.296](https://github.com/rvben/rumdl-vscode/compare/v0.0.295...v0.0.296) - 2026-08-01
 
+## [0.0.295](https://github.com/rvben/rumdl-vscode/compare/v0.0.294...v0.0.295) - 2026-07-31
 
+## [0.0.294](https://github.com/rvben/rumdl-vscode/compare/v0.0.293...v0.0.294) - 2026-07-29
 
+## [0.0.293](https://github.com/rvben/rumdl-vscode/compare/v0.0.292...v0.0.293) - 2026-07-28
 
+## [0.0.292](https://github.com/rvben/rumdl-vscode/compare/v0.0.291...v0.0.292) - 2026-07-28
 
+## [0.0.291](https://github.com/rvben/rumdl-vscode/compare/v0.0.290...v0.0.291) - 2026-07-24
 
+## [0.0.290](https://github.com/rvben/rumdl-vscode/compare/v0.0.289...v0.0.290) - 2026-07-24
 
+## [0.0.289](https://github.com/rvben/rumdl-vscode/compare/v0.0.288...v0.0.289) - 2026-07-23
 
+## [0.0.288](https://github.com/rvben/rumdl-vscode/compare/v0.0.287...v0.0.288) - 2026-07-22
+
+## [0.0.287](https://github.com/rvben/rumdl-vscode/compare/v0.0.286...v0.0.287) - 2026-07-21
+
+## [0.0.286](https://github.com/rvben/rumdl-vscode/compare/v0.0.285...v0.0.286) - 2026-07-20
 
 ## [0.0.285](https://github.com/rvben/rumdl-vscode/compare/v0.0.284...v0.0.285) - 2026-07-19
 
@@ -1644,4 +1679,3 @@
 
 ### Changed
 - Updated bundled rumdl to v0.0.84
-

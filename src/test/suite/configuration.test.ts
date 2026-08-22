@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { expect } from '../helper';
-import { ConfigurationManager } from '../../configuration';
+import { ConfigurationManager, shouldRunLanguageServer } from '../../configuration';
 
 suite('Configuration Tests', () => {
   let originalConfig: any = {};
@@ -106,9 +106,45 @@ suite('Configuration Tests', () => {
     await vsConfig.update('linkNavigation.enable', true, vscode.ConfigurationTarget.Global);
   });
 
+  test('getConfiguration should default lint.run to onType', () => {
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.lint.run).to.equal('onType');
+  });
+
+  test('getConfiguration should return onSave for lint.run when set to onSave', async () => {
+    const vsConfig = vscode.workspace.getConfiguration('rumdl');
+    await vsConfig.update('lint.run', 'onSave', vscode.ConfigurationTarget.Global);
+
+    try {
+      expect(ConfigurationManager.getConfiguration().lint.run).to.equal('onSave');
+    } finally {
+      await vsConfig.update('lint.run', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  test('getConfiguration should fall back to onType for an unknown lint.run value', async () => {
+    // A hand-edited settings.json can hold anything; an unrecognised value must
+    // not silently disable linting-as-you-type.
+    const vsConfig = vscode.workspace.getConfiguration('rumdl');
+    await vsConfig.update('lint.run', 'whenever', vscode.ConfigurationTarget.Global);
+
+    try {
+      expect(ConfigurationManager.getConfiguration().lint.run).to.equal('onType');
+    } finally {
+      await vsConfig.update('lint.run', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   test('isEnabled should return boolean', () => {
     const enabled = ConfigurationManager.isEnabled();
     expect(enabled).to.be.a('boolean');
+  });
+
+  test('language server runs only when enabled and the workspace is trusted', () => {
+    expect(shouldRunLanguageServer(true, true)).to.be.true;
+    expect(shouldRunLanguageServer(false, true)).to.be.false;
+    expect(shouldRunLanguageServer(true, false)).to.be.false;
+    expect(shouldRunLanguageServer(false, false)).to.be.false;
   });
 
   test('getRumdlPath should return undefined when not configured', () => {

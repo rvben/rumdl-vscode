@@ -7,6 +7,9 @@ DIST_DIR := dist
 VSIX_TARGETS := win32-x64 darwin-x64 darwin-arm64 linux-x64 linux-arm64 alpine-x64 alpine-arm64
 # Extra args forwarded to vership (CI passes --skip-checks; check runs separately).
 VERSHIP_ARGS ?=
+# Overridable so the publish retry/aggregation logic can be exercised against a
+# stub instead of a real registry.
+NPX ?= npx
 
 .PHONY: help
 help:
@@ -116,15 +119,62 @@ package-all:
 # ---------------------------------------------------------------------------
 # Publishing
 # ---------------------------------------------------------------------------
+# Publishing every VSIX through a single registry invocation makes one transient
+# error fatal for the platforms that call had not reached yet: v0.0.299 published
+# alpine-arm64, alpine-x64 and darwin-arm64, then hit a request timeout on
+# darwin-x64 and abandoned the remaining platforms, leaving the release published
+# for some platforms and missing for others.
+#
+# Publish each package on its own so a failure is contained, retry it, and carry
+# on to the rest either way. The step still fails when anything did not land, and
+# names every platform that did not, so a partial publish is visible instead of
+# being implied by whichever package happened to come first.
+#
+# --skip-duplicate makes re-running the job the correct recovery from a partial
+# publish: each registry decides for itself whether the version is already there
+# and skips only that package. Whether a package landed stays a fact the registry
+# reports, so a re-run converges without any failure being written off as a
+# duplicate.
+PUBLISH_RETRIES := 3
+PUBLISH_RETRY_DELAY := 15
+
+# $(1) human-readable registry name, $(2) shell command taking "$$vsix"
+define publish_each
+	@set -u; \
+	pkgs="$$(echo $(DIST_DIR)/*.vsix)"; \
+	case "$$pkgs" in *'*'*) echo "no VSIX packages in $(DIST_DIR)/" >&2; exit 1;; esac; \
+	failed=""; published=0; \
+	for vsix in $$pkgs; do \
+	  ok=0; \
+	  attempt=1; \
+	  while [ "$$attempt" -le $(PUBLISH_RETRIES) ]; do \
+	    echo "==> $(1): publishing $$(basename $$vsix) (attempt $$attempt/$(PUBLISH_RETRIES))"; \
+	    if $(2); then ok=1; break; fi; \
+	    if [ "$$attempt" -lt $(PUBLISH_RETRIES) ]; then \
+	      echo "    failed; retrying in $(PUBLISH_RETRY_DELAY)s" >&2; \
+	      sleep $(PUBLISH_RETRY_DELAY); \
+	    fi; \
+	    attempt=$$((attempt + 1)); \
+	  done; \
+	  if [ "$$ok" = 1 ]; then published=$$((published + 1)); \
+	  else failed="$$failed $$(basename $$vsix)"; fi; \
+	done; \
+	if [ -n "$$failed" ]; then \
+	  echo "ERROR: $(1): published $$published package(s); FAILED:$$failed" >&2; \
+	  exit 1; \
+	fi; \
+	echo "$(1): published $$published package(s)."
+endef
+
 .PHONY: publish-marketplace
 publish-marketplace:
 	@test -n "$(VSCE_PAT)" || { echo "VSCE_PAT not set"; exit 1; }
-	npx @vscode/vsce publish --packagePath $(DIST_DIR)/*.vsix --pat $(VSCE_PAT)
+	$(call publish_each,VS Code Marketplace,$(NPX) @vscode/vsce publish --packagePath "$$vsix" --skip-duplicate --pat "$(VSCE_PAT)")
 
 .PHONY: publish-ovsx
 publish-ovsx:
 	@test -n "$(OVSX_TOKEN)" || { echo "OVSX_TOKEN not set"; exit 1; }
-	npx ovsx publish --packagePath $(DIST_DIR)/*.vsix -p $(OVSX_TOKEN)
+	$(call publish_each,Open VSX,$(NPX) ovsx publish --packagePath "$$vsix" --skip-duplicate -p "$(OVSX_TOKEN)")
 
 # Builds release notes from the latest CHANGELOG.md section + a static install block.
 .PHONY: github-release
@@ -161,6 +211,12 @@ verify:
 .PHONY: download-rumdl
 download-rumdl:
 	npm run download-rumdl
+
+# Only the binary for the machine running this. Enough for the test suite,
+# which drives rumdl locally; packaging still needs every platform.
+.PHONY: download-rumdl-current
+download-rumdl-current:
+	npm run download-rumdl-current
 
 .PHONY: status
 status:

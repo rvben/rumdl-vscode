@@ -14,6 +14,15 @@ suite('Activation events match supported languages', () => {
   const repoRoot = path.resolve(__dirname, '../../..');
   const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
     activationEvents: string[];
+    capabilities: {
+      untrustedWorkspaces: { supported: string; description: string };
+    };
+    contributes: {
+      menus: {
+        'editor/context': Array<{ command: string; when?: string }>;
+        commandPalette: Array<{ command: string; when?: string }>;
+      };
+    };
   };
 
   const onLanguageIds = packageJson.activationEvents
@@ -35,5 +44,32 @@ suite('Activation events match supported languages', () => {
         `package.json is missing "onLanguage:${languageId}" for PROMPT_FILE_LANGUAGE_IDS.${languageId}`
       );
     }
+  });
+
+  test('fix-all menus use the real setting context and every supported language', () => {
+    const fixAllMenus = [
+      ...packageJson.contributes.menus['editor/context'],
+      ...packageJson.contributes.menus.commandPalette,
+    ].filter(item => item.command === 'rumdl.fixAll');
+
+    assert.ok(fixAllMenus.length > 0, 'rumdl.fixAll must be exposed in VS Code menus');
+    for (const item of fixAllMenus) {
+      const when = item.when ?? '';
+      assert.match(when, /config\.rumdl\.enable/, 'menu must follow the rumdl.enable setting');
+      assert.doesNotMatch(when, /rumdl\.enabled/, 'menu must not use an unset context key');
+      assert.match(when, /isWorkspaceTrusted/, 'menu must be hidden in untrusted workspaces');
+      for (const languageId of ALL_SUPPORTED_LANGUAGE_IDS) {
+        assert.ok(
+          when.includes(languageId),
+          `menu condition is missing language ID '${languageId}'`
+        );
+      }
+    }
+  });
+
+  test('untrusted-workspace declaration accurately promises disabled linting', () => {
+    const trust = packageJson.capabilities.untrustedWorkspaces;
+    assert.strictEqual(trust.supported, 'limited');
+    assert.match(trust.description, /diagnostics are disabled/i);
   });
 });

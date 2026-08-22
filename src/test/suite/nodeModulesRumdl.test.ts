@@ -317,7 +317,7 @@ suite('NodeModules Rumdl Detection Tests', () => {
     expect(result).to.equal(fakeBundled);
   });
 
-  test('untrusted workspace falls back to "rumdl" string when no bundled binary exists', async () => {
+  test('untrusted workspace never falls back to a PATH executable', async () => {
     sandbox.stub(vscode.workspace, 'isTrusted').get(() => false);
     sandbox
       .stub(vscode.workspace, 'workspaceFolders')
@@ -330,7 +330,7 @@ suite('NodeModules Rumdl Detection Tests', () => {
 
     const result = await BundledToolsManager.getBestRumdlPath(undefined);
 
-    expect(result).to.equal('rumdl');
+    expect(result).to.equal('');
   });
 
   // -------------------------------------------------------------------------

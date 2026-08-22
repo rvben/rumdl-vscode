@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import * as TOML from '@iarna/toml';
-import { GLOBAL_PROPERTIES, RULE_SCHEMAS, RULE_NAMES, RULE_ALIASES } from './configSchema';
+import { parse as parseToml, TomlError } from 'smol-toml';
+import { GLOBAL_PROPERTIES, RULE_NAMES, RULE_ALIASES } from './configSchema';
 
 // The rumdl schema declares [global] keys in kebab-case (the canonical form
 // surfaced in docs and accepted by the CLI). The CLI's serde layer also
@@ -48,24 +48,36 @@ export class ConfigValidator {
     // First, validate TOML syntax using proper parser
     let parsed: Record<string, unknown>;
     try {
-      parsed = TOML.parse(content) as Record<string, unknown>;
+      parsed = parseToml(content) as Record<string, unknown>;
     } catch (error) {
-      // TOML parsing failed - report syntax error
+      // TOML parsing failed - anchor the diagnostic at the position the parser
+      // reports so it lands on the offending line rather than the top of the file.
       let line = 0;
+      let column = 0;
       let message = 'Invalid TOML syntax';
 
-      if (error instanceof Error) {
+      if (error instanceof TomlError) {
+        // TomlError line/column are 1-based; ValidationError is 0-based.
+        line = Math.max(0, error.line - 1);
+        column = Math.max(0, error.column - 1);
+        // error.message appends a rendered code block after the first line;
+        // only the leading reason belongs in a diagnostic.
+        message = error.message.split('\n')[0];
+      } else if (error instanceof Error) {
         message = error.message;
-        // Try to extract line number from error message if available
-        const lineMatch = error.message.match(/line (\d+)/i);
-        if (lineMatch) {
-          line = parseInt(lineMatch[1], 10) - 1; // Convert to 0-indexed
-        }
+      }
+
+      // A position past the end of the document (e.g. unexpected EOF) would
+      // produce an out-of-range diagnostic; clamp it to the last line.
+      const lastLine = Math.max(0, content.split('\n').length - 1);
+      if (line > lastLine) {
+        line = lastLine;
+        column = 0;
       }
 
       errors.push({
         line,
-        column: 0,
+        column,
         message,
         severity: vscode.DiagnosticSeverity.Error,
       });
@@ -97,8 +109,9 @@ export class ConfigValidator {
         continue;
       }
 
-      // Check for section headers
-      const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
+      // Check for section headers. A trailing comment after the closing
+      // bracket is legal TOML and must not stop the header being recognised.
+      const sectionMatch = trimmed.match(/^\[([^\]]+)\]\s*(?:#.*)?$/);
       if (sectionMatch) {
         const section = sectionMatch[1];
 
@@ -138,6 +151,16 @@ export class ConfigValidator {
             currentSection = 'global';
             currentRule = '';
             currentContainer = this.asObject(pyprojectRumdl?.['global']);
+          } else if (
+            subSection === 'code-block-tools' ||
+            subSection.startsWith('code-block-tools.')
+          ) {
+            // The schema for code-block-tools is nested and extensible. TOML
+            // syntax is still validated above; leave its semantic validation
+            // to rumdl rather than reporting false positives.
+            currentSection = 'code-block-tools';
+            currentRule = '';
+            currentContainer = undefined;
           } else {
             // Unknown tool.rumdl subsection
             currentSection = '';
@@ -148,8 +171,9 @@ export class ConfigValidator {
               column: 0,
               message:
                 `Unknown section '[${section}]'. Valid sections are: [tool.rumdl], ` +
-                `[tool.rumdl.per-file-ignores], [tool.rumdl.per-file-flavor], or ` +
-                `[tool.rumdl.MD###] (rule name or alias, e.g. [tool.rumdl.line-length])`,
+                `[tool.rumdl.per-file-ignores], [tool.rumdl.per-file-flavor], ` +
+                `[tool.rumdl.code-block-tools], or [tool.rumdl.MD###] ` +
+                `(rule name or alias, e.g. [tool.rumdl.line-length])`,
               severity: vscode.DiagnosticSeverity.Warning,
             });
           }
@@ -158,11 +182,6 @@ export class ConfigValidator {
           currentSection = 'global';
           currentRule = '';
           currentContainer = pyprojectRumdl;
-        } else if (section === 'rules') {
-          // Check for rules section
-          currentSection = 'rules';
-          currentRule = '';
-          currentContainer = this.asObject(parsed['rules']);
         } else if (section.startsWith('rules.')) {
           // Rule-specific section for .rumdl.toml
           const subName = section.substring(6);
@@ -190,10 +209,14 @@ export class ConfigValidator {
               severity: vscode.DiagnosticSeverity.Error,
             });
           }
-        } else if (section === 'files' || section === 'global') {
+        } else if (section === 'global') {
           currentSection = section;
           currentRule = '';
           currentContainer = this.asObject(parsed[section]);
+        } else if (section === 'code-block-tools' || section.startsWith('code-block-tools.')) {
+          currentSection = 'code-block-tools';
+          currentRule = '';
+          currentContainer = undefined;
         } else if (section === 'per-file-ignores') {
           // [per-file-ignores] section for .rumdl.toml
           currentSection = 'per-file-ignores';
@@ -221,9 +244,9 @@ export class ConfigValidator {
               line: lineNum,
               column: 0,
               message:
-                `Unknown section '[${section}]'. Valid sections are: [rules], [files], ` +
-                `[global], [per-file-ignores], [per-file-flavor], [MD###] (rule name or ` +
-                `alias), or [rules.MD###] (or [rules.<alias>])`,
+                `Unknown section '[${section}]'. Valid sections are: [global], ` +
+                `[per-file-ignores], [per-file-flavor], [code-block-tools], [MD###] ` +
+                `(rule name or alias), or [rules.MD###] (legacy rule-section form)`,
               severity: vscode.DiagnosticSeverity.Warning,
             });
           }
@@ -239,6 +262,19 @@ export class ConfigValidator {
         /^(?:"((?:[^"\\]|\\.)*)"|'([^']*)'|([a-zA-Z_][a-zA-Z0-9_-]*))\s*=/
       );
       if (!kvMatch) {
+        // A bracketed line that matched no header pattern above opens a section
+        // that isn't rumdl config: an array of tables ([[tool.mypy.overrides]],
+        // which rumdl never declares), or a header shape this scanner doesn't
+        // recognise. Either way it ends the previous section, so clear the state
+        // and let the keys that follow degrade to unvalidated rather than be
+        // attributed to whatever came before. Continuation lines of a multi-line
+        // value are excluded by requiring the line to both open and close its
+        // brackets.
+        if (/^\[.*\]\s*(?:#.*)?$/.test(trimmed)) {
+          currentSection = '';
+          currentRule = '';
+          currentContainer = undefined;
+        }
         // Not a key-value line, might be part of multiline value - skip
         continue;
       }
@@ -250,14 +286,17 @@ export class ConfigValidator {
 
       // Validate based on current section
       if (currentRule) {
-        // Validate rule-specific configuration
-        this.validateRuleConfigFromValue(currentRule, key, value, lineNum, errors);
-      } else if (currentSection === 'rules') {
-        // Validate rules section keys
-        this.validateRulesSectionFromValue(key, value, lineNum, errors);
-      } else if (currentSection === 'files') {
-        // Validate files section keys
-        this.validateFilesSectionFromValue(key, value, lineNum, errors);
+        // Inside a rule section ([MD013], [rules.MD013], [tool.rumdl.MD013]).
+        // rumdl's published schema models these as `additionalProperties: true`
+        // and declares no per-rule property list, so there is nothing here to
+        // validate against. The CLI does know the properties and reports
+        // unknown ones itself ("Unknown option for rule MD013: ..."), so leave
+        // these keys alone rather than guessing at them.
+        //
+        // `severity` is deliberately not checked either: the schema declares an
+        // enum for it, but the CLI accepts any string, and flagging a value the
+        // CLI accepts would be a false positive.
+        continue;
       } else if (currentSection === 'global') {
         // Validate global section keys
         this.validateGlobalSectionFromValue(key, value, lineNum, errors);
@@ -371,107 +410,6 @@ export class ConfigValidator {
   }
 
   /**
-   * Validate rule-specific configuration from parsed value
-   */
-  private static validateRuleConfigFromValue(
-    ruleName: string,
-    key: string,
-    value: unknown,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const schema = RULE_SCHEMAS[ruleName] as { properties?: Record<string, unknown> };
-    if (!schema || !schema.properties) {
-      return;
-    }
-
-    const propSchema = schema.properties[key];
-    if (!propSchema) {
-      // Unknown property for this rule
-      const validProps = Object.keys(schema.properties);
-      const message =
-        validProps.length > 0
-          ? `Unknown property '${key}' for rule ${ruleName}. Valid properties: ${validProps.join(', ')}`
-          : `Rule ${ruleName} does not support configuration properties`;
-
-      errors.push({
-        line,
-        column: 0,
-        message,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Validate value type from parsed structure
-    this.validateParsedValue(key, value, propSchema, line, errors);
-  }
-
-  /**
-   * Validate rules section properties from parsed value
-   */
-  private static validateRulesSectionFromValue(
-    key: string,
-    value: unknown,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const validKeys = ['select', 'ignore'];
-
-    if (!validKeys.includes(key)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Unknown property '${key}' in [rules] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Both should be arrays
-    if (!Array.isArray(value)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Property '${key}' must be an array of rule names`,
-        severity: vscode.DiagnosticSeverity.Error,
-      });
-    }
-  }
-
-  /**
-   * Validate files section properties from parsed value
-   */
-  private static validateFilesSectionFromValue(
-    key: string,
-    value: unknown,
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    const validKeys = ['include', 'exclude'];
-
-    if (!validKeys.includes(key)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Unknown property '${key}' in [files] section. Valid properties: ${validKeys.join(', ')}`,
-        severity: vscode.DiagnosticSeverity.Warning,
-      });
-      return;
-    }
-
-    // Both should be arrays
-    if (!Array.isArray(value)) {
-      errors.push({
-        line,
-        column: 0,
-        message: `Property '${key}' must be an array of glob patterns`,
-        severity: vscode.DiagnosticSeverity.Error,
-      });
-    }
-  }
-
-  /**
    * Validate a [global] section property. Accepts both the canonical kebab-case
    * form declared by the schema and the snake_case alias accepted by the CLI;
    * downstream type checks key on the canonical kebab form.
@@ -543,8 +481,6 @@ export class ConfigValidator {
 
       case 'enable':
       case 'disable':
-      case 'exclude':
-      case 'include':
       case 'fixable':
       case 'unfixable':
       case 'extend-enable':
@@ -554,6 +490,36 @@ export class ConfigValidator {
             line,
             column: 0,
             message: `Property '${key}' must be an array`,
+            severity: vscode.DiagnosticSeverity.Error,
+          });
+        } else {
+          for (const ruleName of value) {
+            if (typeof ruleName !== 'string') {
+              errors.push({
+                line,
+                column: 0,
+                message: `Rule names in '${key}' must be strings`,
+                severity: vscode.DiagnosticSeverity.Error,
+              });
+            } else if (!this.resolveRuleName(ruleName)) {
+              errors.push({
+                line,
+                column: 0,
+                message: `Unknown rule '${ruleName}' in '${key}'`,
+                severity: vscode.DiagnosticSeverity.Warning,
+              });
+            }
+          }
+        }
+        break;
+
+      case 'exclude':
+      case 'include':
+        if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) {
+          errors.push({
+            line,
+            column: 0,
+            message: `Property '${key}' must be an array of file patterns`,
             severity: vscode.DiagnosticSeverity.Error,
           });
         }
@@ -621,88 +587,6 @@ export class ConfigValidator {
         message: `Value for pattern '${key}' must be a flavor string`,
         severity: vscode.DiagnosticSeverity.Error,
       });
-    }
-  }
-
-  /**
-   * Validate a parsed value against a schema
-   */
-  private static validateParsedValue(
-    key: string,
-    value: unknown,
-    schema: { type?: string; minimum?: number; maximum?: number; enum?: string[] },
-    line: number,
-    errors: ValidationError[]
-  ): void {
-    switch (schema.type) {
-      case 'number': {
-        if (typeof value !== 'number') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be a number`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-          return;
-        }
-        if (schema.minimum !== undefined && value < schema.minimum) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be at least ${schema.minimum}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        if (schema.maximum !== undefined && value > schema.maximum) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be at most ${schema.maximum}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-      }
-
-      case 'boolean':
-        if (typeof value !== 'boolean') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be true or false`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-
-      case 'string':
-        if (typeof value !== 'string') {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be a string`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        } else if (schema.enum && !schema.enum.includes(value)) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be one of: ${schema.enum.map((v: string) => `"${v}"`).join(', ')}`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
-
-      case 'array':
-        if (!Array.isArray(value)) {
-          errors.push({
-            line,
-            column: 0,
-            message: `Property '${key}' must be an array`,
-            severity: vscode.DiagnosticSeverity.Error,
-          });
-        }
-        break;
     }
   }
 

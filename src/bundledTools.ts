@@ -415,7 +415,10 @@ export class BundledToolsManager {
         return bundledPath;
       }
       Logger.warn('Untrusted workspace and no bundled binary available');
-      return 'rumdl';
+      // Never fall through to PATH in an untrusted workspace. The empty value
+      // is intentionally non-runnable and is rejected by the client's install
+      // check if a caller bypasses the extension-level trust gate.
+      return '';
     }
 
     // 1. Explicit path setting (user always wins). A blank or whitespace-only

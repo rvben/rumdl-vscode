@@ -21,6 +21,7 @@ const VALID_GLOBAL_VALUES: Record<string, string> = {
   cache: 'true',
   'extend-enable': '["MD001"]',
   'extend-disable': '["MD001"]',
+  editorconfig: 'true',
 };
 
 function toSnake(key: string): string {
@@ -29,12 +30,12 @@ function toSnake(key: string): string {
 
 suite('ConfigValidator Tests', () => {
   test('validateToml should validate valid configuration', () => {
-    const validToml = `[rules]
-select = ["MD001", "MD002"]
-ignore = ["MD003"]
+    const validToml = `[global]
+enable = ["MD001", "MD003"]
+disable = ["MD004"]
 
-[rules.MD013]
-line_length = 80`;
+[MD013]
+line-length = 80`;
 
     const result = ConfigValidator.validateToml(validToml);
 
@@ -53,8 +54,8 @@ select = ["MD001"`;
   });
 
   test('validateToml should validate rule names', () => {
-    const tomlWithBadRule = `[rules]
-select = ["MD999", "INVALID"]`;
+    const tomlWithBadRule = `[global]
+enable = ["MD999", "INVALID"]`;
 
     const result = ConfigValidator.validateToml(tomlWithBadRule);
 
@@ -83,16 +84,17 @@ select = ["MD001"]`;
     expect(result.errors).to.be.an('array');
   });
 
-  test('validateToml should validate files section', () => {
+  test('validateToml should reject the obsolete files section', () => {
     const tomlWithFiles = `[files]
 include = ["**/*.md"]
 exclude = ["**/node_modules/**"]`;
 
     const result = ConfigValidator.validateToml(tomlWithFiles);
 
-    // Just check it doesn't crash
-    expect(result).to.exist;
-    expect(result.errors).to.be.an('array');
+    expect(result.valid).to.be.false;
+    expect(result.errors.map(error => error.message).join('; ')).to.include(
+      "Unknown section '[files]'"
+    );
   });
 
   test('validateToml should handle empty configuration', () => {
@@ -185,9 +187,9 @@ exclude = [
     expect(result.errors[0].message).to.exist;
   });
 
-  test('validateToml should handle multiline arrays in [rules] section', () => {
-    const tomlWithRulesMultiline = `[rules]
-select = [
+  test('validateToml should handle multiline rule arrays in [global]', () => {
+    const tomlWithRulesMultiline = `[global]
+enable = [
     "MD001",
     "MD003",
     "MD004"
@@ -197,6 +199,18 @@ select = [
 
     expect(result.valid).to.be.true;
     expect(result.errors).to.be.empty;
+  });
+
+  test('validateToml rejects obsolete [rules] select/ignore configuration', () => {
+    const result = ConfigValidator.validateToml(`[rules]
+select = ["MD001"]
+ignore = ["MD013"]
+`);
+
+    expect(result.valid).to.be.false;
+    expect(result.errors.map(error => error.message).join('; ')).to.include(
+      "Unknown section '[rules]'"
+    );
   });
 
   test('validateToml should validate the actual default config from rumdl init', () => {
@@ -638,5 +652,170 @@ foo = true
     expect(result.valid).to.be.false;
     const unknownRule = result.errors.filter(e => /Unknown rule/.test(e.message));
     expect(unknownRule).to.have.lengthOf(1);
+  });
+
+  suite('TOML 1.0 syntax', () => {
+    test('accepts a PEP 735 dependency group with a heterogeneous inline array', () => {
+      // ["pytest", { include-group = "..." }] mixes types in one array, which
+      // is legal in TOML 1.0.0 and rejected by a TOML 0.5 parser.
+      const config = `[project]
+name = "example"
+
+[dependency-groups]
+test = ["pytest", { include-group = "runtime" }]
+runtime = ["requests"]
+
+[tool.rumdl]
+line-length = 100
+`;
+
+      const result = ConfigValidator.validateToml(config, true);
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+      expect(result.valid).to.be.true;
+    });
+
+    test('still rejects an unclosed section header', () => {
+      const result = ConfigValidator.validateToml('[global\ncache = true\n');
+
+      expect(result.valid).to.be.false;
+      expect(result.errors).to.have.length.greaterThan(0);
+    });
+
+    test('still rejects a duplicate key', () => {
+      const result = ConfigValidator.validateToml('[global]\ncache = true\ncache = false\n');
+
+      expect(result.valid).to.be.false;
+      expect(result.errors).to.have.length.greaterThan(0);
+    });
+
+    test('anchors a syntax error on the offending line, not the top of the file', () => {
+      // Every case puts the fault on the third line (0-based line 2) so a
+      // regression to the old always-report-line-0 behaviour fails here.
+      const cases: Array<[string, string]> = [
+        ['duplicate key', '[global]\nline-length = 80\nline-length = 90\n'],
+        ['bare word value', '[global]\ncache = true\nrespect-gitignore = tru\n'],
+        ['unterminated string', '# comment\n[global]\ncache = "yes\n'],
+      ];
+
+      for (const [name, config] of cases) {
+        const result = ConfigValidator.validateToml(config);
+
+        expect(result.errors, `${name}: expected an error`).to.have.length.greaterThan(0);
+        expect(result.errors[0].line, `${name}: wrong line`).to.equal(2);
+      }
+    });
+
+    test('a syntax error always reports a position inside the document', () => {
+      // An end-of-input error points at where the parser ran out, which is at
+      // or past the end of the content. A diagnostic outside the document does
+      // not render, so the reported line must stay in range for every input.
+      const truncated = [
+        '[global]\ncache = [1, 2',
+        '[global]\ncache = { a = 1',
+        '[global]\ncache =',
+        '[global]\ncache = """abc',
+        '[global]\ncache = [\n  1,\n  2,\n',
+      ];
+
+      for (const config of truncated) {
+        const result = ConfigValidator.validateToml(config);
+        const lastLine = config.split('\n').length - 1;
+
+        expect(result.errors, `no error for ${JSON.stringify(config)}`).to.have.length.greaterThan(
+          0
+        );
+        expect(result.errors[0].line, `line out of range for ${JSON.stringify(config)}`)
+          .to.be.at.least(0)
+          .and.at.most(lastLine);
+      }
+    });
+  });
+
+  suite('Section header edge cases', () => {
+    // A commented header must still be recognised as ending the previous
+    // section, so these all carry a preceding [global]: an unrecognised header
+    // leaves `reflow` attributed to [global] and reported as unknown.
+    const AFTER_GLOBAL = '[global]\nline-length = 100\n\n';
+
+    test('accepts a trailing comment after a section header', () => {
+      const result = ConfigValidator.validateToml(
+        `${AFTER_GLOBAL}[MD013]  # Line length\nreflow = true\n`
+      );
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('accepts a trailing comment containing brackets', () => {
+      const result = ConfigValidator.validateToml(
+        `${AFTER_GLOBAL}[MD013] # see [docs] for more\nreflow = true\n`
+      );
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('accepts a trailing comment with no separating space', () => {
+      const result = ConfigValidator.validateToml(
+        `${AFTER_GLOBAL}[MD013]# Line length\nreflow = true\n`
+      );
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('a commented header is still recognised, so real errors are still reported', () => {
+      // The false-negative direction: suppressing every key after a commented
+      // header would also make this pass, so the fix must keep it failing.
+      const result = ConfigValidator.validateToml('[global] # settings\nnot_a_real_prop = 1\n');
+
+      expect(result.errors.map(e => e.message).join('; ')).to.match(/not_a_real_prop/);
+    });
+
+    test('accepts an array-of-tables section in pyproject.toml', () => {
+      const config = `[tool.rumdl]
+line-length = 100
+
+[[tool.mypy.overrides]]
+module = "foo.*"
+ignore_missing_imports = true
+`;
+
+      const result = ConfigValidator.validateToml(config, true);
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('an array-of-tables header ends the preceding rumdl section', () => {
+      // Without clearing the section state, `module` would be validated as a
+      // [tool.rumdl] global property and reported as unknown.
+      const config = `[tool.rumdl]
+line-length = 100
+
+[[tool.mypy.overrides]]
+module = "foo.*"
+`;
+
+      const result = ConfigValidator.validateToml(config, true);
+
+      expect(result.errors.map(e => e.message).join('; ')).to.not.match(/module/);
+    });
+  });
+
+  suite('Rule sections follow the CLI', () => {
+    test('an unrecognised option inside a rule section is not flagged', () => {
+      // rumdl's schema models rule sections as additionalProperties: true, so
+      // the editor has no property list to validate against. The CLI reports
+      // unknown rule options itself.
+      const result = ConfigValidator.validateToml('[MD013]\nwhatever = 1\n');
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
+
+    test('a severity value the CLI accepts is not flagged', () => {
+      // The schema declares an enum for `severity`, but the CLI accepts any
+      // string; enforcing the enum here would be a false positive.
+      const result = ConfigValidator.validateToml('[MD013]\nseverity = "critical"\n');
+
+      expect(result.errors, `errors: ${result.errors.map(e => e.message).join('; ')}`).to.be.empty;
+    });
   });
 });

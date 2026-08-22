@@ -17,9 +17,6 @@ suite('Format on Save Test', () => {
     const editorConfig = vscode.workspace.getConfiguration('editor');
     await editorConfig.update('formatOnSave', undefined, vscode.ConfigurationTarget.Workspace);
 
-    const rumdlConfig = vscode.workspace.getConfiguration('rumdl');
-    await rumdlConfig.update('server.path', undefined, vscode.ConfigurationTarget.Workspace);
-
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
@@ -32,13 +29,8 @@ suite('Format on Save Test', () => {
 
 Trailing spaces here   `;
 
-    // Use the local release build
-    const rumdlConfig = vscode.workspace.getConfiguration('rumdl');
-    await rumdlConfig.update(
-      'server.path',
-      '/Users/ruben/Projects/rumdl-repos/rumdl/target/release/rumdl',
-      vscode.ConfigurationTarget.Workspace
-    );
+    // Leave `rumdl.server.path` unset so the binary is resolved the way it is
+    // for users, which finds the bundled one.
 
     // Enable VSCode's formatOnSave
     const editorConfig = vscode.workspace.getConfiguration('editor');

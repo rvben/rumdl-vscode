@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-07-19T14:37:50.685Z
+ * Generated: 2026-08-20T20:29:49.504Z
  */
 
 export interface GlobalConfig {
@@ -10,9 +10,13 @@ export interface GlobalConfig {
   enable?: string[];
   /** Disabled rules */
   disable?: string[];
-  /** Files to exclude */
+  /** Files to exclude. Glob patterns, relative to the project root; a
+leading `~/` expands to the home directory and absolute paths are
+matched as written. */
   exclude?: string[];
-  /** Files to include */
+  /** Files to include. Glob patterns, relative to the project root; a
+leading `~/` expands to the home directory and absolute paths are
+matched as written. */
   include?: string[];
   /** Respect .gitignore files when scanning directories */
   'respect-gitignore'?: boolean;
@@ -34,7 +38,9 @@ This option is deprecated as of v0.0.156 and has no effect.
 Exclude patterns are now always respected, even for explicitly provided files.
 This prevents duplication between rumdl config and tool configs like pre-commit. */
   'force-exclude'?: boolean;
-  /** Directory to store cache files (default: .rumdl_cache)
+  /** Directory to store cache files (default: .rumdl_cache).
+A leading `~/` expands to the home directory; a relative path resolves
+against the project root.
 Can also be set via --cache-dir CLI flag or RUMDL_CACHE_DIR environment variable */
   'cache-dir'?: string | null;
   /** Whether caching is enabled (default: true)
@@ -44,9 +50,12 @@ Can also be disabled via --no-cache CLI flag */
   'extend-enable'?: string[];
   /** Additional rules to disable on top of the base set (additive) */
   'extend-disable'?: string[];
+  /** Whether to read settings from `.editorconfig` files (default: false).
+When enabled, the `.editorconfig` properties that map onto rumdl
+settings fill in anything no rumdl config sets, resolved per file so
+section globs and nested `.editorconfig` files apply as written. */
+  editorconfig?: boolean;
 }
-
-export const RULE_SCHEMAS: Record<string, any> = {};
 
 export const GLOBAL_PROPERTIES = [
   'enable',
@@ -64,6 +73,7 @@ export const GLOBAL_PROPERTIES = [
   'cache',
   'extend-enable',
   'extend-disable',
+  'editorconfig',
 ];
 
 export const RULE_NAMES = [
@@ -143,6 +153,12 @@ export const RULE_NAMES = [
   'MD080',
   'MD081',
   'MD082',
+  'MD083',
+  'MD084',
+  'MD085',
+  'MD086',
+  'MD087',
+  'MD088',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -168,8 +184,8 @@ export const RULE_ALIASES: Record<string, string> = {
   'blanks-around-headings': 'MD022',
   'heading-start-left': 'MD023',
   'no-duplicate-heading': 'MD024',
-  'single-h1': 'MD025',
   'single-title': 'MD025',
+  'single-h1': 'MD025',
   'no-trailing-punctuation': 'MD026',
   'no-multiple-space-blockquote': 'MD027',
   'no-blanks-blockquote': 'MD028',
@@ -185,8 +201,8 @@ export const RULE_ALIASES: Record<string, string> = {
   'no-space-in-code': 'MD038',
   'no-space-in-links': 'MD039',
   'fenced-code-language': 'MD040',
-  'first-line-h1': 'MD041',
   'first-line-heading': 'MD041',
+  'first-line-h1': 'MD041',
   'no-empty-links': 'MD042',
   'required-headings': 'MD043',
   'proper-names': 'MD044',
@@ -205,10 +221,11 @@ export const RULE_ALIASES: Record<string, string> = {
   'existing-relative-links': 'MD057',
   'blanks-around-tables': 'MD058',
   'descriptive-link-text': 'MD059',
-  'table-cell-alignment': 'MD060',
   'table-format': 'MD060',
+  'table-cell-alignment': 'MD060',
   'forbidden-terms': 'MD061',
   'link-destination-whitespace': 'MD062',
+  'no-space-in-link-destination': 'MD062',
   'heading-capitalization': 'MD063',
   'no-multiple-consecutive-spaces': 'MD064',
   'blanks-around-horizontal-rules': 'MD065',
@@ -229,4 +246,10 @@ export const RULE_ALIASES: Record<string, string> = {
   'heading-anchor-collision': 'MD080',
   'no-excessive-emphasis': 'MD081',
   'no-empty-sections': 'MD082',
+  mojibake: 'MD083',
+  'invisible-characters': 'MD084',
+  'paragraph-continuation-indent': 'MD085',
+  'no-unclosed-comments': 'MD086',
+  'unused-disable-comment': 'MD087',
+  'quotes-dashes': 'MD088',
 };
