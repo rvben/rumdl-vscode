@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/rvben/rumdl-vscode/compare/v0.1.0...v0.1.1) - 2026-08-22
+
+### Fixed
+
+- **extension**: align fix-all and configuration behavior ([29a1773](https://github.com/rvben/rumdl-vscode/commit/29a177335b7348ed093582e3ebcbca88cd555fa9))
+- **client**: harden server lifecycle and trust handling ([ce14986](https://github.com/rvben/rumdl-vscode/commit/ce149861d8c34b4548b510631006ad29055c38cc))
+
 ## [0.1.0](https://github.com/rvben/rumdl-vscode/compare/v0.0.307...v0.1.0) - 2026-08-22
 
 ### Fixed
