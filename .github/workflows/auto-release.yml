@@ -16,6 +16,15 @@ on:
         options:
           - extension-only
           - rumdl-update
+      version_bump:
+        description: 'Extension version bump'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       rumdl_version:
         description: 'rumdl version to bundle (without v prefix)'
         required: false
@@ -34,6 +43,7 @@ jobs:
       contents: write
     outputs:
       release_mode: ${{ steps.meta.outputs.release_mode }}
+      version_bump: ${{ steps.meta.outputs.version_bump }}
       rumdl_version: ${{ steps.meta.outputs.rumdl_version }}
       new_version: ${{ steps.bump.outputs.new_version }}
     steps:
@@ -61,9 +71,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             RELEASE_MODE="rumdl-update"
+            VERSION_BUMP="patch"
             VERSION="${{ github.event.client_payload.version }}"
           else
             RELEASE_MODE="${{ inputs.release_mode }}"
+            VERSION_BUMP="${{ inputs.version_bump }}"
             VERSION="${{ inputs.rumdl_version }}"
           fi
           if [ "$RELEASE_MODE" = "rumdl-update" ] && [ -z "$VERSION" ]; then
@@ -71,6 +83,7 @@ jobs:
             exit 1
           fi
           echo "release_mode=$RELEASE_MODE" >> "$GITHUB_OUTPUT"
+          echo "version_bump=$VERSION_BUMP" >> "$GITHUB_OUTPUT"
           echo "rumdl_version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Verify rumdl release exists
@@ -111,10 +124,15 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+          VERSION_BUMP="${{ steps.meta.outputs.version_bump }}"
+          case "$VERSION_BUMP" in
+            patch|minor|major) ;;
+            *) echo "::error::Unsupported version bump: $VERSION_BUMP"; exit 1 ;;
+          esac
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            make release-patch VERSHIP_ARGS="--skip-checks --dry-run"
+            make "release-$VERSION_BUMP" VERSHIP_ARGS="--skip-checks --dry-run"
           else
-            make release-patch VERSHIP_ARGS="--skip-checks"
+            make "release-$VERSION_BUMP" VERSHIP_ARGS="--skip-checks"
           fi
           echo "new_version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
@@ -213,5 +231,5 @@ jobs:
       - name: Summary
         run: |
           echo "Dry run complete for '${{ needs.prepare.outputs.release_mode }}' mode."
-          echo "Previewed the version bump and changelog via 'vership bump --dry-run'."
+          echo "Previewed the '${{ needs.prepare.outputs.version_bump }}' version bump and changelog via 'vership bump --dry-run'."
           echo "No commit, tag, build, or publish was performed."
