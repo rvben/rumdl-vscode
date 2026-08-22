@@ -17,6 +17,7 @@ import {
 import { StatusBarManager } from './statusBar';
 import { BundledToolsManager } from './bundledTools';
 import { DiagnosticLike, deduplicate } from './diagnosticDedup';
+import { DiagnosticPullGate } from './diagnosticPullGate';
 
 /**
  * LSP initialization options sent to the rumdl server.
@@ -88,6 +89,8 @@ export class RumdlLanguageClient implements vscode.Disposable {
   private maxRestarts = 5;
   private isDisposed = false;
   private isManualRestart = false; // Flag to prevent automatic restart during manual restart
+  private diagnosticPullGate: DiagnosticPullGate | undefined;
+  private diagnosticCacheCloseWatcher: vscode.Disposable | undefined;
 
   constructor(statusBar: StatusBarManager) {
     this.statusBar = statusBar;
@@ -158,6 +161,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
       };
 
       const initializationOptions = buildInitializationOptions(config);
+      this.prepareDiagnosticPullGate(config);
 
       const clientOptions: LanguageClientOptions = {
         documentSelector: ALL_SUPPORTED_LANGUAGE_IDS.flatMap(language => [
@@ -194,11 +198,25 @@ export class RumdlLanguageClient implements vscode.Disposable {
             next(uri, this.dedupeDiagnostics(diagnostics, `push ${uri}`));
           },
           provideDiagnostics: async (document, previousResultId, token, next) => {
+            const uri = document instanceof vscode.Uri ? document : document.uri;
+            const heldReport = this.diagnosticPullGate?.heldReport(
+              uri.toString(),
+              this.isDirty(document)
+            );
+            if (heldReport) {
+              Logger.debug(`Holding saved diagnostics for dirty document ${uri}`);
+              return heldReport;
+            }
+
             const report = await next(document, previousResultId, token);
             if (report && 'items' in report) {
-              const uri = document instanceof vscode.Uri ? document : document.uri;
               Logger.debug(`Pulled diagnostics for ${uri}: ${report.items.length} issues`);
-              return { ...report, items: this.dedupeDiagnostics(report.items, `pull ${uri}`) };
+              const acceptedReport = {
+                ...report,
+                items: this.dedupeDiagnostics(report.items, `pull ${uri}`),
+              };
+              this.diagnosticPullGate?.remember(uri.toString(), acceptedReport);
+              return acceptedReport;
             }
             return report;
           },
@@ -238,6 +256,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
       await this.client.start();
       Logger.info('rumdl language server started successfully');
     } catch (error) {
+      this.clearDiagnosticPullGate();
       Logger.error('Failed to start rumdl language server', error as Error);
       this.statusBar.setError('Failed to start');
       throw error;
@@ -301,6 +320,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
   public async stop(): Promise<void> {
     if (!this.client) {
+      this.clearDiagnosticPullGate();
       return;
     }
 
@@ -321,6 +341,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
     } catch (error) {
       Logger.error('Error stopping client', error as Error);
     } finally {
+      this.clearDiagnosticPullGate();
       if (!this.isDisposed) {
         this.statusBar.setDisconnected();
       }
@@ -344,6 +365,41 @@ export class RumdlLanguageClient implements vscode.Disposable {
       command,
       arguments: args,
     });
+  }
+
+  /**
+   * Create a cache scoped to one language-client lifetime. Closing a document
+   * or restarting the server must discard its report so a later open cannot
+   * inherit diagnostics from an unrelated document instance.
+   */
+  private prepareDiagnosticPullGate(config: RumdlConfig): void {
+    this.clearDiagnosticPullGate();
+    const holdWhileDirty = config.lint.run === 'onSave';
+    this.diagnosticPullGate = new DiagnosticPullGate(holdWhileDirty);
+    if (holdWhileDirty) {
+      this.diagnosticCacheCloseWatcher = vscode.workspace.onDidCloseTextDocument(document => {
+        this.diagnosticPullGate?.forget(document.uri.toString());
+      });
+    }
+  }
+
+  private clearDiagnosticPullGate(): void {
+    this.diagnosticCacheCloseWatcher?.dispose();
+    this.diagnosticCacheCloseWatcher = undefined;
+    this.diagnosticPullGate?.clear();
+    this.diagnosticPullGate = undefined;
+  }
+
+  private isDirty(document: vscode.TextDocument | vscode.Uri): boolean {
+    if (!(document instanceof vscode.Uri)) {
+      return document.isDirty;
+    }
+
+    return (
+      vscode.workspace.textDocuments.find(
+        candidate => candidate.uri.toString() === document.toString()
+      )?.isDirty ?? false
+    );
   }
 
   /**
@@ -374,6 +430,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.clearDiagnosticPullGate();
     if (this.client) {
       this.client.stop();
       this.client = undefined;
