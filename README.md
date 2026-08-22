@@ -162,23 +162,21 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 Create a `.rumdl.toml` file in your project root for project-specific settings:
 
 ```toml
-# Enable/disable specific rules
-[rules]
-select = ["MD001", "MD003", "MD022"]
-ignore = ["MD013", "MD033"]
+# Global rule and file selection
+[global]
+enable = ["MD001", "MD003", "MD022"]
+disable = ["MD013", "MD033"]
+include = ["**/*.md", "**/*.markdown"]
+exclude = ["node_modules", "target"]
+respect-gitignore = true
 
 # Rule-specific configuration
-[rules.MD013]
-line_length = 120
-code_blocks = false
+[MD013]
+line-length = 120
+code-blocks = false
 
-[rules.MD003]
+[MD003]
 style = "atx"
-
-# File patterns to include/exclude
-[files]
-include = ["**/*.md", "**/*.markdown"]
-exclude = ["node_modules/**", "target/**"]
 ```
 
 ## Supported File Types

@@ -211,7 +211,7 @@
     "menus": {
       "editor/context": [
         {
-          "when": "(resourceExtname == .md || resourceExtname == .mdx) && rumdl.enabled",
+          "when": "editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted",
           "command": "rumdl.fixAll",
           "group": "1_modification@1"
         }
@@ -219,10 +219,11 @@
       "commandPalette": [
         {
           "command": "rumdl.fixAll",
-          "when": "resourceExtname == .md || resourceExtname == .mdx"
+          "when": "editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted"
         },
         {
-          "command": "rumdl.fixAllWorkspace"
+          "command": "rumdl.fixAllWorkspace",
+          "when": "config.rumdl.enable && isWorkspaceTrusted"
         }
       ]
     },
@@ -231,12 +232,13 @@
         "command": "rumdl.fixAll",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx)$/"
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted"
       },
       {
         "command": "rumdl.fixAllWorkspace",
         "key": "ctrl+shift+alt+r",
-        "mac": "cmd+shift+alt+r"
+        "mac": "cmd+shift+alt+r",
+        "when": "config.rumdl.enable && isWorkspaceTrusted"
       },
       {
         "command": "rumdl.openConfigFile",

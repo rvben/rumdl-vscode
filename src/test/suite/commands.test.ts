@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { expect } from '../helper';
 import { activateExtension, openDocument, sleep, closeAllEditors } from '../helper';
+import { findRumdlFixAllAction, RUMDL_FIX_ALL_KIND } from '../../commands';
 
 suite('Commands Tests', () => {
   suiteSetup(async () => {
@@ -14,37 +16,52 @@ suite('Commands Tests', () => {
     await closeAllEditors();
   });
 
-  test.skip('fixAll command should fix issues in active editor', async () => {
-    // Skip: The fixAll command requires code actions from the language server
-    // which may not be available in the test environment
-    const doc = await openDocument('diagnostics.md');
-    await vscode.window.showTextDocument(doc);
+  test('selects only the namespaced rumdl fix-all action', () => {
+    const generic = new vscode.CodeAction('Generic fix all', vscode.CodeActionKind.SourceFixAll);
+    const rumdl = new vscode.CodeAction('Fix all rumdl issues', RUMDL_FIX_ALL_KIND);
 
-    // Get original content
-    const originalContent = doc.getText();
-    expect(originalContent).to.include('   '); // trailing spaces
+    expect(findRumdlFixAllAction([generic, rumdl])).to.equal(rumdl);
+    expect(findRumdlFixAllAction([generic])).to.be.undefined;
+  });
 
-    // Execute fixAll
-    await vscode.commands.executeCommand('rumdl.fixAll');
-    await sleep(1000);
+  test('fixAll command applies the server namespaced action', async function () {
+    this.timeout(20000);
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rumdl-fix-all-'));
+    const filePath = path.join(tempDir, 'fix-all.md');
+    fs.writeFileSync(filePath, '#Missing heading space   \n');
 
-    // Check that trailing spaces were removed
-    const newContent = doc.getText();
-    const lines = newContent.split('\n');
-    for (const line of lines) {
-      expect(line).to.not.match(/\s+$/);
+    try {
+      const doc = await vscode.workspace.openTextDocument(filePath);
+      await vscode.window.showTextDocument(doc);
+
+      let actionAvailable = false;
+      for (let attempt = 0; attempt < 30 && !actionAvailable; attempt++) {
+        const range = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          'vscode.executeCodeActionProvider',
+          doc.uri,
+          range,
+          RUMDL_FIX_ALL_KIND.value
+        );
+        actionAvailable = findRumdlFixAllAction(actions) !== undefined;
+        if (!actionAvailable) {
+          await sleep(100);
+        }
+      }
+
+      expect(actionAvailable, 'rumdl fix-all action should become available').to.be.true;
+      await vscode.commands.executeCommand('rumdl.fixAll');
+
+      expect(doc.getText()).to.equal('#Missing heading space\n');
+    } finally {
+      await closeAllEditors();
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  test('fixAllWorkspace command should process multiple files', async () => {
-    // This command shows progress and processes all markdown files
-    // Just verify it runs without error
-    try {
-      await vscode.commands.executeCommand('rumdl.fixAllWorkspace');
-      // Command executed successfully
-    } catch {
-      // May fail if no workspace is open, which is ok
-    }
+  test('fixAllWorkspace command is registered without mutating the test workspace', async () => {
+    const commands = await vscode.commands.getCommands();
+    expect(commands).to.include('rumdl.fixAllWorkspace');
   });
 
   test('showClientLogs command should show output channel', async () => {

@@ -1,6 +1,5 @@
-[rules]
-select = ["MD001", "MD009", "MD010", "MD013"]
-ignore = ["MD012"]
+[global]
+respect-gitignore = true
 
-[rules.MD013]
-line_length = 80
+[MD013]
+line-length = 80

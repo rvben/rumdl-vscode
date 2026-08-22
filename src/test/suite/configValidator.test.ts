@@ -30,12 +30,12 @@ function toSnake(key: string): string {
 
 suite('ConfigValidator Tests', () => {
   test('validateToml should validate valid configuration', () => {
-    const validToml = `[rules]
-select = ["MD001", "MD002"]
-ignore = ["MD003"]
+    const validToml = `[global]
+enable = ["MD001", "MD003"]
+disable = ["MD004"]
 
-[rules.MD013]
-line_length = 80`;
+[MD013]
+line-length = 80`;
 
     const result = ConfigValidator.validateToml(validToml);
 
@@ -54,8 +54,8 @@ select = ["MD001"`;
   });
 
   test('validateToml should validate rule names', () => {
-    const tomlWithBadRule = `[rules]
-select = ["MD999", "INVALID"]`;
+    const tomlWithBadRule = `[global]
+enable = ["MD999", "INVALID"]`;
 
     const result = ConfigValidator.validateToml(tomlWithBadRule);
 
@@ -84,16 +84,17 @@ select = ["MD001"]`;
     expect(result.errors).to.be.an('array');
   });
 
-  test('validateToml should validate files section', () => {
+  test('validateToml should reject the obsolete files section', () => {
     const tomlWithFiles = `[files]
 include = ["**/*.md"]
 exclude = ["**/node_modules/**"]`;
 
     const result = ConfigValidator.validateToml(tomlWithFiles);
 
-    // Just check it doesn't crash
-    expect(result).to.exist;
-    expect(result.errors).to.be.an('array');
+    expect(result.valid).to.be.false;
+    expect(result.errors.map(error => error.message).join('; ')).to.include(
+      "Unknown section '[files]'"
+    );
   });
 
   test('validateToml should handle empty configuration', () => {
@@ -186,9 +187,9 @@ exclude = [
     expect(result.errors[0].message).to.exist;
   });
 
-  test('validateToml should handle multiline arrays in [rules] section', () => {
-    const tomlWithRulesMultiline = `[rules]
-select = [
+  test('validateToml should handle multiline rule arrays in [global]', () => {
+    const tomlWithRulesMultiline = `[global]
+enable = [
     "MD001",
     "MD003",
     "MD004"
@@ -198,6 +199,18 @@ select = [
 
     expect(result.valid).to.be.true;
     expect(result.errors).to.be.empty;
+  });
+
+  test('validateToml rejects obsolete [rules] select/ignore configuration', () => {
+    const result = ConfigValidator.validateToml(`[rules]
+select = ["MD001"]
+ignore = ["MD013"]
+`);
+
+    expect(result.valid).to.be.false;
+    expect(result.errors.map(error => error.message).join('; ')).to.include(
+      "Unknown section '[rules]'"
+    );
   });
 
   test('validateToml should validate the actual default config from rumdl init', () => {
