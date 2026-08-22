@@ -2,7 +2,7 @@
   "name": "rumdl",
   "displayName": "rumdl - Markdown Linter",
   "description": "Fast Rust-based Markdown linter with real-time diagnostics and auto-fixes",
-  "version": "0.0.304",
+  "version": "0.1.0",
   "publisher": "rvben",
   "license": "MIT",
   "repository": {
@@ -126,6 +126,19 @@
           "default": false,
           "description": "Automatically fix all auto-fixable problems when saving a file. For more control, use editor.codeActionsOnSave with source.fixAll.rumdl instead."
         },
+        "rumdl.lint.run": {
+          "type": "string",
+          "enum": [
+            "onType",
+            "onSave"
+          ],
+          "enumDescriptions": [
+            "Re-lint as you type.",
+            "Re-lint only when the file is saved."
+          ],
+          "default": "onType",
+          "description": "When to re-run linting. Set to \"onSave\" to stop diagnostics from updating on every keystroke."
+        },
         "rumdl.configPath": {
           "type": "string",
           "description": "Path to rumdl configuration file"
@@ -198,7 +211,7 @@
     "menus": {
       "editor/context": [
         {
-          "when": "(resourceExtname == .md || resourceExtname == .mdx) && rumdl.enabled",
+          "when": "editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted",
           "command": "rumdl.fixAll",
           "group": "1_modification@1"
         }
@@ -206,10 +219,11 @@
       "commandPalette": [
         {
           "command": "rumdl.fixAll",
-          "when": "resourceExtname == .md || resourceExtname == .mdx"
+          "when": "editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted"
         },
         {
-          "command": "rumdl.fixAllWorkspace"
+          "command": "rumdl.fixAllWorkspace",
+          "when": "config.rumdl.enable && isWorkspaceTrusted"
         }
       ]
     },
@@ -218,12 +232,13 @@
         "command": "rumdl.fixAll",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx)$/"
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|mdx|prompt|instructions|chatagent|skill)$/ && config.rumdl.enable && isWorkspaceTrusted"
       },
       {
         "command": "rumdl.fixAllWorkspace",
         "key": "ctrl+shift+alt+r",
-        "mac": "cmd+shift+alt+r"
+        "mac": "cmd+shift+alt+r",
+        "when": "config.rumdl.enable && isWorkspaceTrusted"
       },
       {
         "command": "rumdl.openConfigFile",
@@ -248,10 +263,8 @@
     "fmt": "npm run format && npm run lint:fix",
     "test": "vscode-test",
     "test:nolint": "npm run compile-tests && npm run compile && vscode-test",
-    "test:unit": "npm run compile-tests && mocha ./out/test/suite/*.test.js",
-    "test:watch": "npm run compile-tests && mocha ./out/test/suite/*.test.js --watch",
+    "test:watch": "vscode-test --watch --watch-files \"out/**/*.js\"",
     "test:coverage": "nyc npm test",
-    "test:unit:coverage": "nyc npm run test:unit",
     "coverage:report": "nyc report --reporter=html && open coverage/index.html",
     "download-rumdl": "node scripts/download-rumdl.js",
     "download-rumdl-target": "node scripts/download-rumdl.js --target",
@@ -269,7 +282,6 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/chai": "^5.2.3",
     "@types/glob": "^9.0.0",
-    "@types/iarna__toml": "^2.0.5",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/sinon": "^22.0.0",
@@ -297,7 +309,7 @@
     "webpack-cli": "^7.2.2"
   },
   "dependencies": {
-    "@iarna/toml": "^2.2.5",
+    "smol-toml": "1.8.0",
     "vscode-languageclient": "^9.0.1",
     "which": "^7.0.0"
   },

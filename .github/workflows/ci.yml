@@ -32,3 +32,28 @@ jobs:
           # This catches version mismatches like @types/vscode > engines.vscode
           npx vsce ls > /dev/null
           echo "✅ Extension package validation passed"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The schema sync and end-to-end suites drive a real rumdl binary and skip
+      # themselves when none is bundled, so download it before running tests.
+      - name: Download bundled rumdl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make download-rumdl-current
+
+      # vscode-test launches a real VS Code, which needs a display on Linux.
+      - name: Run tests
+        run: xvfb-run -a make test

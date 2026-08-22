@@ -14,9 +14,6 @@ suite('Direct Formatting Test', () => {
   });
 
   teardown(async () => {
-    const config = vscode.workspace.getConfiguration('rumdl');
-    await config.update('server.path', undefined, vscode.ConfigurationTarget.Workspace);
-
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
@@ -29,13 +26,8 @@ suite('Direct Formatting Test', () => {
 
 Trailing spaces here   `;
 
-    // Use the local release build
-    const config = vscode.workspace.getConfiguration('rumdl');
-    await config.update(
-      'server.path',
-      '/Users/ruben/Projects/rumdl-repos/rumdl/target/release/rumdl',
-      vscode.ConfigurationTarget.Workspace
-    );
+    // Leave `rumdl.server.path` unset so the binary is resolved the way it is
+    // for users, which finds the bundled one.
 
     // Write and open document
     fs.writeFileSync(testFilePath, contentWithIssues);

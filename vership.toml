@@ -11,6 +11,11 @@ unconventional = "exclude"
 lint = true
 tests = false
 
+[verify]
+# The extension ships to the VS Code Marketplace and Open VSX, never to npm.
+# The npm package named `rumdl` is the CLI, on its own version line.
+skip = ["npm"]
+
 [hooks]
 # Keep package-lock.json's version field in sync with the bumped package.json so
 # `npm ci` stays happy. Runs after the version is written, before the commit.

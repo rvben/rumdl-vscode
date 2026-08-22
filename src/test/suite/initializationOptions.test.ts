@@ -23,6 +23,7 @@ function makeConfig(overrides: Partial<RumdlConfig> = {}): RumdlConfig {
   return {
     enable: true,
     fixOnSave: false,
+    lint: { run: 'onType' },
     configPath: undefined,
     rules: { enable: [], disable: [] },
     server: { path: undefined, logLevel: 'info' },
