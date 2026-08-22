@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0](https://github.com/rvben/rumdl-vscode/compare/v0.0.307...v0.1.0) - 2026-08-22
+
+### Fixed
+
+- **lint**: keep on-save diagnostics stable for linked documents ([7606d0e](https://github.com/rvben/rumdl-vscode/commit/7606d0e6dbc034aa7cfb5d36b2e09581b2152be7))
+
 ## [0.0.307](https://github.com/rvben/rumdl-vscode/compare/v0.0.306...v0.0.307) - 2026-08-21
 
 ### Added
