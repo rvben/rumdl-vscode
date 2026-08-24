@@ -1,36 +1,5 @@
 version: 2
 updates:
-  # Enable version updates for npm dependencies
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "rvben"
-    assignees:
-      - "rvben"
-    commit-message:
-      prefix: "npm"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "npm"
-    ignore:
-      # @types/vscode must match engines.vscode for vsce packaging.
-      # Updating it breaks compatibility with Cursor/VSCodium.
-      # Only update manually when new VS Code APIs are actually needed.
-      # See: https://github.com/rvben/rumdl/issues/326
-      - dependency-name: "@types/vscode"
-      # vscode-languageclient 10+ requires engines.vscode >= 1.91, which would
-      # force the minimum VS Code version up and break Cursor/VSCodium users.
-      # Stay on 9.x until a newer engine is actually required. Same rationale
-      # as @types/vscode above.
-      - dependency-name: "vscode-languageclient"
-        update-types: ["version-update:semver-major"]
-
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
