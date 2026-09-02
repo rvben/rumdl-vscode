@@ -1,134 +1,25 @@
-name: dependencies
+name: Dependency health
 
-# Weekly dependency refresh. `upd` rewrites the manifests, this job runs the
-# repo's own checks against the result, and the outcome is offered as a single
-# rolling pull request rather than pushed to main.
 on:
   schedule:
     - cron: "12 6 * * 1"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-
-concurrency:
-  group: dependencies
-  cancel-in-progress: false
-
-env:
-  # Pinned by digest as well as by version, so a replaced or re-tagged release
-  # fails the checksum instead of running an unreviewed binary against this
-  # repo. Bump both together.
-  UPD_VERSION: v0.9.2
-  UPD_SHA256: 3f15cf4ccf532501e40c648c9f971093685017b4d06221097e920bf4d3696b0c
-  UPD_BRANCH: deps/upd
+  contents: read
+  id-token: write
+  packages: read
+  pull-requests: read
 
 jobs:
   update:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Install upd
-        run: |
-          set -euo pipefail
-          curl -fsSL -o /tmp/upd.tar.gz \
-            "https://github.com/rvben/upd/releases/download/${UPD_VERSION}/upd-${UPD_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-          echo "${UPD_SHA256}  /tmp/upd.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/upd.tar.gz -C /tmp
-          sudo install -m 0755 /tmp/upd /usr/local/bin/upd
-          upd --version
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "20"
-
-      # The manifests are named as positional paths so the run stays off the
-      # workflow files: GITHUB_TOKEN may not push changes under
-      # .github/workflows, and a rewritten `uses:` ref would fail at the push
-      # with everything else already done. The leading `./` matters too, since a
-      # bare filename leaves upd with an empty parent directory for the lockfile
-      # refresh and the run dies on a misleading "cargo not found".
-      - name: Apply updates
-        id: upd
-        env:
-          # Unauthenticated GitHub API calls hit HTTP 429, which upd reports as
-          # errors rather than as up-to-date dependencies.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          upd update ./package.json --apply --lock --max-bump minor --min-age 7d \
-            --no-color -o text 2>&1 | tee /tmp/upd.txt
-
-          if git diff --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Reported rather than applied, for the same reason. Anything that must
-      # not move even by hand belongs in .updrc.toml, which records the reason
-      # beside each pin.
-      - name: Report action updates left for a human
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -uo pipefail
-          upd update . --dry-run --max-bump minor --min-age 7d --no-color \
-            -o text -l actions,pre-commit > /tmp/upd-actions.txt 2>&1 || true
-          {
-            echo "### Action and hook updates (not applied)"
-            echo '```'
-            cat /tmp/upd-actions.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # The checks run here rather than on the pull request because GitHub does
-      # not start `on: pull_request` workflows for a PR opened with
-      # GITHUB_TOKEN. Same targets the CI workflow gates merges on.
-      - name: Check
-        if: steps.upd.outputs.changed == 'true'
-        run: make check
-
-      - name: Open or update the pull request
-        if: steps.upd.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "${UPD_BRANCH}"
-          git add package.json package-lock.json
-          git commit -m "chore(deps): weekly dependency update"
-
-          # Force-pushed so the branch stays a single rolling proposal rather
-          # than accumulating a commit per week.
-          git push --force \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            "HEAD:refs/heads/${UPD_BRANCH}"
-
-          {
-            echo "Weekly \`upd\` run, capped at minor bumps with a 7 day cooldown."
-            echo
-            echo '```'
-            cat /tmp/upd.txt
-            echo '```'
-          } > /tmp/pr-body.md
-
-          if [ -z "$(gh pr list --head "${UPD_BRANCH}" --state open --json number -q '.[].number')" ]; then
-            gh pr create --base main --head "${UPD_BRANCH}" \
-              --title "chore(deps): weekly dependency update" \
-              --body-file /tmp/pr-body.md
-          else
-            gh pr edit "${UPD_BRANCH}" --body-file /tmp/pr-body.md
-          fi
-
-      - name: Nothing to update
-        if: steps.upd.outputs.changed != 'true'
-        run: echo "No dependency updates within policy." >> "$GITHUB_STEP_SUMMARY"
+    uses: rvben/upd/.github/workflows/dependency-health.yml@ecb605d32c4edc8dee4091aeb30b3d37ebdd290a # v0.10.0
+    with:
+      langs: node,actions
+      lock: true
+      min-age: 7d
+      max-bump: minor
+      validation-command: npm ci && make check
+      fail-on-blocked: false
+      branch: deps/upd
+      commit-message: "chore(deps): weekly dependency update"
