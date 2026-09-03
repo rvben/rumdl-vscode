@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-09-02T08:43:09.418Z
+ * Generated: 2026-09-03T08:44:04.114Z
  */
 
 export interface GlobalConfig {
@@ -159,6 +159,7 @@ export const RULE_NAMES = [
   'MD086',
   'MD087',
   'MD088',
+  'MD089',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -252,4 +253,5 @@ export const RULE_ALIASES: Record<string, string> = {
   'no-unclosed-comments': 'MD086',
   'unused-disable-comment': 'MD087',
   'quotes-dashes': 'MD088',
+  'cjk-spacing': 'MD089',
 };
