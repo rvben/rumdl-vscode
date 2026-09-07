@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.12](https://github.com/rvben/rumdl-vscode/compare/v0.1.11...v0.1.12) - 2026-09-07
+
+### Fixed
+
+- **deps**: resolve runtime and development security advisories ([3ac9095](https://github.com/rvben/rumdl-vscode/commit/3ac9095f1148247ebed5c223fb53d97c71dcce4c))
+
 ## [0.1.11](https://github.com/rvben/rumdl-vscode/compare/v0.1.10...v0.1.11) - 2026-09-07
 
 ## [0.1.10](https://github.com/rvben/rumdl-vscode/compare/v0.1.9...v0.1.10) - 2026-09-06
