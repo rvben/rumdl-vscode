@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.13](https://github.com/rvben/rumdl-vscode/compare/v0.1.12...v0.1.13) - 2026-09-08
+
+### Fixed
+
+- **packaging**: ship only runtime assets and user documentation ([948b11f](https://github.com/rvben/rumdl-vscode/commit/948b11fec0c67d383897e2d6e675c9c52ac64f87))
+
 ## [0.1.12](https://github.com/rvben/rumdl-vscode/compare/v0.1.11...v0.1.12) - 2026-09-07
 
 ### Fixed
