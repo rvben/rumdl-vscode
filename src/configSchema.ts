@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-09-10T19:32:26.211Z
+ * Generated: 2026-09-11T12:13:48.562Z
  */
 
 export interface GlobalConfig {
@@ -160,6 +160,7 @@ export const RULE_NAMES = [
   'MD087',
   'MD088',
   'MD089',
+  'MD090',
   'MD091',
 ];
 
@@ -255,5 +256,6 @@ export const RULE_ALIASES: Record<string, string> = {
   'unused-disable-comment': 'MD087',
   'quotes-dashes': 'MD088',
   'cjk-spacing': 'MD089',
+  'no-hr-before-heading': 'MD090',
   'no-markdown-in-html': 'MD091',
 };
