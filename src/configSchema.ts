@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-09-11T19:11:02.359Z
+ * Generated: 2026-09-18T16:37:53.567Z
  */
 
 export interface GlobalConfig {
@@ -162,6 +162,7 @@ export const RULE_NAMES = [
   'MD089',
   'MD090',
   'MD091',
+  'MD092',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -258,4 +259,5 @@ export const RULE_ALIASES: Record<string, string> = {
   'cjk-spacing': 'MD089',
   'no-hr-before-heading': 'MD090',
   'no-markdown-in-html': 'MD091',
+  'merge-conflict': 'MD092',
 };
