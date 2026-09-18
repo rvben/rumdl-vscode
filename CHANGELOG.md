@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.20](https://github.com/rvben/rumdl-vscode/compare/v0.1.19...v0.1.20) - 2026-09-18
+
+### Fixed
+
+- **deps**: drop redundant typescript-eslint sub-package deps ([1c69854](https://github.com/rvben/rumdl-vscode/commit/1c698541acc6453347b7120d2827360eee7ab2ee))
+
 ## [0.1.19](https://github.com/rvben/rumdl-vscode/compare/v0.1.18...v0.1.19) - 2026-09-11
 
 ## [0.1.18](https://github.com/rvben/rumdl-vscode/compare/v0.1.17...v0.1.18) - 2026-09-11
