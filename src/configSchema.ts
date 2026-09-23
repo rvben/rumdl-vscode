@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-09-20T20:11:13.674Z
+ * Generated: 2026-09-23T01:48:42.509Z
  */
 
 export interface GlobalConfig {
@@ -18,7 +18,9 @@ matched as written. */
 leading `~/` expands to the home directory and absolute paths are
 matched as written. */
   include?: string[];
-  /** Respect .gitignore files when scanning directories */
+  /** Respect .gitignore, .ignore and git exclude files when scanning
+directories. .markdownlintignore applies regardless, and explicitly
+named files bypass both. */
   'respect-gitignore'?: boolean;
   /** Global line length setting (used by MD013 and other rules if not overridden) */
   'line-length'?: string;
@@ -164,6 +166,7 @@ export const RULE_NAMES = [
   'MD091',
   'MD092',
   'MD093',
+  'MD094',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -262,4 +265,5 @@ export const RULE_ALIASES: Record<string, string> = {
   'no-markdown-in-html': 'MD091',
   'merge-conflict': 'MD092',
   'no-formatting-in-headings': 'MD093',
+  'invalid-encoding': 'MD094',
 };
