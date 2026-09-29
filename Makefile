@@ -177,12 +177,19 @@ publish-ovsx:
 	$(call publish_each,Open VSX,$(NPX) ovsx publish --packagePath "$$vsix" --skip-duplicate -p "$(OVSX_TOKEN)")
 
 # Builds release notes from the latest CHANGELOG.md section + a static install block.
+# Rerunnable like the registry targets: when an earlier attempt already created
+# the release, the packages are re-uploaded to it instead of failing.
 .PHONY: github-release
 github-release:
 	@mkdir -p $(DIST_DIR)
 	@awk '/^## \[/{n++; if (n==2) exit} n==1' CHANGELOG.md > $(DIST_DIR)/RELEASE_NOTES.md
 	@printf '\n## Installation\n\n- **VS Code**: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)\n- **Cursor/VSCodium**: [Open VSX Registry](https://open-vsx.org/extension/rvben/rumdl)\n- **Manual**: download the platform-specific .vsix below (~5 MB each, vs ~25 MB for a universal package)\n' >> $(DIST_DIR)/RELEASE_NOTES.md
-	gh release create v$(VERSION) $(DIST_DIR)/*.vsix --title v$(VERSION) --notes-file $(DIST_DIR)/RELEASE_NOTES.md
+	@if gh release view v$(VERSION) >/dev/null 2>&1; then \
+	  echo "Release v$(VERSION) already exists; uploading packages to it"; \
+	  gh release upload v$(VERSION) $(DIST_DIR)/*.vsix --clobber; \
+	else \
+	  gh release create v$(VERSION) $(DIST_DIR)/*.vsix --title v$(VERSION) --notes-file $(DIST_DIR)/RELEASE_NOTES.md; \
+	fi
 
 # ---------------------------------------------------------------------------
 # Local packaging / install
