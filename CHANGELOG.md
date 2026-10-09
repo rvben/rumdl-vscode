@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.26](https://github.com/rvben/rumdl-vscode/compare/v0.1.25...v0.1.26) - 2026-10-09
+
+### Fixed
+
+- **release**: let a rerun of the release job reuse an existing GitHub release ([8adc886](https://github.com/rvben/rumdl-vscode/commit/8adc886e28cf1af62546725bcb30d24da81d2a9e))
+
 ## [0.1.25](https://github.com/rvben/rumdl-vscode/compare/v0.1.24...v0.1.25) - 2026-09-29
 
 ## [0.1.24](https://github.com/rvben/rumdl-vscode/compare/v0.1.23...v0.1.24) - 2026-09-23
