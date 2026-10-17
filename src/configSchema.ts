@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-10-09T15:41:13.571Z
+ * Generated: 2026-10-17T07:37:48.287Z
  */
 
 export interface GlobalConfig {
@@ -232,6 +232,7 @@ export const RULE_ALIASES: Record<string, string> = {
   'descriptive-link-text': 'MD059',
   'table-format': 'MD060',
   'table-cell-alignment': 'MD060',
+  'table-column-style': 'MD060',
   'forbidden-terms': 'MD061',
   'link-destination-whitespace': 'MD062',
   'no-space-in-link-destination': 'MD062',
