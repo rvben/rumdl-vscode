@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.1.27](https://github.com/rvben/rumdl-vscode/compare/v0.1.26...v0.1.27) - 2026-10-17
+
 ## [0.1.26](https://github.com/rvben/rumdl-vscode/compare/v0.1.25...v0.1.26) - 2026-10-09
 
 ### Fixed
