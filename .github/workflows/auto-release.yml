@@ -4,6 +4,8 @@ name: Release Extension
 # Versioning, changelog, tag, and push are handled by vership (`make release-*`).
 
 on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
   repository_dispatch:
     types: [rumdl_release]
   workflow_dispatch:
@@ -49,6 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # Keep GITHUB_TOKEN: CI-created tags must not start a second release run.
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0 # vership needs full history + tags to build the changelog
 
@@ -60,7 +63,9 @@ jobs:
       # vership drives version bump + changelog + tag + push.
       # Swap for a prebuilt-binary install if one is available for faster CI.
       - uses: dtolnay/rust-toolchain@stable
+        if: github.event_name != 'push'
       - name: Install vership
+        if: github.event_name != 'push'
         run: cargo install vership --locked
 
       - name: Install dependencies
@@ -73,6 +78,10 @@ jobs:
             RELEASE_MODE="rumdl-update"
             VERSION_BUMP="patch"
             VERSION="${{ github.event.client_payload.version }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            RELEASE_MODE="prepared"
+            VERSION_BUMP=""
+            VERSION=""
           else
             RELEASE_MODE="${{ inputs.release_mode }}"
             VERSION_BUMP="${{ inputs.version_bump }}"
@@ -124,6 +133,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # A tag pushed by vership already names the prepared release commit.
+          # Validate it and publish it without preparing a second version.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            VERSION=$(node -p "require('./package.json').version")
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+              echo "::error::Release tag does not match package.json version"
+              exit 1
+            fi
+            echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           VERSION_BUMP="${{ steps.meta.outputs.version_bump }}"
@@ -159,7 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          ref: refs/tags/v${{ needs.prepare.outputs.new_version }}
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -175,18 +195,18 @@ jobs:
           path: dist/*.vsix
 
   # Phase 3: publish to both registries and create the GitHub release.
-  # ovsx + github-release use `always()` so an expired Marketplace token can't
-  # silently skip the other publish targets.
+  # Open VSX and GitHub still run after a Marketplace failure, but only with
+  # validated artifacts.
   publish:
     needs: [prepare, build]
-    if: ${{ !inputs.dry_run && !cancelled() && needs.prepare.result == 'success' }}
+    if: ${{ !inputs.dry_run && !cancelled() && needs.prepare.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          ref: refs/tags/v${{ needs.prepare.outputs.new_version }}
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -199,28 +219,26 @@ jobs:
           path: dist/
           merge-multiple: true
       - name: Validate VSIX artifacts
+        id: artifacts
         run: |
           COUNT=$(find dist/ -name '*.vsix' | wc -l | tr -d ' ')
           echo "Found $COUNT VSIX package(s):"
           ls -lh dist/ || true
-          if [ "$COUNT" -eq 0 ]; then
-            echo "::error::No VSIX artifacts — all builds failed"
+          if [ "$COUNT" -ne 7 ]; then
+            echo "::error::Expected all 7 platform packages before publishing"
             exit 1
-          fi
-          if [ "$COUNT" -lt 7 ]; then
-            echo "::warning::Only $COUNT/7 packages present (some builds failed); publishing the available ones"
           fi
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: make publish-marketplace
       - name: Publish to Open VSX
-        if: ${{ always() }}
+        if: ${{ !cancelled() && steps.artifacts.outcome == 'success' }}
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
         run: make publish-ovsx
       - name: Create GitHub release
-        if: ${{ always() }}
+        if: ${{ !cancelled() && steps.artifacts.outcome == 'success' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make github-release
