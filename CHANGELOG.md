@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.28](https://github.com/rvben/rumdl-vscode/compare/v0.1.27...v0.1.28) - 2026-10-20
+
+### Fixed
+
+- secure dependencies and publish the exact release commit ([b39575c](https://github.com/rvben/rumdl-vscode/commit/b39575cb06e46f0e49c6e211c551d19d97502318))
+
 ## [0.1.27](https://github.com/rvben/rumdl-vscode/compare/v0.1.26...v0.1.27) - 2026-10-17
 
 ## [0.1.26](https://github.com/rvben/rumdl-vscode/compare/v0.1.25...v0.1.26) - 2026-10-09
