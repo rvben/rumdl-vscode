@@ -2,7 +2,7 @@
  * Auto-generated from rumdl JSON schema
  * DO NOT EDIT MANUALLY - Run 'npm run sync-schema' to regenerate
  *
- * Generated: 2026-10-17T07:37:48.287Z
+ * Generated: 2026-10-27T21:03:37.186Z
  */
 
 export interface GlobalConfig {
@@ -168,6 +168,7 @@ export const RULE_NAMES = [
   'MD093',
   'MD094',
   'MD095',
+  'MD096',
 ];
 
 // Maps a rule's canonical kebab-case name or extra alias (lowercased) to its
@@ -269,4 +270,5 @@ export const RULE_ALIASES: Record<string, string> = {
   'no-formatting-in-headings': 'MD093',
   'invalid-encoding': 'MD094',
   'link-confusables': 'MD095',
+  'table-sort': 'MD096',
 };
