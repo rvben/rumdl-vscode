@@ -271,7 +271,7 @@
     "download-rumdl-current": "node scripts/download-rumdl.js --current-platform-only",
     "update-rumdl": "node scripts/download-rumdl.js --latest",
     "clean-rumdl": "rm -rf bundled-tools && mkdir -p bundled-tools",
-    "verify-rumdl": "node -e \"const fs = require('fs'); const path = require('path'); const version = JSON.parse(fs.readFileSync('bundled-tools/version.json', 'utf8')); console.log('✅ rumdl version:', version.version); console.log('📁 Binaries:', fs.readdirSync('bundled-tools').filter(f => f.startsWith('rumdl-')).length + ' platforms');\"",
+    "verify-rumdl": "node -e \"const fs = require('fs'); const path = require('path'); const version = JSON.parse(fs.readFileSync('bundled-tools/version.json', 'utf8')); console.log('\u2705 rumdl version:', version.version); console.log('\ud83d\udcc1 Binaries:', fs.readdirSync('bundled-tools').filter(f => f.startsWith('rumdl-')).length + ' platforms');\"",
     "sync-schema": "node scripts/sync-schema.js",
     "create-icon": "node scripts/create-icon.js",
     "resize-icon": "node scripts/resize-icon.js",
@@ -321,6 +321,9 @@
     },
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "^4.3.0"
+    },
+    "@azure/identity": {
+      "@azure/msal-node": "^7.1.2"
     }
   },
   "nyc": {
