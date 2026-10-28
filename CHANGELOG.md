@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.30](https://github.com/rvben/rumdl-vscode/compare/v0.1.29...v0.1.30) - 2026-10-28
+
+### Fixed
+
+- **deps**: use patched publishing and build dependencies ([961d64d](https://github.com/rvben/rumdl-vscode/commit/961d64dba4dd872f1cb7455ccf15834b5df04002))
+
 ## [0.1.29](https://github.com/rvben/rumdl-vscode/compare/v0.1.28...v0.1.29) - 2026-10-27
 
 ## [0.1.28](https://github.com/rvben/rumdl-vscode/compare/v0.1.27...v0.1.28) - 2026-10-20
