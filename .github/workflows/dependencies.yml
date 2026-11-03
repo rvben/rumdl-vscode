@@ -19,6 +19,8 @@ jobs:
       lock: true
       min-age: 7d
       max-bump: minor
+      # npm 10 can generate incomplete locks for the scoped security overrides.
+      prepare-command: npm install --global npm@11.19.1
       validation-command: npm ci && make check
       fail-on-blocked: false
       branch: deps/upd
