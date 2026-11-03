@@ -20,7 +20,10 @@ jobs:
       min-age: 7d
       max-bump: minor
       # npm 10 can generate incomplete locks for the scoped security overrides.
-      prepare-command: npm install --global npm@11.19.1
+      prepare-command: |
+        npm install --global --prefix "$RUNNER_TEMP/upd-npm" npm@11.19.1
+        printf '%s\n' "$RUNNER_TEMP/upd-npm/bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP/upd-npm/bin/npm" --version
       validation-command: npm ci && make check
       fail-on-blocked: false
       branch: deps/upd
