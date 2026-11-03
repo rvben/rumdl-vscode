@@ -1,0 +1,27 @@
+diff --git a/node_modules/vscode-languageclient/lib/common/fileOperations.js b/node_modules/vscode-languageclient/lib/common/fileOperations.js
+index 566dad4..0341a66 100644
+--- a/node_modules/vscode-languageclient/lib/common/fileOperations.js
++++ b/node_modules/vscode-languageclient/lib/common/fileOperations.js
+@@ -107,9 +107,6 @@ class FileOperationFeature {
+         }
+         const minimatchFilter = data.registerOptions.filters.map((filter) => {
+             const matcher = new minimatch.Minimatch(filter.pattern.glob, FileOperationFeature.asMinimatchOptions(filter.pattern.options));
+-            if (!matcher.makeRe()) {
+-                throw new Error(`Invalid pattern ${filter.pattern.glob}!`);
+-            }
+             return { scheme: filter.scheme, matcher, kind: filter.pattern.matches };
+         });
+         this._filters.set(data.id, minimatchFilter);
+diff --git a/node_modules/vscode-languageclient/lib/common/utils/globPattern.js b/node_modules/vscode-languageclient/lib/common/utils/globPattern.js
+index 6447228..87df60e 100644
+--- a/node_modules/vscode-languageclient/lib/common/utils/globPattern.js
++++ b/node_modules/vscode-languageclient/lib/common/utils/globPattern.js
+@@ -55,8 +55,5 @@ function matchGlobPattern(pattern, resource) {
+         }
+     }
+     const matcher = new minimatch.Minimatch(miniMatchPattern, { noext: true });
+-    if (!matcher.makeRe()) {
+-        return false;
+-    }
+     return matcher.match(resource.fsPath);
+ }

@@ -15,7 +15,7 @@
     "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.82.0"
+    "vscode": "^1.91.0"
   },
   "capabilities": {
     "untrustedWorkspaces": {
@@ -249,10 +249,10 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "webpack",
-    "compile:dev": "webpack --mode development",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile": "patch-package --error-on-fail && webpack",
+    "compile:dev": "patch-package --error-on-fail && webpack --mode development",
+    "watch": "patch-package --error-on-fail && webpack --watch",
+    "package": "patch-package --error-on-fail && webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -275,7 +275,8 @@
     "sync-schema": "node scripts/sync-schema.js",
     "create-icon": "node scripts/create-icon.js",
     "resize-icon": "node scripts/resize-icon.js",
-    "vsce:package": "vsce package"
+    "vsce:package": "vsce package",
+    "postinstall": "patch-package --error-on-fail"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -285,7 +286,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/sinon": "^22.0.0",
-    "@types/vscode": "^1.82.0",
+    "@types/vscode": "^1.91.0",
     "@types/which": "^3.0.4",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
@@ -304,11 +305,12 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.1",
     "webpack": "^5.111.1",
-    "webpack-cli": "^7.2.3"
+    "webpack-cli": "^7.2.3",
+    "patch-package": "^8.0.1"
   },
   "dependencies": {
     "smol-toml": "1.9.1",
-    "vscode-languageclient": "^9.0.1",
+    "vscode-languageclient": "11.0.0",
     "which": "^7.0.0"
   },
   "overrides": {
@@ -324,7 +326,9 @@
     },
     "@azure/identity": {
       "@azure/msal-node": "^7.1.2"
-    }
+    },
+    "glob@^13.0.0": "$glob",
+    "minimatch@^10.0.0": "^11.0.4"
   },
   "nyc": {
     "extends": "@istanbuljs/nyc-config-typescript",

@@ -18,20 +18,20 @@ These VS Code forks are built on older VS Code versions:
 
 The extension marketplace only shows versions compatible with the editor's base VS Code version. If `engines.vscode` is set too high, users on these editors will be stuck on old versions.
 
-### Current Requirements (as of v0.0.144)
+### Current Requirements
 
 ```json
 {
   "engines": {
-    "vscode": "^1.82.0"
+    "vscode": "^1.91.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.82.0"
+    "@types/vscode": "^1.91.0"
   }
 }
 ```
 
-The actual minimum is `^1.82.0` (from `vscode-languageclient@9.0.1`).
+The actual minimum is `^1.91.0` (from `vscode-languageclient@11.0.0`).
 
 ### Update Strategy
 

@@ -21,6 +21,7 @@ import { BundledToolsManager } from './bundledTools';
 import { DiagnosticLike, deduplicate } from './diagnosticDedup';
 import { DiagnosticPullGate } from './diagnosticPullGate';
 import { ServerRestartPolicy } from './restartPolicy';
+import { guardOutputChannel } from './serverLogs';
 
 /**
  * LSP initialization options sent to the rumdl server.
@@ -87,6 +88,8 @@ export function buildDiagnosticPullOptions(config: RumdlConfig): DiagnosticPullO
 
 export class RumdlLanguageClient implements vscode.Disposable {
   private client: LanguageClient | undefined;
+  private serverOutputChannel: vscode.LogOutputChannel | undefined;
+  private traceOutputChannel: vscode.LogOutputChannel | undefined;
   private statusBar: StatusBarManager;
   private isDisposed = false;
   private stopRequested = false;
@@ -179,7 +182,18 @@ export class RumdlLanguageClient implements vscode.Disposable {
       const initializationOptions = buildInitializationOptions(config);
       this.prepareDiagnosticPullGate(config);
 
+      this.serverOutputChannel ??= guardOutputChannel(
+        vscode.window.createOutputChannel('rumdl Language Server', { log: true })
+      );
+      if (ConfigurationManager.getTraceLevel() !== 'off') {
+        this.traceOutputChannel ??= guardOutputChannel(
+          vscode.window.createOutputChannel('rumdl Language Server Trace', { log: true })
+        );
+      }
       const clientOptions: LanguageClientOptions = {
+        // Retain logs across restarts. The guard also handles process-exit
+        // callbacks that arrive after stop() has resolved and disposal finishes.
+        outputChannel: this.serverOutputChannel,
         documentSelector: ALL_SUPPORTED_LANGUAGE_IDS.flatMap(language => [
           { scheme: 'file', language },
           { scheme: 'untitled', language },
@@ -208,9 +222,7 @@ export class RumdlLanguageClient implements vscode.Disposable {
           closed: () => ({ action: CloseAction.DoNotRestart }),
         },
         traceOutputChannel:
-          ConfigurationManager.getTraceLevel() !== 'off'
-            ? vscode.window.createOutputChannel('rumdl Language Server Trace')
-            : undefined,
+          ConfigurationManager.getTraceLevel() !== 'off' ? this.traceOutputChannel : undefined,
         diagnosticCollectionName: 'rumdl',
         diagnosticPullOptions: buildDiagnosticPullOptions(config),
         middleware: {
@@ -487,11 +499,21 @@ export class RumdlLanguageClient implements vscode.Disposable {
     this.stopRequested = true;
     this.lifecycleGeneration++;
     this.clearDiagnosticPullGate();
-    if (this.client) {
-      void this.client.stop().catch(error => {
-        Logger.error('Error disposing language client', error as Error);
-      });
-      this.client = undefined;
+    const client = this.client;
+    this.client = undefined;
+    const closeChannels = () => {
+      this.serverOutputChannel?.dispose();
+      this.traceOutputChannel?.dispose();
+    };
+    if (client) {
+      void client
+        .stop()
+        .catch(error => {
+          Logger.error('Error disposing language client', error as Error);
+        })
+        .finally(closeChannels);
+    } else {
+      closeChannels();
     }
   }
 }

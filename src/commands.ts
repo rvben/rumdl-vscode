@@ -534,7 +534,6 @@ export class CommandManager implements vscode.Disposable {
     discoveryReport += `\n🔧 Testing rumdl Configuration Discovery:\n`;
 
     try {
-      const { BundledToolsManager } = await import('./bundledTools');
       const rumdlPath = await BundledToolsManager.getBestRumdlPath(config.server.path);
 
       discoveryReport += `  • rumdl Path: ${rumdlPath}\n`;

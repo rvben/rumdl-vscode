@@ -23,6 +23,8 @@ A lightning-fast Markdown linter for VS Code powered by [rumdl](https://github.c
 
 ## Installation
 
+Requires VS Code 1.91 or later (or a compatible editor).
+
 ### From VS Code
 1. **Install the extension** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=rvben.rumdl)
 2. **That's it!** rumdl is bundled with the extension - no additional setup required
@@ -265,6 +267,19 @@ npm run compile
 # Run in development mode
 npm run watch
 ```
+
+### Dependency security
+
+The language client requires VS Code 1.91 or later. The scoped npm overrides
+replace glob 13 with the patched direct glob dependency and minimatch 10 with
+minimatch 11.0.4 or later. Upstream tools still request the vulnerable majors
+([glob advisory](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4),
+[minimatch advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249)).
+The language client is pinned while `patch-package` removes its two obsolete
+`makeRe()` checks; minimatch 11 performs matching without compiling a regular
+expression. Installation and webpack builds fail if that patch cannot be applied.
+Keep `npm audit` enabled; remove these overrides once upstream dependencies use
+the patched versions themselves.
 
 ### Testing
 
