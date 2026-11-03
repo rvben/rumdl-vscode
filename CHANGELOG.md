@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Compatibility:** VS Code 1.91.0 or newer is now required (previously 1.82.0). Older editors can continue using v0.1.30.
+
+### Fixed
+
+- Resolve transitive glob and minimatch security advisories, with regression coverage for file matching and language-server output during restarts.
+
 ## [0.1.30](https://github.com/rvben/rumdl-vscode/compare/v0.1.29...v0.1.30) - 2026-10-28
 
 ### Fixed
