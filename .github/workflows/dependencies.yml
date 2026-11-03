@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   update:
-    uses: rvben/upd/.github/workflows/dependency-health.yml@c3215394f3c07a0252e9c759eb23c8b83072f7b2 # v0.16.0
+    uses: rvben/upd/.github/workflows/dependency-health.yml@b183939ff7dc62539afb00b3c555ffbfe3c5d58b # v0.18.2
     with:
       langs: node,actions
       lock: true
@@ -23,3 +23,10 @@ jobs:
       fail-on-blocked: false
       branch: deps/upd
       commit-message: "chore(deps): weekly dependency update"
+      auto-merge: true
+      merge-method: squash
+      allowed-paths: >-
+        .github/workflows/*.yaml
+        .github/workflows/*.yml
+        package-lock.json
+        package.json
