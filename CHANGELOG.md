@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0](https://github.com/rvben/rumdl-vscode/compare/v0.1.30...v0.2.0) - 2026-11-03
 
 ### Changed
 
@@ -9,6 +9,11 @@
 ### Fixed
 
 - Resolve transitive glob and minimatch security advisories, with regression coverage for file matching and language-server output during restarts.
+- **deps**: upgrade glob to its patched major version ([46914bd](https://github.com/rvben/rumdl-vscode/commit/46914bd6a1e8c689e95adc22eca18a9e03060d69))
+
+### Breaking Changes
+
+- **deps**: resolve transitive glob and minimatch advisories ([2a054e7](https://github.com/rvben/rumdl-vscode/commit/2a054e798a3a048c1edb4cd38bcaf94b4e838405))
 
 ## [0.1.30](https://github.com/rvben/rumdl-vscode/compare/v0.1.29...v0.1.30) - 2026-10-28
 
