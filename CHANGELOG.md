@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2](https://github.com/rvben/rumdl-vscode/compare/v0.2.1...v0.2.2) - 2026-11-18
+
+### Added
+
+- add a setting to disable rumdl document symbols ([7629041](https://github.com/rvben/rumdl-vscode/commit/762904142ab11e521da4187c5551708a230908f2))
+
+### Fixed
+
+- **release**: respect protected main for extension releases ([2810e23](https://github.com/rvben/rumdl-vscode/commit/2810e234c85e4a97086b76367b0f98d7947c74ec))
+
 ## [0.2.1](https://github.com/rvben/rumdl-vscode/compare/v0.2.0...v0.2.1) - 2026-11-10
 
 ### Changed
