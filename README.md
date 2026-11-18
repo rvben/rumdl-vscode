@@ -158,6 +158,7 @@ The extension uses VS Code's standard configuration system. Open Settings (Cmd/C
 | `rumdl.linkCompletions.enable` | Provide file path and heading anchor completions inside markdown link targets | `true` |
 | `rumdl.linkCompletions.contentRoots` | Root directories used to resolve absolute link completions (paths starting with `/`). Relative entries resolve against each workspace folder. When empty, workspace folders are used. | `[]` |
 | `rumdl.linkNavigation.enable` | Provide hover preview, go-to-definition, find-references, and rename for markdown links. Disable to avoid conflicts with other markdown extensions. | `true` |
+| `rumdl.symbols.enable` | Provide document and workspace symbols for markdown headings; VS Code's built-in Markdown support already provides these, so enabling this only duplicates every heading. | `false` |
 
 ### Project Configuration
 

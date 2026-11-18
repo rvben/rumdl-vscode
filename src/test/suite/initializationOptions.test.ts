@@ -31,6 +31,7 @@ function makeConfig(overrides: Partial<RumdlConfig> = {}): RumdlConfig {
     diagnostics: { deduplicate: true },
     linkCompletions: { enable: true, contentRoots: [] },
     linkNavigation: { enable: true },
+    symbols: { enable: false },
     ...overrides,
   };
 }
@@ -61,6 +62,7 @@ suite('Initialization Options Tests', () => {
     expect(options).to.not.have.property('enable_auto_fix');
     expect(options).to.not.have.property('enable_rules');
     expect(options).to.not.have.property('disable_rules');
+    expect(options).to.not.have.property('enable_symbols');
 
     expect(options.configPath).to.equal('/custom/config.toml');
     expect(options.enableLinting).to.be.true;
@@ -161,6 +163,21 @@ suite('Initialization Options Tests', () => {
     expect(options.linkCompletionContentRoots).to.deep.equal(['/site', 'docs']);
   });
 
+  test('enableSymbols is always sent, false when the setting is off', () => {
+    const options = buildInitializationOptions(makeConfig());
+
+    // Unlike the optional fields above this one must never be omitted: the
+    // server defaults enableSymbols to true, so an absent field would turn
+    // rumdl's heading symbols (and duplicate outlines) back on.
+    expect(options).to.have.property('enableSymbols');
+    expect(options.enableSymbols).to.be.false;
+  });
+
+  test('enableSymbols is true when rumdl.symbols.enable is on', () => {
+    const options = buildInitializationOptions(makeConfig({ symbols: { enable: true } }));
+    expect(options.enableSymbols).to.be.true;
+  });
+
   test('all fields are populated together correctly', () => {
     const options = buildInitializationOptions(
       makeConfig({
@@ -169,6 +186,7 @@ suite('Initialization Options Tests', () => {
         rules: { enable: ['MD001'], disable: ['MD013'] },
         linkCompletions: { enable: true, contentRoots: [] },
         linkNavigation: { enable: false },
+        symbols: { enable: true },
       })
     );
 
@@ -179,5 +197,6 @@ suite('Initialization Options Tests', () => {
     expect(options.disableRules).to.deep.equal(['MD013']);
     expect(options.enableLinkCompletions).to.be.true;
     expect(options.enableLinkNavigation).to.be.false;
+    expect(options.enableSymbols).to.be.true;
   });
 });

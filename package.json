@@ -205,6 +205,11 @@
           "type": "boolean",
           "default": true,
           "description": "Provide hover preview, go-to-definition, find-references, and rename for markdown links. Disable to avoid conflicts with other markdown extensions that provide the same features."
+        },
+        "rumdl.symbols.enable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Provide document and workspace symbols for markdown headings; VS Code's built-in Markdown support already provides these, so enabling this only duplicates every heading."
         }
       }
     },

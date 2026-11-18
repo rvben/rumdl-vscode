@@ -38,6 +38,7 @@ export interface RumdlInitializationOptions {
   enableLinkCompletions: boolean;
   linkCompletionContentRoots: string[] | undefined;
   enableLinkNavigation: boolean;
+  enableSymbols: boolean;
 }
 
 /**
@@ -62,6 +63,7 @@ export function buildInitializationOptions(config: RumdlConfig): RumdlInitializa
         ? config.linkCompletions.contentRoots
         : undefined,
     enableLinkNavigation: config.linkNavigation.enable,
+    enableSymbols: config.symbols.enable,
   };
 }
 
