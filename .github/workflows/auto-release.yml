@@ -1,7 +1,6 @@
 name: Release Extension
 
-# Every step runs a `make` target so the whole release is reproducible locally.
-# Versioning, changelog, tag, and push are handled by vership (`make release-*`).
+# Dispatch prepares a PR. A vership tag on the merged release commit publishes it.
 
 on:
   push:
@@ -32,136 +31,183 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Dry run (preview the bump; skip build/publish)'
+        description: 'Preview the release without pushing'
         required: false
         default: false
         type: boolean
 
+concurrency:
+  group: extension-release-${{ github.event_name == 'push' && github.ref || 'prepare' }}
+  cancel-in-progress: false
+
 jobs:
-  # Phase 1: update bundled rumdl (if needed), then bump + changelog + tag + push via vership.
   prepare:
+    if: github.event_name == 'repository_dispatch' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    outputs:
-      release_mode: ${{ steps.meta.outputs.release_mode }}
-      version_bump: ${{ steps.meta.outputs.version_bump }}
-      rumdl_version: ${{ steps.meta.outputs.rumdl_version }}
-      new_version: ${{ steps.bump.outputs.new_version }}
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
         with:
-          # Keep GITHUB_TOKEN: CI-created tags must not start a second release run.
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0 # vership needs full history + tags to build the changelog
+          ref: main
+          fetch-depth: 0 # vership needs history and tags for the changelog
 
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
 
-      # vership drives version bump + changelog + tag + push.
-      # Swap for a prebuilt-binary install if one is available for faster CI.
       - uses: dtolnay/rust-toolchain@stable
-        if: github.event_name != 'push'
       - name: Install vership
-        if: github.event_name != 'push'
         run: cargo install vership --locked
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Determine release metadata
         id: meta
+        env:
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+          INPUT_MODE: ${{ inputs.release_mode }}
+          INPUT_BUMP: ${{ inputs.version_bump }}
+          INPUT_VERSION: ${{ inputs.rumdl_version }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = repository_dispatch ]; then
             RELEASE_MODE="rumdl-update"
-            VERSION_BUMP="patch"
-            VERSION="${{ github.event.client_payload.version }}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            RELEASE_MODE="prepared"
-            VERSION_BUMP=""
-            VERSION=""
+            VERSION_BUMP='patch'
+            RUMDL_VERSION="$DISPATCH_VERSION"
           else
-            RELEASE_MODE="${{ inputs.release_mode }}"
-            VERSION_BUMP="${{ inputs.version_bump }}"
-            VERSION="${{ inputs.rumdl_version }}"
+            RELEASE_MODE="$INPUT_MODE"
+            VERSION_BUMP="$INPUT_BUMP"
+            RUMDL_VERSION="$INPUT_VERSION"
           fi
-          if [ "$RELEASE_MODE" = "rumdl-update" ] && [ -z "$VERSION" ]; then
-            echo "::error::rumdl_version is required for a rumdl-update release"
-            exit 1
-          fi
-          {
-            echo "release_mode=$RELEASE_MODE"
-            echo "version_bump=$VERSION_BUMP"
-            echo "rumdl_version=$VERSION"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Verify rumdl release exists
-        if: ${{ steps.meta.outputs.release_mode == 'rumdl-update' }}
-        run: |
-          for i in 1 2 3; do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/rvben/rumdl/releases/tags/v${{ steps.meta.outputs.rumdl_version }}")
-            if [ "$CODE" = "200" ]; then exit 0; fi
-            echo "rumdl v${{ steps.meta.outputs.rumdl_version }} not found yet (attempt $i/3), waiting for API propagation..."
-            sleep 60
-          done
-          echo "::error::rumdl v${{ steps.meta.outputs.rumdl_version }} not found on GitHub releases"
-          exit 1
-
-      - name: Update bundled rumdl + schema
-        if: ${{ steps.meta.outputs.release_mode == 'rumdl-update' && !inputs.dry_run }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          make set-rumdl-version RUMDL_VERSION=${{ steps.meta.outputs.rumdl_version }}
-          make schema
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add scripts/download-rumdl.js
-          git add -f schemas/ 2>/dev/null || true
-          # sync-schema also regenerates src/configSchema.ts; stage it too so the tree
-          # is clean before vership's pre-flight runs in the next step.
-          git add src/configSchema.ts
-          git commit -m "chore: update bundled rumdl to v${{ steps.meta.outputs.rumdl_version }}"
-
-      - name: Release gate (lint + compile tests)
-        run: make check
-
-      - name: Bump version, changelog, tag, push
-        id: bump
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # A tag pushed by vership already names the prepared release commit.
-          # Validate it and publish it without preparing a second version.
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            VERSION=$(node -p "require('./package.json').version")
-            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-              echo "::error::Release tag does not match package.json version"
-              exit 1
-            fi
-            echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          VERSION_BUMP="${{ steps.meta.outputs.version_bump }}"
           case "$VERSION_BUMP" in
             patch|minor|major) ;;
-            *) echo "::error::Unsupported version bump: $VERSION_BUMP"; exit 1 ;;
+            *) echo "::error::Unsupported version bump"; exit 1 ;;
           esac
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            make "release-$VERSION_BUMP" VERSHIP_ARGS="--skip-checks --dry-run"
-          else
-            make "release-$VERSION_BUMP" VERSHIP_ARGS="--skip-checks"
+          if [ "$RELEASE_MODE" = rumdl-update ]; then
+            if ! [[ "$RUMDL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::rumdl_version must be a version such as 0.3.5"
+              exit 1
+            fi
+            if [ "$GITHUB_EVENT_NAME" = repository_dispatch ] &&
+                grep -Fq "const RUMDL_VERSION = '$RUMDL_VERSION';" scripts/download-rumdl.js; then
+              echo "rumdl $RUMDL_VERSION is already bundled."
+              exit 0
+            fi
+            echo "rumdl_version=$RUMDL_VERSION" >> "$GITHUB_OUTPUT"
           fi
-          echo "new_version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "version_bump=$VERSION_BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.meta.outputs.version_bump != ''
+        run: npm ci
+
+      - name: Update bundled rumdl and schema
+        if: steps.meta.outputs.rumdl_version != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUMDL_VERSION: ${{ steps.meta.outputs.rumdl_version }}
+        run: |
+          set -euo pipefail
+          make set-rumdl-version RUMDL_VERSION="$RUMDL_VERSION"
+          make schema
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add scripts/download-rumdl.js src/configSchema.ts
+            git add -u schemas/
+            git commit -m "chore: update bundled rumdl to v$RUMDL_VERSION"
+          fi
+
+      - name: Release gate
+        if: steps.meta.outputs.version_bump != ''
+        run: |
+          node scripts/audit-dependencies.mjs
+          make check
+
+      - name: Prepare release
+        if: steps.meta.outputs.version_bump != ''
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          VERSION_BUMP: ${{ steps.meta.outputs.version_bump }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          args=(--skip-checks)
+          if [ "$DRY_RUN" = true ]; then
+            args+=(--dry-run)
+          fi
+          vership bump "$VERSION_BUMP" --prepare "${args[@]}"
+
+      - name: Open release pull request
+        if: steps.meta.outputs.version_bump != '' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUMDL_VERSION: ${{ steps.meta.outputs.rumdl_version }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/v$VERSION"
+          EXISTING=$(gh pr list --head "$BRANCH" --base main --json url --jq '.[0].url // empty')
+          if [ -n "$EXISTING" ]; then
+            if [ -n "$RUMDL_VERSION" ]; then
+              git fetch origin "refs/heads/$BRANCH"
+              if ! git show FETCH_HEAD:scripts/download-rumdl.js | grep -F "const RUMDL_VERSION = '$RUMDL_VERSION';" >/dev/null; then
+                echo "::error::The pending release PR bundles a different rumdl version: $EXISTING"
+                exit 1
+              fi
+            fi
+            echo "A release PR already exists for v$VERSION: $EXISTING"
+            exit 0
+          fi
+          git push origin "HEAD:refs/heads/$BRANCH"
+          gh pr create --head "$BRANCH" --base main --title "chore: prepare release v$VERSION" --body-file - <<EOF
+          Prepare extension v$VERSION with vership.
+
+          Approve the workflow runs if GitHub requests it, then merge once validate and test pass.
+          To publish, run \`vership release\` from the updated main checkout. The v$VERSION tag starts the build and publishing workflow.
+          EOF
+
+  tagged-release:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.version.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Validate tagged release
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "::error::Release tag does not match package.json version"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::The tag must identify a commit merged into main"
+            exit 1
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Release gate
+        run: |
+          npm ci
+          node scripts/audit-dependencies.mjs
+          make check
 
   # Phase 2: build platform-specific VSIX packages in parallel.
   build:
-    needs: prepare
-    if: ${{ !inputs.dry_run }}
+    needs: tagged-release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -179,7 +225,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: refs/tags/v${{ needs.prepare.outputs.new_version }}
+          ref: ${{ needs.tagged-release.outputs.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -198,15 +244,15 @@ jobs:
   # Open VSX and GitHub still run after a Marketplace failure, but only with
   # validated artifacts.
   publish:
-    needs: [prepare, build]
-    if: ${{ !inputs.dry_run && !cancelled() && needs.prepare.result == 'success' && needs.build.result == 'success' }}
+    needs: [tagged-release, build]
+    if: ${{ !cancelled() && needs.tagged-release.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: refs/tags/v${{ needs.prepare.outputs.new_version }}
+          ref: ${{ needs.tagged-release.outputs.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -242,14 +288,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make github-release
-
-  dry-run-summary:
-    needs: prepare
-    if: ${{ inputs.dry_run }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Summary
-        run: |
-          echo "Dry run complete for '${{ needs.prepare.outputs.release_mode }}' mode."
-          echo "Previewed the '${{ needs.prepare.outputs.version_bump }}' version bump and changelog via 'vership bump --dry-run'."
-          echo "No commit, tag, build, or publish was performed."

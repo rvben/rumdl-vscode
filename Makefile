@@ -19,9 +19,9 @@ help:
 	@echo "  test                - Full suite: format check, lint, compile tests, vscode-test"
 	@echo "  fmt                 - Format and auto-fix"
 	@echo "Release (vership):"
-	@echo "  release-patch       - Bump patch, changelog, tag, push"
-	@echo "  release-minor       - Bump minor, changelog, tag, push"
-	@echo "  release-major       - Bump major, changelog, tag, push"
+	@echo "  release-patch       - Prepare patch version and changelog"
+	@echo "  release-minor       - Prepare minor version and changelog"
+	@echo "  release-major       - Prepare major version and changelog"
 	@echo "  changelog           - Preview the unreleased changelog"
 	@echo "Bundled rumdl:"
 	@echo "  set-rumdl-version RUMDL_VERSION=x.y.z - pin the bundled rumdl version"
@@ -68,19 +68,19 @@ fmt:
 	npm run fmt
 
 # ---------------------------------------------------------------------------
-# Release orchestration (vership: bump + changelog + tag + push)
+# Release orchestration (vership: prepare version and changelog)
 # ---------------------------------------------------------------------------
 .PHONY: release-patch
 release-patch:
-	vership bump patch $(VERSHIP_ARGS)
+	vership bump patch --prepare $(VERSHIP_ARGS)
 
 .PHONY: release-minor
 release-minor:
-	vership bump minor $(VERSHIP_ARGS)
+	vership bump minor --prepare $(VERSHIP_ARGS)
 
 .PHONY: release-major
 release-major:
-	vership bump major $(VERSHIP_ARGS)
+	vership bump major --prepare $(VERSHIP_ARGS)
 
 .PHONY: changelog
 changelog:
