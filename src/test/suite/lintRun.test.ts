@@ -21,6 +21,7 @@ function makeConfig(run: 'onType' | 'onSave'): RumdlConfig {
     diagnostics: { deduplicate: true },
     linkCompletions: { enable: true, contentRoots: [] },
     linkNavigation: { enable: true },
+    symbols: { enable: false },
   };
 }
 

@@ -32,6 +32,9 @@ export interface RumdlConfig {
   linkNavigation: {
     enable: boolean;
   };
+  symbols: {
+    enable: boolean;
+  };
 }
 
 export function shouldRunLanguageServer(enabled: boolean, workspaceTrusted: boolean): boolean {
@@ -71,6 +74,11 @@ export class ConfigurationManager {
       },
       linkNavigation: {
         enable: config.get('linkNavigation.enable', true),
+      },
+      // Opt-in: VS Code's built-in Markdown support already lists headings, so
+      // rumdl's symbols would only add a duplicate outline.
+      symbols: {
+        enable: config.get('symbols.enable', false),
       },
     };
   }

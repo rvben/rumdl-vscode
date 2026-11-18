@@ -64,6 +64,7 @@ suite('Configuration Tests', () => {
     expect(config).to.have.property('diagnostics');
     expect(config).to.have.property('linkCompletions');
     expect(config).to.have.property('linkNavigation');
+    expect(config).to.have.property('symbols');
     // path can be undefined (not configured) or a string
     if (config.server.path !== undefined) {
       expect(config.server.path).to.be.a('string');
@@ -104,6 +105,23 @@ suite('Configuration Tests', () => {
     expect(config.linkNavigation.enable).to.be.false;
 
     await vsConfig.update('linkNavigation.enable', true, vscode.ConfigurationTarget.Global);
+  });
+
+  test('getConfiguration should return default false for symbols.enable', () => {
+    const config = ConfigurationManager.getConfiguration();
+    expect(config.symbols.enable).to.be.false;
+  });
+
+  test('getConfiguration should return true for symbols.enable when set to true', async () => {
+    const vsConfig = vscode.workspace.getConfiguration('rumdl');
+    await vsConfig.update('symbols.enable', true, vscode.ConfigurationTarget.Global);
+
+    try {
+      expect(ConfigurationManager.getConfiguration().symbols.enable).to.be.true;
+    } finally {
+      // Back to the declared default (false) rather than an explicit override.
+      await vsConfig.update('symbols.enable', undefined, vscode.ConfigurationTarget.Global);
+    }
   });
 
   test('getConfiguration should default lint.run to onType', () => {
