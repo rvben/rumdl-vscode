@@ -1608,7 +1608,7 @@
           "default": {}
         },
         "language-aliases": {
-          "description": "User-defined language aliases (override built-in resolution)\nExample: { \"py\": \"python\", \"bash\": \"shell\" }",
+          "description": "User-defined language aliases (override built-in resolution)\nFor example, `language-aliases = { py = \"python\", bash = \"shell\" }`.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -1907,7 +1907,7 @@
       "type": "object",
       "properties": {
         "style": {
-          "description": "The heading style to enforce (default: \"consistent\") One of `atx`, `atx-closed`, `setext1`, `setext2`, `consistent`, `setext-with-atx`, `setext-with-atx-closed`.",
+          "description": "The heading style to enforce (default: \"consistent\") One of `atx`, `atx-closed`, `setext1`, `setext2`, `consistent`, `setext-with-atx`, `setext-with-atx-closed`, `setext`.",
           "type": "string",
           "default": "consistent"
         },
@@ -2015,6 +2015,16 @@
           "type": "integer",
           "default": 2,
           "minimum": 0
+        },
+        "hard-break-style": {
+          "description": "Source spelling of hard line breaks (default: preserve). One of `preserve`, `backslash`.",
+          "default": "preserve",
+          "type": "string"
+        },
+        "hard_break_style": {
+          "description": "Source spelling of hard line breaks (default: preserve). One of `preserve`, `backslash`.",
+          "default": "preserve",
+          "type": "string"
         },
         "list-item-empty-lines": {
           "description": "Allow trailing spaces in empty list item lines (default: false)",
@@ -3023,6 +3033,16 @@
       "description": "No bare URLs - wrap URLs in angle brackets",
       "type": "object",
       "properties": {
+        "cjk-punctuation": {
+          "description": "End a bare URL or XMPP URI right before full-width or CJK punctuation\n(`、`, `。`, `）` and others) instead of running on through it. Off by\ndefault: the same punctuation can be part of an internationalized URL,\nand cutting it there would change where an existing bare link points.",
+          "type": "boolean",
+          "default": false
+        },
+        "cjk_punctuation": {
+          "description": "End a bare URL or XMPP URI right before full-width or CJK punctuation\n(`、`, `。`, `）` and others) instead of running on through it. Off by\ndefault: the same punctuation can be part of an internationalized URL,\nand cutting it there would change where an existing bare link points.",
+          "type": "boolean",
+          "default": false
+        },
         "severity": {
           "$ref": "#/$defs/Severity"
         },
@@ -3248,20 +3268,20 @@
           "default": false
         },
         "front-matter-title": {
-          "description": "Front matter title field to check (default: \"title\")\nSet to empty string to disable front matter title checking",
+          "description": "Field name or regular expression for the front matter title (default: \"title\").\nAn empty string disables front matter title detection.",
           "type": "string",
           "default": "title"
         },
         "front_matter_title": {
-          "description": "Front matter title field to check (default: \"title\")\nSet to empty string to disable front matter title checking",
+          "description": "Field name or regular expression for the front matter title (default: \"title\").\nAn empty string disables front matter title detection.",
           "type": "string",
           "default": "title"
         },
         "front-matter-title-pattern": {
-          "description": "Optional regex pattern for front matter title field (default: None)\nIf provided, checks for this pattern in front matter instead of \"title:\""
+          "description": "Regular expression matched against each front matter line.\nTakes precedence over a non-empty front-matter-title setting."
         },
         "front_matter_title_pattern": {
-          "description": "Optional regex pattern for front matter title field (default: None)\nIf provided, checks for this pattern in front matter instead of \"title:\""
+          "description": "Regular expression matched against each front matter line.\nTakes precedence over a non-empty front-matter-title setting."
         },
         "level": {
           "description": "The required heading level (default: 1)",
@@ -3512,6 +3532,16 @@
           "type": "boolean",
           "default": false
         },
+        "html-comments": {
+          "description": "Also check the fragments of inline links written inside HTML comments.\n\nOff by default: a comment is not rendered, so a link in one is not a\nlink the reader can follow. A `#heading` link resolves against this\ndocument's headings and a `file.md#heading` link against the other\nfile's, as a link in the text does. A heading written inside a comment\nis never an anchor. Only inline links are read; images, autolinks,\nreference links and linter directive comments are not, and nothing\ninside a comment is ever rewritten.\n\nExample:\n```toml\n[MD051]\nhtml-comments = true\n```",
+          "type": "boolean",
+          "default": false
+        },
+        "html_comments": {
+          "description": "Also check the fragments of inline links written inside HTML comments.\n\nOff by default: a comment is not rendered, so a link in one is not a\nlink the reader can follow. A `#heading` link resolves against this\ndocument's headings and a `file.md#heading` link against the other\nfile's, as a link in the text does. A heading written inside a comment\nis never an anchor. Only inline links are read; images, autolinks,\nreference links and linter directive comments are not, and nothing\ninside a comment is ever rewritten.\n\nExample:\n```toml\n[MD051]\nhtml-comments = true\n```",
+          "type": "boolean",
+          "default": false
+        },
         "ignore-case": {
           "description": "Match link fragments against headings case-insensitively.\n\nrumdl defaults to `true` (permissive matching), which deviates from\nmarkdownlint's default of `false`. Set this to `false` for strict\nmarkdownlint parity.",
           "type": "boolean",
@@ -3732,6 +3762,16 @@
           "type": "boolean",
           "default": false
         },
+        "html-comments": {
+          "description": "Also check inline links written inside HTML comments.\n\nOff by default: a comment is not rendered, so a link in one is not a\nlink the reader can follow. Enable it for projects that keep links in\ncomments to bring back later or to hand to another tool, and want them\nkept valid. Only inline links are read (`[text](path)`); images,\nautolinks, reference links and linter directive comments are not.\nNothing inside a comment is ever rewritten.\n\nExample:\n```toml\n[MD057]\nhtml-comments = true\n```",
+          "type": "boolean",
+          "default": false
+        },
+        "html_comments": {
+          "description": "Also check inline links written inside HTML comments.\n\nOff by default: a comment is not rendered, so a link in one is not a\nlink the reader can follow. Enable it for projects that keep links in\ncomments to bring back later or to hand to another tool, and want them\nkept valid. Only inline links are read (`[text](path)`); images,\nautolinks, reference links and linter directive comments are not.\nNothing inside a comment is ever rewritten.\n\nExample:\n```toml\n[MD057]\nhtml-comments = true\n```",
+          "type": "boolean",
+          "default": false
+        },
         "ignore-frontmatter-fields": {
           "description": "Top-level frontmatter keys whose values are not checked. Matched\ncase-insensitively. A parent key excludes its whole subtree. Applies\nonly when `check-frontmatter` is enabled.",
           "type": "array",
@@ -3795,6 +3835,16 @@
       "description": "Tables should be surrounded by blank lines",
       "type": "object",
       "properties": {
+        "list-items": {
+          "description": "Whether to require blank lines around tables inside list items.",
+          "type": "boolean",
+          "default": true
+        },
+        "list_items": {
+          "description": "Whether to require blank lines around tables inside list items.",
+          "type": "boolean",
+          "default": true
+        },
         "minimum-after": {
           "description": "Minimum number of blank lines after tables",
           "type": "integer",
@@ -4271,8 +4321,27 @@
           "type": "boolean",
           "description": "Enables or disables this rule."
         },
+        "key-order": {
+          "description": "Custom key order. Keys listed here will be sorted in this order.\nKeys not in this list will be sorted alphabetically after the specified keys.\nIf not set, all keys are sorted alphabetically (case-insensitive).\n\nExample: `key_order = [\"title\", \"date\", \"author\", \"tags\"]`",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "key_order": {
-          "description": "Custom key order. Keys listed here will be sorted in this order.\nKeys not in this list will be sorted alphabetically after the specified keys.\nIf not set, all keys are sorted alphabetically (case-insensitive).\n\nExample: `key_order = [\"title\", \"date\", \"author\", \"tags\"]`"
+          "description": "Custom key order. Keys listed here will be sorted in this order.\nKeys not in this list will be sorted alphabetically after the specified keys.\nIf not set, all keys are sorted alphabetically (case-insensitive).\n\nExample: `key_order = [\"title\", \"date\", \"author\", \"tags\"]`",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required-keys": {
+          "description": "Keys that must be present in the frontmatter. Each missing key is\nreported, matched case-insensitively against top-level keys (like\n`key_order`). Independent of `key_order`: you can order many keys while\nrequiring only a few. These warnings carry no fix because rumdl cannot\ninvent meaningful values for missing keys.\n\nOnly applies to files that have frontmatter; requiring frontmatter to\nexist at all is out of scope for this rule.\n\nExample: `required_keys = [\"title\", \"date\"]`",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
         "required_keys": {
           "description": "Keys that must be present in the frontmatter. Each missing key is\nreported, matched case-insensitively against top-level keys (like\n`key_order`). Independent of `key_order`: you can order many keys while\nrequiring only a few. These warnings carry no fix because rumdl cannot\ninvent meaningful values for missing keys.\n\nOnly applies to files that have frontmatter; requiring frontmatter to\nexist at all is out of scope for this rule.\n\nExample: `required_keys = [\"title\", \"date\"]`",
@@ -4656,6 +4725,26 @@
             "type": "string"
           },
           "default": []
+        },
+        "check-frontmatter": {
+          "description": "Reports matching characters in front matter without applying fixes.",
+          "type": "boolean",
+          "default": false
+        },
+        "check_frontmatter": {
+          "description": "Reports matching characters in front matter without applying fixes.",
+          "type": "boolean",
+          "default": false
+        },
+        "code-blocks": {
+          "description": "Reports matching characters in fenced and indented code blocks and\ninline code spans without applying fixes.",
+          "type": "boolean",
+          "default": false
+        },
+        "code_blocks": {
+          "description": "Reports matching characters in fenced and indented code blocks and\ninline code spans without applying fixes.",
+          "type": "boolean",
+          "default": false
         },
         "normalize-dashes": {
           "description": "Enables linting and autofix for look-alike dashes.",
