@@ -501,7 +501,7 @@ export class ConfigValidator {
                 message: `Rule names in '${key}' must be strings`,
                 severity: vscode.DiagnosticSeverity.Error,
               });
-            } else if (!this.resolveRuleName(ruleName)) {
+            } else if (ruleName.toUpperCase() !== 'ALL' && !this.resolveRuleName(ruleName)) {
               errors.push({
                 line,
                 column: 0,

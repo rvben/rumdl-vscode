@@ -53,22 +53,25 @@ select = ["MD001"`;
     expect(result.errors).to.have.length.greaterThan(0);
   });
 
-  test('validateToml should validate rule names', () => {
-    const tomlWithBadRule = `[global]
-enable = ["MD999", "INVALID"]`;
+  for (const key of [
+    'enable',
+    'extend-enable',
+    'disable',
+    'extend-disable',
+    'fixable',
+    'unfixable',
+  ]) {
+    test(`validateToml accepts ALL in ${key} and still reports unknown rules`, () => {
+      const result = ConfigValidator.validateToml(
+        `[global]\n${key} = ["ALL", "aLl", "MD001", "AL", "MD0O1"]`
+      );
 
-    const result = ConfigValidator.validateToml(tomlWithBadRule);
-
-    // Note: The current validator may not validate rule names
-    // If it doesn't, we'll just check that it parses without crashing
-    expect(result).to.exist;
-    expect(result.errors).to.be.an('array');
-
-    // If it does validate rule names, check for errors
-    if (result.errors.length > 0) {
-      expect(result.errors[0].message).to.exist;
-    }
-  });
+      expect(result.errors.map(error => error.message)).to.deep.equal([
+        `Unknown rule 'AL' in '${key}'`,
+        `Unknown rule 'MD0O1' in '${key}'`,
+      ]);
+    });
+  }
 
   test('validateToml should validate global section', () => {
     const tomlWithGlobal = `[global]

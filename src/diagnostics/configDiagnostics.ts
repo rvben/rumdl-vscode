@@ -7,6 +7,7 @@ import { ConfigValidator } from '../configValidator';
  */
 export class ConfigDiagnosticProvider implements vscode.Disposable {
   private diagnosticCollection: vscode.DiagnosticCollection;
+  private pending = new Map<string, NodeJS.Timeout>();
   private disposables: vscode.Disposable[] = [];
 
   constructor() {
@@ -47,7 +48,26 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
     this.disposables.push(
       vscode.workspace.onDidCloseTextDocument(document => {
         if (this.isConfigFile(document)) {
-          this.diagnosticCollection.delete(document.uri);
+          this.clearDocument(document.uri);
+        }
+      })
+    );
+
+    // A deleted file can remain loaded after its editor closes.
+    this.disposables.push(
+      vscode.workspace.onDidDeleteFiles(event => {
+        for (const document of vscode.workspace.textDocuments) {
+          const uri = document.uri;
+          if (
+            event.files.some(
+              deleted =>
+                uri.scheme === deleted.scheme &&
+                uri.authority === deleted.authority &&
+                (uri.path === deleted.path || uri.path.startsWith(deleted.path + '/'))
+            )
+          ) {
+            this.clearDocument(uri);
+          }
         }
       })
     );
@@ -73,11 +93,7 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
    */
   private isConfigFile(document: vscode.TextDocument): boolean {
     const fileName = path.basename(document.fileName);
-    return (
-      fileName === '.rumdl.toml' ||
-      fileName === 'rumdl.toml' ||
-      (fileName === 'pyproject.toml' && this.hasPyprojectRumdlSection(document))
-    );
+    return fileName === '.rumdl.toml' || fileName === 'rumdl.toml' || fileName === 'pyproject.toml';
   }
 
   /**
@@ -102,9 +118,24 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
   /**
    * Debounced document validation
    */
-  private validateDocumentDebounced = this.debounce((document: unknown) => {
-    this.validateDocument(document as vscode.TextDocument);
-  }, 500);
+  private validateDocumentDebounced(document: vscode.TextDocument): void {
+    const key = document.uri.toString();
+    clearTimeout(this.pending.get(key));
+    this.pending.set(
+      key,
+      setTimeout(() => {
+        this.pending.delete(key);
+        this.validateDocument(document);
+      }, 500)
+    );
+  }
+
+  private clearDocument(uri: vscode.Uri): void {
+    const key = uri.toString();
+    clearTimeout(this.pending.get(key));
+    this.pending.delete(key);
+    this.diagnosticCollection.delete(uri);
+  }
 
   /**
    * Validate a configuration document
@@ -138,22 +169,11 @@ export class ConfigDiagnosticProvider implements vscode.Disposable {
     this.diagnosticCollection.set(document.uri, diagnostics);
   }
 
-  /**
-   * Debounce helper function
-   */
-  private debounce<T extends (...args: unknown[]) => void>(
-    func: T,
-    wait: number
-  ): (...args: Parameters<T>) => void {
-    let timeout: NodeJS.Timeout;
-
-    return (...args: Parameters<T>) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  }
-
   dispose(): void {
+    for (const timeout of this.pending.values()) {
+      clearTimeout(timeout);
+    }
+    this.pending.clear();
     this.disposables.forEach(d => d.dispose());
   }
 }
